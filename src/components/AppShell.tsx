@@ -1,48 +1,31 @@
-import { Button } from '@astryxdesign/core/Button'
-import { Link, useNavigate } from '@tanstack/react-router'
-import { useServerFn } from '@tanstack/react-start'
+import { Link, useRouterState } from '@tanstack/react-router'
+import { Plus, Search } from 'lucide-react'
 import type { ReactNode } from 'react'
 
-import { logoutRice } from '~/lib/api'
-import { useStoredSession } from '~/lib/session'
-
 export function AppShell({ children }: { children: ReactNode }) {
-  const { session, isReady, saveSession } = useStoredSession()
-  const logout = useServerFn(logoutRice)
-  const navigate = useNavigate()
-
-  const handleLogout = async () => {
-    if (session) await logout({ data: session.token }).catch(() => undefined)
-    saveSession(null)
-    await navigate({ to: '/login' })
-  }
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const isStandalone = ['/login', '/post', '/search', '/compose'].includes(pathname)
 
   return (
-    <div className="app-shell">
-      <header className="topbar">
+    <div className={`app-shell ${isStandalone ? 'standalone-shell' : ''}`}>
+      {!isStandalone ? <header className="topbar">
         <Link to="/" className="brand" aria-label="返回乡建 DAO 广场">
-          乡建 DAO
+          <span>乡建</span><small>DAO</small>
         </Link>
         <div className="topbar-actions">
-          {isReady && session ? (
-            <Button
-              label="退出"
-              variant="ghost"
-              size="lg"
-              className="header-button"
-              onClick={handleLogout}
-            />
-          ) : (
-            <Link to="/login" className="login-link">
-              登录
-            </Link>
-          )}
+          <Link className="header-publish" to="/compose">
+            <Plus size={18} aria-hidden="true" />
+            发布
+          </Link>
+          <Link to="/search" className="header-search" aria-label="搜索">
+            <Search size={22} aria-hidden="true" />
+          </Link>
         </div>
-      </header>
+      </header> : null}
 
       <main className="page-frame">{children}</main>
 
-      <nav className="bottom-nav" aria-label="主要导航">
+      {!isStandalone ? <nav className="bottom-nav" aria-label="主要导航">
         <Link to="/" className="bottom-link" activeProps={{ className: 'bottom-link active' }}>
           广场
         </Link>
@@ -58,7 +41,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           className="bottom-link"
           activeProps={{ className: 'bottom-link active' }}
         >
-          通知
+          消息
         </Link>
         <Link
           to="/me"
@@ -67,7 +50,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           我的
         </Link>
-      </nav>
+      </nav> : null}
     </div>
   )
 }

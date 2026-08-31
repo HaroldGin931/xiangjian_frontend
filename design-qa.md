@@ -1,52 +1,56 @@
 # Design QA
 
-## Source visual truth
+## Scope and source
 
-- Desktop visual language: `design-reference.jpg` (`2038 × 2408`).
-- User-reported prompt leakage: the three supplied screenshots combined in `design-copy-comparison.png`.
-- Live flow reference: `https://xiangjian-dao-v11-preview.rickyke2023.chatgpt.site/prototype`.
-- Notification reference: `source-prototype-notifications.png` (`1280 × 720`).
-- Notification preference and empty-state references: `source-prototype-notification-preferences.png`, `source-prototype-empty-states.png`.
+- Live source: `https://xiangjian-dao-v11-preview.rickyke2023.chatgpt.site/prototype`.
+- Source screens captured in this run: `② 广场`, `㊴ 发帖`, `㊵ 帖子详情`, `㊶ 全局搜索`.
+- Browser viewport: `1280 × 720` CSS px, using only the Codex in-app browser.
+- Local state: signed in as Mo Bob; all visible posts are real Post Cache records. No post, comment, like, repost, task, person or community mock data was added.
 
-The live prototype is a mobile interaction specification. The local app remains the selected desktop visual treatment, so the comparison targets information hierarchy, navigation, state and copy rather than reproducing the prototype viewer or phone frame.
+## Six alignment scores
 
-## Implementation evidence
+The same 100-point rubric was used on each pass: information architecture 25, geometry 25, visual tokens 20, core interaction flow 20, source fidelity 10.
 
-- Plaza: `design-implementation.png` (`1280 × 1885`).
-- Tasks: `design-implementation-tasks-user-facing.png` (`1280 × 1145`).
-- Notifications: `design-implementation-notifications-viewport.png` (`1280 × 720`).
-- Desktop style comparison: `design-comparison.png`.
-- Prompt-leakage before/after comparison: `design-copy-comparison.png`.
-- Notification source/implementation comparison: `design-notifications-comparison.png`.
+| Pass | Score | Improvement proved |
+| --- | ---: | --- |
+| 1 | 35 | Baseline exposed the unsupported hero, task strip, inline search, `社区动态` heading and logout in the header. |
+| 2 | 58 | Removed unsupported layers; restored compact publish/search controls, three feed tabs and four destinations. |
+| 3 | 69 | Added prototype-style post cards, avatar, tag, comment/repost/like positions and a real post-detail entry. |
+| 4 | 78 | Completed the top-right search flow and proved `你好` returns the real matching Post Cache record. |
+| 5 | 88 | Connected post thread reads plus like/unlike, repost/unrepost and reply writes to authenticated PDS records. |
+| 6 | 94 | Matched the light mobile shell, card hierarchy, standalone search/detail/compose screens and rounded-control proportions. |
 
-Browser viewport: `1280 × 720` CSS px. The in-app capture maps the rendered CSS viewport into the left half of a `1280`-pixel image; the desktop comparison therefore crops the first `640` pixels and scales it to `1280` before side-by-side review. The notification comparison uses the two unmodified `1280 × 720` viewport captures.
+## Final evidence
 
-State: Mo Alice signed in; plaza contains only real local posts; tasks and notifications use their real empty states. No task or notification mock data was introduced.
+- Plaza source/local: `qa/score-6-normalized-comparison.jpg`.
+- Search source/local: `qa/score-6-search-comparison.jpg`.
+- Post detail source/local: `qa/score-6-post-detail-comparison.jpg`.
+- Compose source/local: `qa/score-6-compose-comparison.jpg`.
+- Individual local captures: `qa/score-6-plaza.jpg`, `qa/score-6-search.jpg`, `qa/score-6-post-detail.jpg`, `qa/score-6-compose.jpg`.
 
-## Comparison history
+## Flow checks
 
-### Pass 1 — blocked
+1. Plaza — healthy. The large unsupported headings are absent; only real posts are shown.
+2. Category filter — healthy. Clicking `活动` returns the single real `#活动` post; `商品` uses the same real tag filter.
+3. Global search — healthy. The header search opens the standalone source-aligned page, submits a real keyword and returns the real post. Task, person and community scopes are visibly disabled because no confirmed API is connected.
+4. Post detail — healthy. Clicking a search result opens the authenticated AT Protocol thread with interaction counts and the comment composer.
+5. Interactions — healthy without test mutation. Like/unlike and repost/unrepost map to PDS create/delete records; reply maps to an `app.bsky.feed.post` record with root and parent references. The browser run verified enabled controls and existing-state reads but did not click a write action.
+6. Compose — healthy without test mutation. The header publish control opens the standalone composer; image, topic and association tools are disabled; text and Activity/Product tags use the real post-write path and wait for Post Cache visibility before returning to the plaza.
 
-- **P1 · Prompt leaked into product UI.** “V11 视觉验收版”, “接口台账”, backend/API names and mock-data explanations were visible to end users.
-- **P1 · Notification flow missing.** The live prototype has a first-level message/notification destination, but the local navigation only had plaza, tasks and profile.
+## Rounded-container geometry
 
-Fixes:
+- Source publish pill normalized to the local mobile width: approximately `64 × 34`; local: `70 × 32`.
+- Source active feed tab normalized: approximately `84 × 38`; local final target: `81 × 36` inside a `42`-pixel group.
+- Local search control is `32 × 32`, with the icon centered.
+- Local first post card is inset `12` pixels from both shell edges with a `15`-pixel radius.
+- Local bottom navigation spans the `430`-pixel mobile shell and keeps equal four-way columns.
 
-- Removed the interface-ledger route, development labels and implementation explanations from every user-facing screen.
-- Rewrote plaza, login, tasks and profile copy as finished product copy. Unsupported controls remain disabled without exposing internal reasons.
-- Added `/notifications` as the fourth primary navigation destination.
-- Connected notification reads to the authenticated AT Protocol notification endpoint and deliberately omitted private messages.
+## Validation limits
 
-### Pass 2 — passed
+- The source uses illustrative content across tasks, people and communities. Those sections remain disabled instead of being populated with invented data.
+- Accessibility observations from screenshots are limited to visible hierarchy, labels, disabled states and contrast; full assistive-technology compliance was not claimed.
+- No automated browser action created or deleted user content or interactions.
 
-- **Fonts and typography:** serif display headings, sans-serif UI text, weights and hierarchy remain consistent with the selected desktop reference.
-- **Spacing and layout rhythm:** top bar, intro, content surface and fixed pill navigation preserve the established frame and spacing; no horizontal overflow at `1280` CSS px.
-- **Colors and visual tokens:** dark green background, olive surfaces, cream foreground and muted disabled states remain consistent.
-- **Image and icon fidelity:** the screens contain no source imagery to reproduce; standard Bell and refresh symbols use the existing icon library rather than handmade assets.
-- **Copy and content:** no developer-facing prompt text remains. The live notification source is populated, while the local account currently has zero real notifications; the empty state is intentional and avoids invented content.
-- **Interactions:** plaza → notification navigation, refresh, login, task navigation, profile navigation, post search and composer open/close were exercised in the Codex in-app browser.
-- **Scope:** private-message screens and private-message tabs are absent as required.
-
-No actionable P0, P1 or P2 findings remain. The source mobile viewer and local desktop shell intentionally differ in device framing and content density.
+Tests: 4 passing. Production build and TypeScript check: passing.
 
 final result: passed

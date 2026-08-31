@@ -1,6 +1,8 @@
 import { EmptyState } from '@astryxdesign/core/EmptyState'
+import { Link } from '@tanstack/react-router'
 import { Clock3 } from 'lucide-react'
 
+import { PostActions } from '~/components/PostActions'
 import type { PostView } from '~/lib/models'
 
 function formatTime(value: string) {
@@ -35,21 +37,23 @@ export function PostList({ posts }: { posts: PostView[] }) {
         return (
           <article className="post-row" key={post.uri}>
             <div className="post-heading">
-              <div>
+              <div className="post-author">
+                <span className="post-avatar" aria-hidden="true">
+                  {(post.author.displayName || post.author.handle).slice(0, 1).toUpperCase()}
+                </span>
+                <div>
                 <strong>{post.author.displayName || post.author.handle.split('.')[0]}</strong>
                 <div className="post-meta">
                   {post.author.handle} · {formatTime(post.record.createdAt || post.indexedAt)}
                 </div>
+                </div>
               </div>
               {tag ? <span className="post-tag">{tag}</span> : null}
             </div>
-            <p className="post-copy">{post.record.text}</p>
-            <div className="post-stats">
-              <span>{post.replyCount ?? 0} 条评论</span>
-              <span>
-                {post.likeCount ?? 0} 赞 · {post.repostCount ?? 0} 转发
-              </span>
-            </div>
+            <Link to="/post" search={{ uri: post.uri }} className="post-copy-link">
+              <p className="post-copy">{post.record.text}</p>
+            </Link>
+            <PostActions post={post} />
           </article>
         )
       })}

@@ -1,22 +1,30 @@
 import { Badge } from '@astryxdesign/core/Badge'
 import { Button } from '@astryxdesign/core/Button'
 import { EmptyState } from '@astryxdesign/core/EmptyState'
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import { UserRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import { getCurrentUser } from '~/lib/api'
+import { getCurrentUser, logoutRice } from '~/lib/api'
 import type { RiceUser } from '~/lib/models'
 import { useStoredSession } from '~/lib/session'
 
 export const Route = createFileRoute('/me')({ component: MePage })
 
 function MePage() {
-  const { session, isReady } = useStoredSession()
+  const { session, isReady, saveSession } = useStoredSession()
   const fetchUser = useServerFn(getCurrentUser)
+  const logout = useServerFn(logoutRice)
+  const navigate = useNavigate()
   const [user, setUser] = useState<RiceUser | null>(null)
   const [error, setError] = useState('')
+
+  const handleLogout = async () => {
+    if (session) await logout({ data: session.token }).catch(() => undefined)
+    saveSession(null)
+    await navigate({ to: '/login' })
+  }
 
   useEffect(() => {
     if (!session) {
@@ -61,6 +69,7 @@ function MePage() {
         <div className="profile-balance">
           <span>稻米余额</span>
           <strong>{profile?.grain_balance ?? '—'}</strong>
+          <Button label="退出登录" variant="ghost" onClick={handleLogout} />
         </div>
       </section>
 

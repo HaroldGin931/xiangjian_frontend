@@ -32,7 +32,7 @@ export const Route = createRootRoute({
 function RootComponent() {
   return (
     <RootDocument>
-      <Theme theme={neutralTheme} mode="dark">
+      <Theme theme={neutralTheme} mode="light">
         <LinkProvider component="a">
           <AppShell>
             <Outlet />
@@ -45,7 +45,7 @@ function RootComponent() {
 
 function RootDocument({ children }: { children: ReactNode }) {
   return (
-    <html lang="zh-CN" data-theme="dark">
+    <html lang="zh-CN" data-theme="light">
       <head>
         <HeadContent />
       </head>

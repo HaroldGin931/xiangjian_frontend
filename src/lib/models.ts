@@ -50,11 +50,23 @@ export type PostView = {
   replyCount: number
   repostCount: number
   likeCount: number
+  viewer?: {
+    like?: string
+    repost?: string
+    bookmarked?: boolean
+    threadMuted?: boolean
+    embeddingDisabled?: boolean
+  }
 }
 
 export type PostFeed = {
   posts: PostView[]
   total: number
+}
+
+export type PostThread = {
+  post: PostView
+  replies: PostThread[]
 }
 
 export type NotificationView = {
