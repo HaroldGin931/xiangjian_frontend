@@ -1,0 +1,58 @@
+export type RiceUser = {
+  id: string
+  did: string
+  handle: string
+  nickname: string | null
+  bio: string | null
+  avatar: null | {
+    id: string
+    kind: string
+    filename: string
+    content_type: string
+    byte_size: number
+    url: string
+  }
+  grain_balance: number
+  node_member: boolean
+  email: string | null
+  phone: string | null
+  phone_region: string | null
+  wallet_address: string | null
+  inserted_at: string
+}
+
+export type RiceSession = {
+  token: string
+  user: RiceUser
+  pds: {
+    service: string
+    did: string
+    handle: string
+    access_jwt: string
+    refresh_jwt: string
+  }
+}
+
+export type PostView = {
+  uri: string
+  cid: string
+  indexedAt: string
+  author: {
+    did: string
+    handle: string
+    displayName?: string
+  }
+  record: {
+    text: string
+    createdAt: string
+    langs?: string[]
+  }
+  replyCount: number
+  repostCount: number
+  likeCount: number
+}
+
+export type PostFeed = {
+  posts: PostView[]
+  total: number
+}
