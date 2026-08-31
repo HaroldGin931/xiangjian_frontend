@@ -24,10 +24,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           乡建 DAO
         </Link>
         <div className="topbar-actions">
-          <span className="build-label">V11 视觉验收版</span>
-          <Link to="/interfaces" className="ledger-link">
-            接口台账
-          </Link>
           {isReady && session ? (
             <Button
               label="退出"
@@ -58,6 +54,13 @@ export function AppShell({ children }: { children: ReactNode }) {
           任务
         </Link>
         <Link
+          to="/notifications"
+          className="bottom-link"
+          activeProps={{ className: 'bottom-link active' }}
+        >
+          通知
+        </Link>
+        <Link
           to="/me"
           className="bottom-link"
           activeProps={{ className: 'bottom-link active' }}
@@ -68,4 +71,3 @@ export function AppShell({ children }: { children: ReactNode }) {
     </div>
   )
 }
-

@@ -1,6 +1,13 @@
 import { createServerFn } from '@tanstack/react-start'
 
-import type { PostFeed, PostView, RiceSession, RiceUser } from './models'
+import type {
+  NotificationFeed,
+  NotificationView,
+  PostFeed,
+  PostView,
+  RiceSession,
+  RiceUser,
+} from './models'
 
 const BACKEND_BASE = process.env.XIANGJIAN_BACKEND_URL ?? 'http://localhost:19006'
 
@@ -11,7 +18,7 @@ async function readJson(response: Response) {
   if (!response.ok) {
     const errors = body.errors as JsonObject | undefined
     const detail = typeof errors?.detail === 'string' ? errors.detail : null
-    throw new Error(detail ?? `接口请求失败 (${response.status})`)
+    throw new Error(detail ?? '服务暂时不可用，请稍后重试。')
   }
   return body
 }
@@ -32,6 +39,69 @@ export function normalizePostFeed(payload: unknown): PostFeed {
   return {
     posts,
     total: typeof body.total === 'number' ? body.total : posts.length,
+  }
+}
+
+export function normalizeNotificationFeed(payload: unknown): NotificationFeed {
+  const body = (payload ?? {}) as {
+    notifications?: Array<{
+      uri?: unknown
+      cid?: unknown
+      author?: { did?: unknown; handle?: unknown; displayName?: unknown }
+      reason?: unknown
+      reasonSubject?: unknown
+      record?: { text?: unknown }
+      isRead?: unknown
+      indexedAt?: unknown
+    }>
+    priority?: boolean
+    seenAt?: string
+  }
+  const notifications = (body.notifications ?? [])
+    .filter(
+      (notification) =>
+        typeof notification.uri === 'string' &&
+        typeof notification.author?.handle === 'string',
+    )
+    .map(
+      (notification): NotificationView => ({
+        uri: notification.uri as string,
+        cid: typeof notification.cid === 'string' ? notification.cid : '',
+        author: {
+          did:
+            typeof notification.author?.did === 'string'
+              ? notification.author.did
+              : '',
+          handle: notification.author?.handle as string,
+          displayName:
+            typeof notification.author?.displayName === 'string'
+              ? notification.author.displayName
+              : undefined,
+        },
+        reason:
+          typeof notification.reason === 'string'
+            ? notification.reason
+            : 'unknown',
+        reasonSubject:
+          typeof notification.reasonSubject === 'string'
+            ? notification.reasonSubject
+            : undefined,
+        text:
+          typeof notification.record?.text === 'string'
+            ? notification.record.text
+            : '',
+        isRead: notification.isRead === true,
+        indexedAt:
+          typeof notification.indexedAt === 'string'
+            ? notification.indexedAt
+            : new Date(0).toISOString(),
+      }),
+    )
+
+  return {
+    notifications,
+    priority: body.priority === true,
+    seenAt: body.seenAt,
   }
 }
 
@@ -85,6 +155,32 @@ export const getCurrentUser = createServerFn({ method: 'POST' })
     })
     const body = (await readJson(response)) as { data: RiceUser }
     return body.data
+  })
+
+export const getNotifications = createServerFn({ method: 'POST' })
+  .validator((accessJwt: string) => accessJwt)
+  .handler(async ({ data: accessJwt }) => {
+    const response = await fetch(
+      `${BACKEND_BASE}/pds/xrpc/app.bsky.notification.listNotifications?limit=30`,
+      { headers: { Authorization: `Bearer ${accessJwt}` } },
+    )
+    const feed = normalizeNotificationFeed(await readJson(response))
+
+    if (feed.notifications.some((notification) => !notification.isRead)) {
+      await fetch(
+        `${BACKEND_BASE}/pds/xrpc/app.bsky.notification.updateSeen`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessJwt}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ seenAt: new Date().toISOString() }),
+        },
+      ).catch(() => undefined)
+    }
+
+    return feed
   })
 
 export const createTextPost = createServerFn({ method: 'POST' })

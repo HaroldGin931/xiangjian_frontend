@@ -10,19 +10,14 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as InterfacesRouteImport } from './routes/interfaces'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MeRouteImport } from './routes/me'
+import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as TasksRouteImport } from './routes/tasks'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InterfacesRoute = InterfacesRouteImport.update({
-  id: '/interfaces',
-  path: '/interfaces',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -35,6 +30,11 @@ const MeRoute = MeRouteImport.update({
   path: '/me',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TasksRoute = TasksRouteImport.update({
   id: '/tasks',
   path: '/tasks',
@@ -43,39 +43,39 @@ const TasksRoute = TasksRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/interfaces': typeof InterfacesRoute
   '/login': typeof LoginRoute
   '/me': typeof MeRoute
+  '/notifications': typeof NotificationsRoute
   '/tasks': typeof TasksRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/interfaces': typeof InterfacesRoute
   '/login': typeof LoginRoute
   '/me': typeof MeRoute
+  '/notifications': typeof NotificationsRoute
   '/tasks': typeof TasksRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/interfaces': typeof InterfacesRoute
   '/login': typeof LoginRoute
   '/me': typeof MeRoute
+  '/notifications': typeof NotificationsRoute
   '/tasks': typeof TasksRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/interfaces' | '/login' | '/me' | '/tasks'
+  fullPaths: '/' | '/login' | '/me' | '/notifications' | '/tasks'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/interfaces' | '/login' | '/me' | '/tasks'
-  id: '__root__' | '/' | '/interfaces' | '/login' | '/me' | '/tasks'
+  to: '/' | '/login' | '/me' | '/notifications' | '/tasks'
+  id: '__root__' | '/' | '/login' | '/me' | '/notifications' | '/tasks'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  InterfacesRoute: typeof InterfacesRoute
   LoginRoute: typeof LoginRoute
   MeRoute: typeof MeRoute
+  NotificationsRoute: typeof NotificationsRoute
   TasksRoute: typeof TasksRoute
 }
 
@@ -86,13 +86,6 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/interfaces': {
-      id: '/interfaces'
-      path: '/interfaces'
-      fullPath: '/interfaces'
-      preLoaderRoute: typeof InterfacesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -109,6 +102,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tasks': {
       id: '/tasks'
       path: '/tasks'
@@ -121,9 +121,9 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  InterfacesRoute: InterfacesRoute,
   LoginRoute: LoginRoute,
   MeRoute: MeRoute,
+  NotificationsRoute: NotificationsRoute,
   TasksRoute: TasksRoute,
 }
 export const routeTree = rootRouteImport

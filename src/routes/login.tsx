@@ -32,9 +32,9 @@ function LoginPage() {
   return (
     <div className="page narrow-page">
       <section className="page-intro">
-        <div className="eyebrow">Rice 会话</div>
+        <div className="eyebrow">欢迎回来</div>
         <h1>登录</h1>
-        <p>先由 Rice 校验账号，再取得 Rice token 与 AT Protocol/PDS 会话。</p>
+        <p>登录后即可发布内容、参与社区互动。</p>
       </section>
 
       <section className="login-card">
@@ -45,7 +45,7 @@ function LoginPage() {
           label="账号"
           value={identifier}
           onChange={setIdentifier}
-          placeholder="手机号或邮箱地址或 handle"
+          placeholder="手机号、邮箱或用户名"
           width="100%"
           hasAutoFocus
         />
@@ -60,16 +60,14 @@ function LoginPage() {
         />
         {error ? <div className="form-error">{error}</div> : null}
         <Button
-          label="登录 Rice"
+          label="登录"
           variant="primary"
           size="lg"
           width="100%"
           isDisabled={!identifier.trim() || !password}
           clickAction={submit}
         />
-        <p className="form-footnote">页面不预填账号，也不制造会话；仅保存你本次真实登录返回的数据。</p>
       </section>
     </div>
   )
 }
-

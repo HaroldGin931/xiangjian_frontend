@@ -24,7 +24,7 @@ function MePage() {
       return
     }
     fetchUser({ data: session.token }).then(setUser).catch((reason) => {
-      setError(reason instanceof Error ? reason.message : '读取用户失败')
+      setError(reason instanceof Error ? reason.message : '暂时无法加载账号信息')
     })
   }, [fetchUser, session])
 
@@ -35,7 +35,7 @@ function MePage() {
           <EmptyState
             icon={<UserRound size={34} />}
             title="还没有登录"
-            description="登录 Rice 后，这里会展示真实账号与稻米信息。"
+            description="登录后查看账号信息与参与记录。"
             actions={<Button label="前往登录" variant="primary" href="/login" />}
           />
         </div>
@@ -48,8 +48,8 @@ function MePage() {
     <div className="page">
       <section className="profile-hero">
         <div>
-          <div className="eyebrow">Rice 账号</div>
-          <h1>{profile?.nickname || profile?.handle || '正在读取账号'}</h1>
+          <div className="eyebrow">个人中心</div>
+          <h1>{profile?.nickname || profile?.handle || '正在加载'}</h1>
           <p>{profile?.handle}</p>
           {profile ? (
             <Badge
@@ -68,19 +68,17 @@ function MePage() {
 
       <section className="profile-grid">
         <article>
-          <span>身份 DID</span>
-          <strong>{profile?.did || '—'}</strong>
-          <p>来自 Rice 当前用户接口</p>
+          <span>账号</span>
+          <strong>{profile?.handle || '—'}</strong>
+          <p>{profile?.node_member ? '节点成员' : '社区成员'}</p>
         </article>
         <article className="disabled-card">
           <span>我的任务</span>
           <strong>—</strong>
-          <p>等待 Task API</p>
         </article>
         <article className="disabled-card">
-          <span>任务权限</span>
-          <strong>未确认</strong>
-          <p>发布动作暂不开放</p>
+          <span>参与项目</span>
+          <strong>—</strong>
         </article>
       </section>
 
@@ -89,11 +87,10 @@ function MePage() {
       </section>
       <div className="empty-panel">
         <EmptyState
-          title="没有填充演示记录"
-          description="后续只展示由你实际产生、且已有明确读取接口的数据。"
+          title="还没有记录"
+          description="参与社区后，你的动态会显示在这里。"
         />
       </div>
     </div>
   )
 }
-

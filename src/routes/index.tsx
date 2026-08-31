@@ -1,7 +1,7 @@
 import { Button } from '@astryxdesign/core/Button'
 import { TextArea } from '@astryxdesign/core/TextArea'
 import { TextInput } from '@astryxdesign/core/TextInput'
-import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import { BadgeInfo, RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -47,7 +47,7 @@ function PlazaPage() {
   const refreshFeed = async () => {
     setQuery('')
     setFeed(await fetchPosts({ data: {} }))
-    setNotice('已刷新 Post Cache')
+    setNotice('已刷新')
   }
 
   const openComposer = async () => {
@@ -72,7 +72,7 @@ function PlazaPage() {
       setPending({ uri: result.uri, text: result.text })
       setText('')
       setComposerOpen(false)
-      setNotice('帖子已写入 PDS，正在等待 Post Cache 建立索引。')
+      setNotice('发布成功，内容正在同步。')
 
       for (let attempt = 0; attempt < 12; attempt += 1) {
         await new Promise((resolve) => window.setTimeout(resolve, 1000))
@@ -80,11 +80,11 @@ function PlazaPage() {
         setFeed(next)
         if (next.posts.some((post) => post.uri === result.uri)) {
           setPending(null)
-          setNotice('帖子已写入 PDS，并完成 Post Cache 索引。')
+          setNotice('发布成功。')
           return
         }
       }
-      setNotice('帖子已经写入 PDS；索引仍在同步，可稍后点击刷新。')
+      setNotice('内容已经发布，稍后刷新即可看到。')
     } catch (error) {
       setNotice(error instanceof Error ? error.message : '发布失败')
     }
@@ -94,9 +94,9 @@ function PlazaPage() {
     <div className="page plaza-page">
       <section className="page-intro intro-with-action">
         <div>
-          <div className="eyebrow">社区内容</div>
+          <div className="eyebrow">乡建社区</div>
           <h1>广场</h1>
-          <p>帖子来自当前 Post Cache 读取接口；任务保持独立，不再混入帖子流。</p>
+          <p>分享乡村生活，发现身边的人和事。</p>
         </div>
         <div className="primary-action-block">
           <Button
@@ -106,7 +106,7 @@ function PlazaPage() {
             className="pill-button"
             onClick={openComposer}
           />
-          <span>{session ? 'ATProto → PDS → Post Cache' : '使用 Rice 账号登录'}</span>
+          <span>{session ? '分享此刻的想法' : '登录后即可发布'}</span>
         </div>
       </section>
 
@@ -114,7 +114,7 @@ function PlazaPage() {
         <section className="composer-panel">
           <TextArea
             label="发布文字帖"
-            description="首版直接复用当前 PDS 写入链路，最多 300 字。"
+            description="记录你此刻想分享的内容，最多 300 字。"
             value={text}
             onChange={setText}
             rows={5}
@@ -125,7 +125,7 @@ function PlazaPage() {
           <div className="composer-actions">
             <Button label="取消" variant="ghost" onClick={() => setComposerOpen(false)} />
             <Button
-              label="写入 PDS"
+              label="发布"
               variant="primary"
               isDisabled={!text.trim() || text.length > 300}
               clickAction={submitPost}
@@ -137,10 +137,10 @@ function PlazaPage() {
       <section className="info-strip">
         <BadgeInfo size={30} strokeWidth={1.7} aria-hidden="true" />
         <div>
-          <strong>任务不再混在广场里</strong>
-          <p>需要查看任务时，请从底部“任务”一级入口进入；未实现动作都会明确置灰。</p>
+          <strong>发现新的共建机会</strong>
+          <p>浏览社区发布的任务，找到适合你的参与方式。</p>
         </div>
-        <Button label="进入任务" variant="primary" size="lg" href="/tasks" className="strip-button" />
+        <Button label="查看任务" variant="primary" size="lg" href="/tasks" className="strip-button" />
       </section>
 
       <section className="search-section">
@@ -172,7 +172,6 @@ function PlazaPage() {
             <button type="button" className="text-action" onClick={refreshFeed}>
               <RefreshCw size={17} aria-hidden="true" /> 刷新
             </button>
-            <Link to="/interfaces">查看接口依据</Link>
           </div>
         </div>
         {pending && session ? (
@@ -181,7 +180,7 @@ function PlazaPage() {
         <PostList posts={feed.posts} />
       </section>
 
-      {!isReady ? <span className="sr-only">正在读取登录状态</span> : null}
+      {!isReady ? <span className="sr-only">正在加载登录状态</span> : null}
     </div>
   )
 }

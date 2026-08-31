@@ -56,3 +56,24 @@ export type PostFeed = {
   posts: PostView[]
   total: number
 }
+
+export type NotificationView = {
+  uri: string
+  cid: string
+  author: {
+    did: string
+    handle: string
+    displayName?: string
+  }
+  reason: string
+  reasonSubject?: string
+  text: string
+  isRead: boolean
+  indexedAt: string
+}
+
+export type NotificationFeed = {
+  notifications: NotificationView[]
+  priority: boolean
+  seenAt?: string
+}

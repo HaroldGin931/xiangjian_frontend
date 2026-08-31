@@ -63,14 +63,13 @@ export function PendingPost({ handle, text }: { handle: string; text: string }) 
       <div className="post-heading">
         <div>
           <strong>{handle.split('.')[0]}</strong>
-          <div className="post-meta">{handle} · 刚刚写入 PDS</div>
+          <div className="post-meta">{handle} · 刚刚</div>
         </div>
         <span className="sync-badge">
-          <Clock3 size={16} aria-hidden="true" /> 索引同步中
+          <Clock3 size={16} aria-hidden="true" /> 发布中
         </span>
       </div>
       <p className="post-copy">{text}</p>
     </article>
   )
 }
-

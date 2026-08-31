@@ -1,27 +1,52 @@
 # Design QA
 
-## 对照输入
+## Source visual truth
 
-- 原型参考：`design-reference.jpg`
-- Codex 内置浏览器实现截图：`design-implementation.png`
-- 同一画布对照：`design-comparison.png`
+- Desktop visual language: `design-reference.jpg` (`2038 × 2408`).
+- User-reported prompt leakage: the three supplied screenshots combined in `design-copy-comparison.png`.
+- Live flow reference: `https://xiangjian-dao-v11-preview.rickyke2023.chatgpt.site/prototype`.
+- Notification reference: `source-prototype-notifications.png` (`1280 × 720`).
+- Notification preference and empty-state references: `source-prototype-notification-preferences.png`, `source-prototype-empty-states.png`.
 
-实现截图来自设备像素比为 2 的浏览器画布；对照图只校正了该截图的像素缩放，没有改动页面布局或内容。
+The live prototype is a mobile interaction specification. The local app remains the selected desktop visual treatment, so the comparison targets information hierarchy, navigation, state and copy rather than reproducing the prototype viewer or phone frame.
 
-## 可见差异检查
+## Implementation evidence
 
-| 层级 | 结果 | 说明 |
-| --- | --- | --- |
-| P0 | 通过 | 页面可打开，无阻断加载、白屏或核心操作缺失。 |
-| P1 | 通过 | 顶栏、主标题、操作区、信息条、搜索、帖子流与底部胶囊导航均与 V11 原型保持同一结构和视觉语言。 |
-| P2 | 通过 | 深绿/黑底、米白文字、橄榄灰表面、宋体标题、圆角与留白均已对齐；真实帖子数量少于原型的演示数据属于预期数据差异。 |
+- Plaza: `design-implementation.png` (`1280 × 1885`).
+- Tasks: `design-implementation-tasks-user-facing.png` (`1280 × 1145`).
+- Notifications: `design-implementation-notifications-viewport.png` (`1280 × 720`).
+- Desktop style comparison: `design-comparison.png`.
+- Prompt-leakage before/after comparison: `design-copy-comparison.png`.
+- Notification source/implementation comparison: `design-notifications-comparison.png`.
 
-## 功能验收
+Browser viewport: `1280 × 720` CSS px. The in-app capture maps the rendered CSS viewport into the left half of a `1280`-pixel image; the desktop comparison therefore crops the first `640` pixels and scales it to `1280` before side-by-side review. The notification comparison uses the two unmodified `1280 × 720` viewport captures.
 
-- Rice 真实登录可用，当前用户页读取真实账号信息。
-- 广场读取 Post Cache 的真实帖子；关键词搜索可用。
-- 发帖表单调用 PDS 写入接口，并在 Post Cache 完成索引前显示真实待同步内容。
-- 任务页面没有 mock 任务；未确认的发布、筛选与状态数据均已标灰。
-- 桌面视口无横向溢出；窄屏布局提供单列与双列断点。
+State: Mo Alice signed in; plaza contains only real local posts; tasks and notifications use their real empty states. No task or notification mock data was introduced.
 
-最终结论：通过，可进入第一轮视觉验收。
+## Comparison history
+
+### Pass 1 — blocked
+
+- **P1 · Prompt leaked into product UI.** “V11 视觉验收版”, “接口台账”, backend/API names and mock-data explanations were visible to end users.
+- **P1 · Notification flow missing.** The live prototype has a first-level message/notification destination, but the local navigation only had plaza, tasks and profile.
+
+Fixes:
+
+- Removed the interface-ledger route, development labels and implementation explanations from every user-facing screen.
+- Rewrote plaza, login, tasks and profile copy as finished product copy. Unsupported controls remain disabled without exposing internal reasons.
+- Added `/notifications` as the fourth primary navigation destination.
+- Connected notification reads to the authenticated AT Protocol notification endpoint and deliberately omitted private messages.
+
+### Pass 2 — passed
+
+- **Fonts and typography:** serif display headings, sans-serif UI text, weights and hierarchy remain consistent with the selected desktop reference.
+- **Spacing and layout rhythm:** top bar, intro, content surface and fixed pill navigation preserve the established frame and spacing; no horizontal overflow at `1280` CSS px.
+- **Colors and visual tokens:** dark green background, olive surfaces, cream foreground and muted disabled states remain consistent.
+- **Image and icon fidelity:** the screens contain no source imagery to reproduce; standard Bell and refresh symbols use the existing icon library rather than handmade assets.
+- **Copy and content:** no developer-facing prompt text remains. The live notification source is populated, while the local account currently has zero real notifications; the empty state is intentional and avoids invented content.
+- **Interactions:** plaza → notification navigation, refresh, login, task navigation, profile navigation, post search and composer open/close were exercised in the Codex in-app browser.
+- **Scope:** private-message screens and private-message tabs are absent as required.
+
+No actionable P0, P1 or P2 findings remain. The source mobile viewer and local desktop shell intentionally differ in device framing and content density.
+
+final result: passed

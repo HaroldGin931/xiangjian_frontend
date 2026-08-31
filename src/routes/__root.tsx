@@ -19,10 +19,10 @@ export const Route = createRootRoute({
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: '乡建 DAO · 独立前端' },
+      { title: '乡建 DAO' },
       {
         name: 'description',
-        content: '基于 TanStack Start 与 Astryx 的乡建 DAO 独立前端。',
+        content: '连接乡村、社区与共建行动。',
       },
     ],
   }),
