@@ -279,7 +279,23 @@ button:disabled, .disabled-control { cursor: not-allowed; opacity: .46; }
 .compose-header .back-link { margin: 0; }
 .compose-header button { min-height: 30px; padding: 0 8px; border: 0; border-radius: 999px; background: transparent; color: var(--xj-muted); font-size: 10px; }
 .compose-header button.active { background: var(--xj-text); color: #fff; }
-.compose-page textarea { min-height: 180px !important; border: 0 !important; background: transparent !important; color: var(--xj-text) !important; font-size: 15px !important; }
+.compose-editor {
+  width: 100%;
+  min-height: 270px;
+  padding: 18px 18px 42px;
+  position: relative;
+  display: block;
+  border: 1px solid var(--xj-line);
+  border-radius: 18px;
+  background: var(--xj-surface);
+  box-shadow: 0 5px 18px rgba(21, 54, 41, .05);
+  transition: border-color .16s ease, box-shadow .16s ease;
+}
+.compose-editor:focus-within { border-color: var(--xj-accent); box-shadow: 0 0 0 3px rgba(31, 91, 67, .1), 0 8px 24px rgba(21, 54, 41, .07); }
+.compose-editor textarea { width: 100%; min-height: 210px; padding: 0; border: 0; outline: 0; resize: none; background: transparent; color: var(--xj-text); font-size: 18px; line-height: 1.7; }
+.compose-editor textarea::placeholder { color: var(--xj-muted); }
+.compose-character-count { position: absolute; right: 18px; bottom: 14px; color: var(--xj-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.compose-character-count.over-limit { color: var(--xj-error); font-weight: 650; }
 .compose-tools { margin: 8px 0 16px; display: flex; gap: 8px; }
 .compose-tools button { min-height: 34px; padding: 0 11px; border: 1px solid var(--xj-line); border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; background: var(--xj-surface); color: var(--xj-muted); font-size: 11px; }
 .publish-target { margin-bottom: 16px; padding: 13px; border-top: 1px solid var(--xj-line); border-bottom: 1px solid var(--xj-line); display: flex; flex-direction: column; gap: 4px; align-items: flex-start; font-size: 12px; }
@@ -335,6 +351,9 @@ button:disabled, .disabled-control { cursor: not-allowed; opacity: .46; }
   .feed-tabs button { padding-inline: 13px; }
   .compose-header { grid-template-columns: 1fr repeat(3, auto); }
   .compose-header button:last-child { grid-column: 1 / -1; justify-self: end; }
+  .compose-editor { min-height: 230px; padding: 15px 15px 38px; border-radius: 15px; }
+  .compose-editor textarea { min-height: 175px; font-size: 16px; }
+  .compose-character-count { right: 15px; bottom: 12px; }
   .post-dialog { width: 100%; height: 100dvh; border: 0; border-radius: 0; }
   .post-dialog .post-thread-panel { padding: 10px; }
   .post-dialog-header { padding-inline: 12px; }

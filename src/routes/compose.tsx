@@ -1,5 +1,4 @@
 import { Button } from '@astryxdesign/core/Button'
-import { TextArea } from '@astryxdesign/core/TextArea'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import { Image, Link2, X } from 'lucide-react'
@@ -66,16 +65,26 @@ function ComposePage() {
         <button type="button" disabled>发布任务 →</button>
       </header>
 
-      <TextArea
-        label="说点什么"
-        value={text}
-        onChange={setText}
-        rows={11}
-        maxLength={300}
-        width="100%"
-        placeholder="说点什么…"
-        hasAutoFocus
-      />
+      <div className="compose-editor">
+        <label className="sr-only" htmlFor="compose-post-text">说点什么</label>
+        <textarea
+          id="compose-post-text"
+          aria-describedby="compose-character-count"
+          aria-invalid={text.length > 300 || undefined}
+          value={text}
+          onChange={(event) => setText(event.currentTarget.value)}
+          rows={9}
+          placeholder="说点什么…"
+          autoFocus
+        />
+        <span
+          id="compose-character-count"
+          className={`compose-character-count ${text.length > 300 ? 'over-limit' : ''}`}
+          aria-live="polite"
+        >
+          {text.length}/300
+        </span>
+      </div>
 
       <div className="compose-tools" aria-label="更多发布能力">
         <button type="button" disabled><Image size={18} aria-hidden="true" /> 图片</button>
