@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { Repeat2 } from 'lucide-react'
 
 import { PostActions, type RepostChange } from '~/components/PostActions'
-import { postKind, postTags } from '~/features/feed/tags'
+import { postDisplayText, postKind, postTags } from '~/features/feed/tags'
 import { formatTimestamp } from '~/lib/format'
 import type { PostView } from '~/lib/models'
 
@@ -78,11 +78,11 @@ export function PostList({
                 className="post-copy-link post-copy-button"
                 onClick={() => onOpenPost(post, false)}
               >
-                <p className="post-copy">{post.record.text}</p>
+                <p className="post-copy">{postDisplayText(post.record.text)}</p>
               </button>
             ) : (
               <Link to="/post" search={{ uri: post.uri }} className="post-copy-link">
-                <p className="post-copy">{post.record.text}</p>
+                <p className="post-copy">{postDisplayText(post.record.text)}</p>
               </Link>
             )}
             <PostActions

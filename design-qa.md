@@ -115,3 +115,54 @@ Separate detail crops were not required: the normalized `390 × 844` side-by-sid
 - Docker frontend: running on port `19007` against the existing local backend stack.
 
 final result: passed
+
+## Activity/product publish and participation QA · 2026-09-01
+
+### Source and state
+
+- Live prototype source: `https://xiangjian-dao-v11-preview.rickyke2023.chatgpt.site/prototype`, captured in the Codex in-app browser as `qa/source-current-compose.jpg`, `qa/source-current-activity-detail.jpg`, and `qa/source-current-product-detail.jpg`.
+- Reported sync state: `/var/folders/hw/p2sd7bcx3j5g6km12ml617600000gn/T/codex-clipboard-a5d918ff-d07e-4c73-9f14-fb2a84686ed4.png`.
+- Implementation: `http://127.0.0.1:19007/`, authenticated as the existing Mo Bob account. QA filled forms but did not submit a post, participation reply, repost, or like.
+
+### Viewport and comparison evidence
+
+- Source and final implementation captures were inspected at `1280 × 720` in the Codex in-app browser. The source places its phone UI inside a presentation stage; the implementation uses the same design system in its responsive desktop layout.
+- Current browser capabilities did not expose exact mobile viewport emulation, so this pass does not claim a new `390 × 844` capture.
+- Unified composer comparison: `qa/compose-flow-comparison.png`.
+- Activity-detail comparison: `qa/activity-detail-flow-comparison.png`.
+- My-posts before/after: `qa/my-posts-before-after.png`.
+- Sync-state before/after: `qa/sync-state-before-after.png`.
+- Final current-run captures: `qa/after-activity-compose.jpg`, `qa/after-product-compose.jpg`, `qa/after-activity-detail.jpg`, and `qa/after-my-posts.jpg`.
+
+### Findings and fixes
+
+1. P1: activity/product supplementary fields were decorative grey labels. They are now real required inputs while preserving one post entity and one publish API. Activity serializes deadline, location, and conditions; product serializes price, availability, and fulfillment with the special tag.
+2. P1: `/me/posts` was nested under `/me`, but the parent route rendered the profile directly and omitted TanStack Router's `Outlet`. The parent is now a layout route and `/me` has a dedicated index route, so “我的帖子” opens the real filtered list.
+3. P1: successful PDS writes blocked the composer for up to 12 seconds while polling Post Cache, and the success notice reused error styling. The polling state and “发布成功，正在同步” notice were removed. The authoritative PDS result is inserted into the existing feed cache and navigation returns immediately; later normal reads reconcile with Post Cache.
+4. P1: the first post-fix browser pass found native date input updates were not reaching React state under the controlled input path. Inputs now capture `input` events synchronously; the deadline is included in the 55-character serialized record and the publish button enables correctly.
+5. P2: activity detail had no working participation action. “参与活动” now calls the existing reply API with `参与活动`, updates the visible participant count optimistically from the authoritative result, disables after the current user has participated, and closes after the activity deadline.
+
+### Five fidelity surfaces
+
+- Typography: existing compact green hierarchy remains intact; structured field labels use the established secondary scale.
+- Spacing: the composer groups special fields in one pale panel; activity detail uses the existing modal and shared content width.
+- Color: live special fields use the existing pale-green surface; only unsupported actions remain grey.
+- Assets: existing Lucide icons only; no generated or fake asset was added.
+- Copy and content: the UI contains user-facing field names and actions only. It does not expose API, Post Cache, or sync/debug language.
+
+### Primary interactions tested
+
+1. Activity mode required body, deadline, location, and participation conditions; all fields enabled “发布活动” without submitting it.
+2. Product mode required body, rice price, availability, and fulfillment; all fields enabled “发布商品” without submitting it.
+3. “我的帖子” navigated from `/me` to `/me/posts`, showed “返回个人中心”, and rendered the current account's real posts.
+4. Activity detail opened in the existing dialog, omitted repost, showed structured field slots, and exposed an enabled “参与活动” action with explicit comment semantics. The action was not clicked.
+5. A fresh browser pass after the final rebuild produced no application warning or error.
+
+### Validation
+
+- Browser console after final rebuild: no application warning or error; the only messages were Vite connection and React development-information logs.
+- Automated tests: 6 files, 17 tests passed.
+- Production build and TypeScript check: passed.
+- Docker frontend, Rice, Post Cache, and gateway: running.
+
+final result: passed

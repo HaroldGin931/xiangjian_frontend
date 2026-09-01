@@ -5,12 +5,20 @@ import {
   loadPosts,
   normalizePostFeed,
   normalizePostThread,
+  prependCachedPost,
   readCachedFeed,
   recordKeyFromUri,
   updateInteractionRecord,
   writeCachedFeed,
 } from './api'
-import { hasPostTag, postKind, postTags, withPostKind } from './tags'
+import {
+  hasPostTag,
+  postDisplayText,
+  postFieldValues,
+  postKind,
+  postTags,
+  withPostKind,
+} from './tags'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -34,6 +42,36 @@ describe('feed data', () => {
     expect(hasPostTag('#活动周', '活动')).toBe(false)
     expect(withPostKind('开放日 #活动', 'activity')).toBe('开放日 #活动')
     expect(withPostKind('开放日', 'activity')).toBe('开放日\n#活动')
+  })
+
+  it('stores special fields in the post and reads them back for rendering', () => {
+    const text = withPostKind('古村开放日', 'activity', {
+      deadline: '2026-09-10T18:00',
+      location: '漈下村村委',
+      conditions: '自带水杯',
+    })
+
+    expect(text).toBe(
+      '古村开放日\n截止时间：2026-09-10T18:00\n活动地点：漈下村村委\n参与条件：自带水杯\n#活动',
+    )
+    expect(postFieldValues(text)).toEqual({
+      deadline: '2026-09-10T18:00',
+      location: '漈下村村委',
+      conditions: '自带水杯',
+    })
+    expect(postDisplayText(text)).toBe('古村开放日')
+
+    const product = withPostKind('秋收新米', 'product', {
+      price: '88',
+      availability: '可提供',
+      fulfillment: '村口自提',
+    })
+    expect(postFieldValues(product)).toEqual({
+      price: '88',
+      availability: '可提供',
+      fulfillment: '村口自提',
+    })
+    expect(postDisplayText(product)).toBe('秋收新米')
   })
 
   it('filters direct posts and repost events by the original post tag', async () => {
@@ -86,6 +124,16 @@ describe('feed data', () => {
     expect(readCachedFeed('did:alice')).toBe(feed)
     clearCachedFeed('did:alice')
     expect(readCachedFeed('did:alice')).toBeNull()
+  })
+
+  it('shows a newly created post from cache without waiting for indexing', () => {
+    vi.stubGlobal('window', {})
+    const created = { ...post, uri: `${post.uri}-new` }
+
+    writeCachedFeed({ posts: [post], total: 1 }, 'did:alice')
+    prependCachedPost(created, 'did:alice')
+
+    expect(readCachedFeed('did:alice')?.posts).toEqual([created, post])
   })
 
   it('accepts both feed wrappers and direct search results', () => {

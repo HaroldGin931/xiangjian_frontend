@@ -17,6 +17,19 @@ export function writeCachedFeed(feed: PostFeed, did?: string) {
   clientFeedCache = { owner: did ?? null, feed }
 }
 
+export function prependCachedPost(post: PostView, did?: string) {
+  if (
+    typeof window === 'undefined' ||
+    clientFeedCache?.owner !== (did ?? null)
+  ) return
+
+  const posts = [post, ...clientFeedCache.feed.posts.filter((item) => item.uri !== post.uri)]
+  clientFeedCache = {
+    owner: did ?? null,
+    feed: { posts, total: posts.length },
+  }
+}
+
 export function clearCachedFeed(did?: string) {
   if (
     typeof window !== 'undefined' &&
@@ -261,6 +274,7 @@ export const createTextPost = createServerFn({ method: 'POST' })
     if (!text) throw new Error('帖子内容不能为空')
     if (text.length > 300) throw new Error('首版文字帖最多 300 个字符')
 
+    const createdAt = new Date().toISOString()
     const body = await writePdsRecord(data.accessJwt, {
       repo: data.did,
       collection: 'app.bsky.feed.post',
@@ -268,10 +282,10 @@ export const createTextPost = createServerFn({ method: 'POST' })
         $type: 'app.bsky.feed.post',
         text,
         langs: ['zh'],
-        createdAt: new Date().toISOString(),
+        createdAt,
       },
     })
-    return { uri: body.uri, cid: body.cid, text }
+    return { uri: body.uri, cid: body.cid, text, createdAt }
   })
 
 type ToggleInteractionInput = {
@@ -331,6 +345,7 @@ export const createReply = createServerFn({ method: 'POST' })
     if (!text) throw new Error('评论内容不能为空')
     if (text.length > 300) throw new Error('评论最多 300 个字符')
 
+    const createdAt = new Date().toISOString()
     const record = await writePdsRecord(data.accessJwt, {
       repo: data.did,
       collection: 'app.bsky.feed.post',
@@ -339,8 +354,8 @@ export const createReply = createServerFn({ method: 'POST' })
         text,
         langs: ['zh'],
         reply: { root: data.root, parent: data.parent },
-        createdAt: new Date().toISOString(),
+        createdAt,
       },
     })
-    return { ...record, text }
+    return { ...record, text, createdAt }
   })

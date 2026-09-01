@@ -5,9 +5,10 @@ import { Image, Link2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import {
-  clearCachedFeed,
   createTextPost,
   getPosts,
+  prependCachedPost,
+  readCachedFeed,
   writeCachedFeed,
 } from '~/features/feed/api'
 import { POST_KINDS, type PostKind, withPostKind } from '~/features/feed/tags'
@@ -22,20 +23,35 @@ function ComposePage() {
   const navigate = useNavigate()
   const [kind, setKind] = useState<PostKind>('post')
   const [text, setText] = useState('')
+  const [fields, setFields] = useState<Record<string, string>>({})
   const [notice, setNotice] = useState('')
   const [isPublishing, setPublishing] = useState(false)
   const kindDetails = POST_KINDS[kind]
-  const publishText = withPostKind(text, kind)
+  const publishText = withPostKind(text, kind, fields)
+  const publishLength = text.trim() ? publishText.length : 0
+  const fieldsComplete = kindDetails.fields.every((field) => fields[field.key]?.trim())
+  const setField = (key: string, value: string) => {
+    setFields((current) => ({ ...current, [key]: value }))
+  }
 
   useEffect(() => {
     if (isReady && !session) void navigate({ to: '/login' })
   }, [isReady, navigate, session])
 
   const submit = async () => {
-    if (!session || !text.trim()) return
+    if (!session || !text.trim() || !fieldsComplete || publishLength > 300) return
     setPublishing(true)
     setNotice('')
     try {
+      const cachedFeed = readCachedFeed(session.pds.did)
+      const feedPromise = cachedFeed
+        ? Promise.resolve(cachedFeed)
+        : fetchPosts({
+            data: {
+              accessJwt: session.pds.access_jwt,
+              did: session.pds.did,
+            },
+          }).catch(() => null)
       const result = await publish({
         data: {
           did: session.pds.did,
@@ -43,21 +59,29 @@ function ComposePage() {
           text: publishText,
         },
       })
-      clearCachedFeed(session.pds.did)
-      setNotice('发布成功，正在同步。')
-      for (let attempt = 0; attempt < 12; attempt += 1) {
-        await new Promise((resolve) => window.setTimeout(resolve, 1000))
-        const feed = await fetchPosts({
-          data: {
-            accessJwt: session.pds.access_jwt,
+      const feed = await feedPromise
+      if (feed) writeCachedFeed(feed, session.pds.did)
+      prependCachedPost(
+        {
+          uri: result.uri,
+          cid: result.cid,
+          indexedAt: result.createdAt,
+          author: {
             did: session.pds.did,
+            handle: session.pds.handle,
+            displayName: session.user.nickname ?? undefined,
           },
-        })
-        if (feed.posts.some((post) => post.uri === result.uri)) {
-          writeCachedFeed(feed, session.pds.did)
-          break
-        }
-      }
+          record: {
+            text: result.text,
+            createdAt: result.createdAt,
+            langs: ['zh'],
+          },
+          replyCount: 0,
+          repostCount: 0,
+          likeCount: 0,
+        },
+        session.pds.did,
+      )
       await navigate({ to: '/' })
     } catch (reason) {
       setNotice(reason instanceof Error ? reason.message : '发布失败')
@@ -81,7 +105,7 @@ function ComposePage() {
         <textarea
           id="compose-post-text"
           aria-describedby="compose-character-count"
-          aria-invalid={publishText.length > 300 || undefined}
+          aria-invalid={publishLength > 300 || undefined}
           value={text}
           onChange={(event) => setText(event.currentTarget.value)}
           rows={9}
@@ -90,25 +114,49 @@ function ComposePage() {
         />
         <span
           id="compose-character-count"
-          className={`compose-character-count ${publishText.length > 300 ? 'over-limit' : ''}`}
+          className={`compose-character-count ${publishLength > 300 ? 'over-limit' : ''}`}
           aria-live="polite"
         >
-          {text.length}/300
+          {publishLength}/300
         </span>
       </div>
 
       {kindDetails.fields.length ? (
         <section
-          className="special-compose-fields"
+          className="special-compose-form"
           aria-label={`${kindDetails.tag} 补充信息`}
         >
+          <header>
+            <strong>{kind === 'activity' ? '活动信息' : '商品信息'}</strong>
+            <span>随帖子公开</span>
+          </header>
           {kindDetails.fields.map((field) => (
-            <div key={field}>
-              <span>{field}</span>
-              <strong>—</strong>
-            </div>
+            <label key={field.key}>
+              <span>{field.label}</span>
+              {field.type === 'select' ? (
+                <select
+                  value={fields[field.key] ?? ''}
+                  onChange={(event) => setField(field.key, event.currentTarget.value)}
+                  required
+                >
+                  <option value="">选择状态</option>
+                  {field.options.map((option) => (
+                    <option value={option} key={option}>{option}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  type={field.type}
+                  inputMode={field.type === 'number' ? 'decimal' : undefined}
+                  min={field.type === 'number' ? '0' : undefined}
+                  value={fields[field.key] ?? ''}
+                  placeholder={field.placeholder}
+                  onInput={(event) => setField(field.key, event.currentTarget.value)}
+                  required
+                />
+              )}
+            </label>
           ))}
-          <p>补充字段尚未开放，本次仍以帖子正文和 {kindDetails.tag} 发布。</p>
         </section>
       ) : null}
 
@@ -129,7 +177,7 @@ function ComposePage() {
         width="100%"
         clickAction={submit}
         isLoading={isPublishing}
-        isDisabled={!text.trim() || publishText.length > 300}
+        isDisabled={!text.trim() || !fieldsComplete || publishLength > 300}
       />
     </div>
   )

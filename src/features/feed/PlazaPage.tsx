@@ -93,6 +93,17 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
     })
   }
 
+  const handleReplyCreated = (postUri: string) => {
+    setFeed((current) => ({
+      ...current,
+      posts: current.posts.map((post) =>
+        post.uri === postUri
+          ? { ...post, replyCount: (post.replyCount ?? 0) + 1 }
+          : post,
+      ),
+    }))
+  }
+
   return (
     <div className="page plaza-page">
       <section className="feed-toolbar" aria-label="帖子分类">
@@ -151,6 +162,7 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
           focusReply={selectedPost.focusReply}
           onClose={() => setSelectedPost(null)}
           onRepostChange={handleRepostChange}
+          onReplyCreated={handleReplyCreated}
         />
       ) : null}
     </div>

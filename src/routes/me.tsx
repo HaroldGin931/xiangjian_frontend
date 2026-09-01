@@ -1,9 +1,7 @@
-import { createFileRoute } from '@tanstack/react-router'
-
-import { ProfilePage } from '~/features/profile/ProfilePage'
+import { createFileRoute, Outlet } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/me')({ component: MePage })
 
 function MePage() {
-  return <ProfilePage />
+  return <Outlet />
 }

@@ -10,20 +10,30 @@ import {
   type RepostChange,
 } from '~/components/PostActions'
 import { formatTimestamp } from '~/lib/format'
-import type { PostThread } from '~/lib/models'
+import type { PostThread, PostView } from '~/lib/models'
 
 import { useStoredSession } from '../session/session'
 import { clearCachedFeed, createReply, getPostThread } from './api'
-import { POST_KINDS, postKind } from './tags'
+import {
+  formatPostFieldValue,
+  POST_KINDS,
+  postDisplayText,
+  postFieldValues,
+  postKind,
+} from './tags'
+
+const ACTIVITY_REPLY = '参与活动'
 
 export function PostThreadPanel({
   uri,
   focusReply = false,
   onRepostChange,
+  onReplyCreated,
 }: {
   uri: string
   focusReply?: boolean
   onRepostChange?: (change: RepostChange) => void
+  onReplyCreated?: (postUri: string) => void
 }) {
   const { session, isReady } = useStoredSession()
   const navigate = useNavigate()
@@ -36,6 +46,16 @@ export function PostThreadPanel({
   const [isReplying, setReplying] = useState(false)
   const replyComposerId = useId()
   const kind = thread ? postKind(thread.post.record.text) : 'post'
+  const fields = thread ? postFieldValues(thread.post.record.text, kind) : {}
+  const participants = thread?.replies.filter(
+    (reply) => reply.post.record.text === ACTIVITY_REPLY,
+  ) ?? []
+  const hasParticipated = Boolean(
+    session && participants.some((reply) => reply.post.author.did === session.pds.did),
+  )
+  const participationClosed = Boolean(
+    fields.deadline && new Date(fields.deadline).getTime() <= Date.now(),
+  )
 
   useEffect(() => {
     if (!uri || !session) return
@@ -68,41 +88,75 @@ export function PostThreadPanel({
     composer?.querySelector('textarea')?.focus()
   }
 
+  const publishComment = async (text: string) => {
+    if (!session || !thread) return
+    const result = await publishReply({
+      data: {
+        did: session.pds.did,
+        accessJwt: session.pds.access_jwt,
+        text,
+        root: { uri: thread.post.uri, cid: thread.post.cid },
+        parent: { uri: thread.post.uri, cid: thread.post.cid },
+      },
+    })
+    const post: PostView = {
+      uri: result.uri,
+      cid: result.cid,
+      indexedAt: result.createdAt,
+      author: {
+        did: session.pds.did,
+        handle: session.pds.handle,
+        displayName: session.user.nickname ?? undefined,
+      },
+      record: {
+        text: result.text,
+        createdAt: result.createdAt,
+        langs: ['zh'],
+        reply: {
+          root: { uri: thread.post.uri, cid: thread.post.cid },
+          parent: { uri: thread.post.uri, cid: thread.post.cid },
+        },
+      },
+      replyCount: 0,
+      repostCount: 0,
+      likeCount: 0,
+    }
+    setThread((current) => current ? {
+      ...current,
+      post: {
+        ...current.post,
+        replyCount: (current.post.replyCount ?? 0) + 1,
+      },
+      replies: [...current.replies, { post, replies: [] }],
+    } : current)
+    clearCachedFeed(session.pds.did)
+    onReplyCreated?.(thread.post.uri)
+  }
+
   const submitReply = async () => {
     if (!session || !thread || !replyText.trim()) return
     setReplying(true)
     setReplyNotice('')
     try {
-      const result = await publishReply({
-        data: {
-          did: session.pds.did,
-          accessJwt: session.pds.access_jwt,
-          text: replyText,
-          root: { uri: thread.post.uri, cid: thread.post.cid },
-          parent: { uri: thread.post.uri, cid: thread.post.cid },
-        },
-      })
-      clearCachedFeed(session.pds.did)
+      await publishComment(replyText)
       setReplyText('')
-      setReplyNotice('评论已发布，正在同步。')
-      for (let attempt = 0; attempt < 10; attempt += 1) {
-        await new Promise((resolve) => window.setTimeout(resolve, 1000))
-        const next = await fetchThread({
-          data: {
-            uri,
-            accessJwt: session.pds.access_jwt,
-            did: session.pds.did,
-          },
-        })
-        setThread(next)
-        if (next.replies.some((reply) => reply.post.uri === result.uri)) {
-          setReplyNotice('评论已发布。')
-          return
-        }
-      }
-      setReplyNotice('评论已经发布，稍后刷新即可看到。')
+      setReplyNotice('评论已发布。')
     } catch (reason) {
       setReplyNotice(reason instanceof Error ? reason.message : '评论失败')
+    } finally {
+      setReplying(false)
+    }
+  }
+
+  const participate = async () => {
+    if (!session || !thread || hasParticipated || participationClosed) return
+    setReplying(true)
+    setReplyNotice('')
+    try {
+      await publishComment(ACTIVITY_REPLY)
+      setReplyNotice('已参与活动。')
+    } catch (reason) {
+      setReplyNotice(reason instanceof Error ? reason.message : '参与失败')
     } finally {
       setReplying(false)
     }
@@ -146,7 +200,9 @@ export function PostThreadPanel({
                 <div className="post-meta">{thread.post.author.handle}</div>
               </div>
             </div>
-            <p className="post-detail-copy">{thread.post.record.text}</p>
+            <p className="post-detail-copy">
+              {postDisplayText(thread.post.record.text)}
+            </p>
             <time className="post-detail-time">
               {formatTimestamp(
                 thread.post.record.createdAt || thread.post.indexedAt,
@@ -228,12 +284,25 @@ export function PostThreadPanel({
               aria-label={`${POST_KINDS[kind].tag} 信息`}
             >
               {POST_KINDS[kind].fields.map((field) => (
-                <div key={field}>
-                  <span>{field}</span>
-                  <strong>—</strong>
+                <div key={field.key}>
+                  <span>{field.label}</span>
+                  <strong>{formatPostFieldValue(field.key, fields[field.key])}</strong>
                 </div>
               ))}
-              <p>相关字段尚未接入，以正文和发布方说明为准。</p>
+              {kind === 'activity' ? (
+                <div className="activity-participation">
+                  <span>{participants.length} 人已参与</span>
+                  <Button
+                    label={participationClosed ? '活动已截止' : hasParticipated ? '已参与' : '参与活动'}
+                    variant="primary"
+                    clickAction={participate}
+                    isLoading={isReplying}
+                    isDisabled={participationClosed || hasParticipated}
+                  />
+                  <small>参与将作为一条评论写入该活动帖子。</small>
+                  <em role="status">{replyNotice}</em>
+                </div>
+              ) : null}
             </section>
           )}
         </>

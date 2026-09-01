@@ -8,7 +8,7 @@ import {
   toggleLike,
   toggleRepost,
 } from '~/features/feed/api'
-import { postKind } from '~/features/feed/tags'
+import { postFieldValues, postKind } from '~/features/feed/tags'
 import type { PostView } from '~/lib/models'
 import { useStoredSession } from '~/features/session/session'
 
@@ -37,6 +37,7 @@ export function PostActions({
   const [pending, setPending] = useState<'like' | 'repost' | null>(null)
   const [error, setError] = useState('')
   const kind = postKind(post.record.text)
+  const fields = postFieldValues(post.record.text, kind)
 
   useEffect(() => {
     setLikeUri(post.viewer?.like)
@@ -121,12 +122,12 @@ export function PostActions({
     <>
       <div className="post-actions" aria-label="帖子互动">
         {kind === 'activity' ? (
-          <span className="post-action special-post-state" aria-label="参与人数尚未接入">
-            <Users size={18} aria-hidden="true" /> 参与 —
+          <span className="post-action special-post-state" aria-label={`${post.replyCount ?? 0} 人参与`}>
+            <Users size={18} aria-hidden="true" /> 参与 {post.replyCount ?? 0}
           </span>
         ) : kind === 'product' ? (
-          <span className="post-action special-post-state" aria-label="商品可用状态尚未接入">
-            <PackageCheck size={18} aria-hidden="true" /> 可用 —
+          <span className="post-action special-post-state" aria-label={`商品状态：${fields.availability || '待确认'}`}>
+            <PackageCheck size={18} aria-hidden="true" /> {fields.availability || '状态待确认'}
           </span>
         ) : onOpenComments ? (
           <button
