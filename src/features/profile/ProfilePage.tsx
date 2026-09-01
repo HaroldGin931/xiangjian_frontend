@@ -2,6 +2,7 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { ChevronRight, LogOut, UserRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
+import { publicAttachmentUrl } from '~/lib/attachments'
 import type { RiceUser } from '~/lib/models'
 
 import { getCurrentUser, logoutRice } from '../session/api'
@@ -10,7 +11,6 @@ import { useStoredSession } from '../session/session'
 const disabledRows = [
   ['我的社区', '社区接口尚未接入'],
   ['联盟与治理', '社区指南、联盟公告和只读提案'],
-  ['设置', '账号、通知与隐私'],
 ] as const
 
 export function ProfilePage() {
@@ -54,13 +54,15 @@ export function ProfilePage() {
     <div className="page profile-page">
       <section className="profile-identity">
         <div className="profile-avatar" aria-hidden="true">
-          <UserRound size={28} />
+          {profile?.avatar ? (
+            <img src={publicAttachmentUrl(profile.avatar.url)} alt="" />
+          ) : <UserRound size={28} />}
         </div>
         <h1>{profile?.nickname || profile?.handle?.split('.')[0] || '正在加载'}</h1>
         <p>Rice + AT Protocol · @{profile?.handle || '—'}</p>
         <span>{profile?.node_member ? '节点成员' : '社区成员'}</span>
         <div className="profile-actions">
-          <button type="button" disabled aria-label="编辑资料，接口尚未接入">编辑资料</button>
+          <Link to="/me/settings/profile">编辑资料</Link>
           <button type="button" disabled aria-label="查看主页，接口尚未接入">查看主页</button>
         </div>
       </section>
@@ -103,6 +105,10 @@ export function ProfilePage() {
             <ChevronRight size={18} aria-hidden="true" />
           </button>
         ))}
+        <Link to="/me/settings" className="profile-menu-row">
+          <span><strong>设置</strong><small>账号、资料、通知与隐私</small></span>
+          <ChevronRight size={18} aria-hidden="true" />
+        </Link>
       </nav>
 
       <button type="button" className="logout-button" onClick={handleLogout}>

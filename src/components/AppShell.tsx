@@ -4,7 +4,8 @@ import type { ReactNode } from 'react'
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname })
-  const isStandalone = ['/login', '/post', '/search', '/compose'].includes(pathname)
+  const isStandalone =
+    ['/login', '/register', '/forgot-password', '/post', '/search', '/compose'].includes(pathname)
   const sectionTitle = pathname.startsWith('/tasks')
     ? '任务'
     : pathname.startsWith('/notifications')

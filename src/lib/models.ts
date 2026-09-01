@@ -21,6 +21,8 @@ export type RiceUser = {
   inserted_at: string
 }
 
+export type RiceAttachment = NonNullable<RiceUser['avatar']>
+
 export type RiceSession = {
   token: string
   user: RiceUser

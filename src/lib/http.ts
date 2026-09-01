@@ -23,7 +23,13 @@ export async function readJson(response: Response) {
   const detail =
     (typeof errors?.detail === 'string' && errors.detail) ||
     (typeof body.message === 'string' && body.message)
-  throw new Error(detail || '服务暂时不可用，请稍后重试。')
+  const fieldError = errors
+    ? Object.values(errors).find((value) => Array.isArray(value) && typeof value[0] === 'string')
+    : undefined
+  throw new Error(
+    detail || (Array.isArray(fieldError) ? String(fieldError[0]) : '') ||
+      '服务暂时不可用，请稍后重试。',
+  )
 }
 
 export async function requestJson<T>(

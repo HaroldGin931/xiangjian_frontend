@@ -1,6 +1,6 @@
 import { Button } from '@astryxdesign/core/Button'
 import { TextInput } from '@astryxdesign/core/TextInput'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { LogIn } from 'lucide-react'
 import { useState } from 'react'
 
@@ -65,6 +65,10 @@ function LoginPage() {
           isDisabled={!identifier.trim() || !password}
           clickAction={submit}
         />
+        <div className="login-links">
+          <Link to="/register">创建账号</Link>
+          <Link to="/forgot-password">忘记密码？</Link>
+        </div>
       </section>
     </div>
   )

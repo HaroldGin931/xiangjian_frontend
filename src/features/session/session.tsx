@@ -9,7 +9,7 @@ import {
 
 import type { RiceSession } from '~/lib/models'
 
-import { refreshPdsSession } from './api'
+import { getCurrentUser, refreshPdsSession } from './api'
 
 const STORAGE_KEY = 'xiangjian-rice-session'
 const CHANGE_EVENT = 'xiangjian-session-change'
@@ -91,21 +91,34 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     const sync = async () => {
       const stored = readStoredSession()
-      if (!stored || !tokenExpiresSoon(stored.pds.access_jwt)) {
+      if (!stored) {
         if (active) {
-          setSession(stored)
+          setSession(null)
           setIsReady(true)
         }
         return
       }
 
+      let current = stored
+      if (tokenExpiresSoon(stored.pds.access_jwt)) {
+        try {
+          current = await refreshStoredSession(stored)
+        } catch {
+          // PDS 暂时不可用时仍可继续使用 Rice 账号能力。
+        }
+      }
+
       try {
-        const refreshed = await refreshStoredSession(stored)
-        if (active) setSession(refreshed)
+        const user = await getCurrentUser({ data: current.token })
+        current = { ...current, user }
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(current))
       } catch {
-        if (active) setSession(stored)
+        // 保留现有会话，让具体页面显示 Rice 或 PDS 返回的错误。
       } finally {
-        if (active) setIsReady(true)
+        if (active) {
+          setSession(current)
+          setIsReady(true)
+        }
       }
     }
 

@@ -9,6 +9,7 @@ dist
 qa/*
 !qa/activity-detail-comparison.png
 !qa/activity-detail-flow-comparison.png
+!qa/account-security-comparison.png
 !qa/activity-tag-comparison.png
 !qa/compose-flow-comparison.png
 !qa/final-notifications-desktop.png
