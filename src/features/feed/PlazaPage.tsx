@@ -7,6 +7,7 @@ import type { PostFeed } from '~/lib/models'
 import { useStoredSession } from '../session/session'
 import { getPosts, readCachedFeed, writeCachedFeed } from './api'
 import { PostThreadDialog } from './PostThreadDialog'
+import { postKind, type PostKind } from './tags'
 
 type FeedTab = 'all' | 'activity' | 'product'
 
@@ -19,6 +20,7 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
   const [selectedPost, setSelectedPost] = useState<{
     uri: string
     focusReply: boolean
+    kind: PostKind
   } | null>(null)
   const requestSequence = useRef(0)
   const { session, isReady } = useStoredSession()
@@ -132,7 +134,11 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
         <PostList
           posts={feed.posts}
           onOpenPost={(post, focusReply) =>
-            setSelectedPost({ uri: post.uri, focusReply })
+            setSelectedPost({
+              uri: post.uri,
+              focusReply,
+              kind: postKind(post.record.text),
+            })
           }
           onRepostChange={handleRepostChange}
         />
@@ -141,6 +147,7 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
       {selectedPost ? (
         <PostThreadDialog
           uri={selectedPost.uri}
+          kind={selectedPost.kind}
           focusReply={selectedPost.focusReply}
           onClose={() => setSelectedPost(null)}
           onRepostChange={handleRepostChange}

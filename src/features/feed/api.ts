@@ -3,6 +3,8 @@ import { createServerFn } from '@tanstack/react-start'
 import { BACKEND_BASE, requestJson, type JsonObject } from '~/lib/http'
 import type { PostFeed, PostThread, PostView } from '~/lib/models'
 
+import { hasPostTag } from './tags'
+
 let clientFeedCache: { owner: string | null; feed: PostFeed } | null = null
 
 export function readCachedFeed(did?: string) {
@@ -217,7 +219,9 @@ export async function loadPosts(data: GetPostsInput) {
   const timelineReposts = !query && !data.repo
     ? await loadTimelineReposts(data.accessJwt)
     : []
-  const posts = mergeFeedPosts(feed.posts, timelineReposts)
+  const posts = mergeFeedPosts(feed.posts, timelineReposts).filter(
+    (post) => !data.tag || hasPostTag(post.record.text, data.tag),
+  )
   return {
     ...feed,
     total: posts.length,

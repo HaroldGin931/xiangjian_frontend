@@ -65,4 +65,53 @@ Separate detail crops were not required: the normalized `390 × 844` side-by-sid
 
 - P3: once real task and notification APIs are connected, verify long real-world titles and dense list rows against the same source screens.
 
+## Tag-specialization QA · 2026-09-01
+
+### Source and state
+
+- Product rule source: the supplied “一套帖子，活动/商品只是 Tag” diagram and the live prototype screens for the unified composer, product-tag detail, and activity-tag detail.
+- Bug-state source: `/var/folders/hw/p2sd7bcx3j5g6km12ml617600000gn/T/codex-clipboard-671f5003-7318-4f1e-8cfd-76095dd59fa0.png`.
+- Live source capture: `qa/source-activity-detail.png`.
+- Implementation state: the real local Mo account feed at `http://127.0.0.1:19007/`; no activity, product, repost, or comment mock record was introduced.
+
+### Viewport and comparison evidence
+
+- Implementation captures were taken at `390 × 844` CSS px with `devicePixelRatio=1` in the Codex in-app browser.
+- The supplied activity-feed source was cropped to its first `642 × 1389` phone region, then normalized to `390 × 844` for a same-size comparison.
+- Full activity-filter comparison: `qa/activity-tag-comparison.png`.
+- Focused activity-detail comparison: `qa/activity-detail-comparison.png`.
+- Additional implementation evidence: `qa/product-compose-mobile.png` and `qa/activity-compose-mobile.png`.
+
+### Findings and fixes
+
+1. P1: the activity and product tabs filtered the Post Cache response before timeline repost events were merged, so unrelated reposts entered both special feeds. Fixed by merging first and applying one exact tag predicate to every item using the original post text. Reposts of genuinely tagged original posts remain eligible.
+2. P1: activity and product cards exposed the normal repost action. The repost control is now absent in both special renderers and their detail dialogs.
+3. P2: only the first tag was rendered. All unique tags are now preserved; the first special tag in post-text order selects activity or product presentation while other tags retain normal tag treatment.
+4. P2: activity and product publishing duplicated tag selection inline. A single kind definition now provides the tag, placeholder, button label, and grey supplementary-field labels while reusing the existing text-post API.
+5. P2: special detail views reused the normal comment composer. Activity now presents a grey participation state and activity fields; product presents a grey availability state and product fields. Missing backend fields remain visibly unavailable instead of being invented in client state.
+
+### Five fidelity surfaces
+
+- Typography: the existing compact mobile type scale and strong green hierarchy are unchanged.
+- Spacing: filter pills, post cards, special metadata tiles, composer, and fixed bottom navigation remain inside the shared `390 px` shell without clipping.
+- Color: activity uses the established pale/green system; product uses a restrained warm tag treatment; unavailable fields remain muted.
+- Assets: Lucide icons only; no new image, custom SVG, or illustrative asset was introduced.
+- Copy and content: visible values come from Rice/Post Cache/AppView. Activity/product-specific values not present in the API are shown as em dashes with user-facing explanatory copy.
+
+### Primary interactions tested
+
+1. Activity filter returned exactly two real posts and every item’s original text contained the exact `#活动` tag; unrelated reposts were absent.
+2. Product filter returned the real empty state; no product mock was created.
+3. Activity cards showed participation state and like only; product cards use availability state and like only; neither exposes repost.
+4. Activity detail opened as a modal with activity fields and no comment/repost controls.
+5. Activity and product composer modes kept one text-post submission path, displayed mode-specific copy, showed a visible `0/300` input count, and appended the matching special tag only once.
+6. Returning to the all-post feed retained valid repost events and did not log a browser warning or error.
+
+### Validation
+
+- Browser console: no warning or error after the final Docker rebuild.
+- Automated tests: 6 files, 15 tests passed, including exact tag matching, multi-tag preservation, no duplicate auto-tag, and post-merge filtering.
+- Production build and TypeScript check: passed.
+- Docker frontend: running on port `19007` against the existing local backend stack.
+
 final result: passed

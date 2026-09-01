@@ -10,6 +10,7 @@ import {
   updateInteractionRecord,
   writeCachedFeed,
 } from './api'
+import { hasPostTag, postKind, postTags, withPostKind } from './tags'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -25,6 +26,54 @@ const post = {
 }
 
 describe('feed data', () => {
+  it('uses exact tags to select one special rendering while preserving every tag', () => {
+    const text = '赶集信息\n#乡村 #商品 #活动'
+
+    expect(postTags(text)).toEqual(['#乡村', '#商品', '#活动'])
+    expect(postKind(text)).toBe('product')
+    expect(hasPostTag('#活动周', '活动')).toBe(false)
+    expect(withPostKind('开放日 #活动', 'activity')).toBe('开放日 #活动')
+    expect(withPostKind('开放日', 'activity')).toBe('开放日\n#活动')
+  })
+
+  it('filters direct posts and repost events by the original post tag', async () => {
+    const activityPost = {
+      ...post,
+      uri: `${post.uri}-activity`,
+      record: { ...post.record, text: '开放日\n#活动 #乡村' },
+    }
+    const reason = {
+      $type: 'app.bsky.feed.defs#reasonRepost' as const,
+      by: { did: 'did:viewer', handle: 'viewer.local' },
+      uri: 'at://did:viewer/app.bsky.feed.repost/1',
+      indexedAt: '2026-09-01T01:00:00.000Z',
+    }
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ posts: [activityPost, post] }), {
+          status: 200,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            feed: [
+              { post, reason: { ...reason, uri: `${reason.uri}-plain` } },
+              { post: activityPost, reason },
+            ],
+          }),
+          { status: 200 },
+        ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const feed = await loadPosts({ tag: '活动', accessJwt: 'access-token' })
+
+    expect(feed.posts).toHaveLength(2)
+    expect(feed.posts.every((item) => hasPostTag(item.record.text, '活动'))).toBe(true)
+  })
+
   it('reuses one account feed until that account writes', () => {
     vi.stubGlobal('window', {})
     const feed = { posts: [post], total: 1 }

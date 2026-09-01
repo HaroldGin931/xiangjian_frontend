@@ -10,6 +10,7 @@ import {
   getPosts,
   writeCachedFeed,
 } from '~/features/feed/api'
+import { POST_KINDS, type PostKind, withPostKind } from '~/features/feed/tags'
 import { useStoredSession } from '~/features/session/session'
 
 export const Route = createFileRoute('/compose')({ component: ComposePage })
@@ -19,10 +20,12 @@ function ComposePage() {
   const publish = useServerFn(createTextPost)
   const fetchPosts = useServerFn(getPosts)
   const navigate = useNavigate()
-  const [kind, setKind] = useState<'post' | 'activity' | 'product'>('post')
+  const [kind, setKind] = useState<PostKind>('post')
   const [text, setText] = useState('')
   const [notice, setNotice] = useState('')
   const [isPublishing, setPublishing] = useState(false)
+  const kindDetails = POST_KINDS[kind]
+  const publishText = withPostKind(text, kind)
 
   useEffect(() => {
     if (isReady && !session) void navigate({ to: '/login' })
@@ -33,12 +36,11 @@ function ComposePage() {
     setPublishing(true)
     setNotice('')
     try {
-      const tag = kind === 'activity' ? '#活动' : kind === 'product' ? '#商品' : ''
       const result = await publish({
         data: {
           did: session.pds.did,
           accessJwt: session.pds.access_jwt,
-          text: [text.trim(), tag].filter(Boolean).join('\n'),
+          text: publishText,
         },
       })
       clearCachedFeed(session.pds.did)
@@ -79,21 +81,36 @@ function ComposePage() {
         <textarea
           id="compose-post-text"
           aria-describedby="compose-character-count"
-          aria-invalid={text.length > 300 || undefined}
+          aria-invalid={publishText.length > 300 || undefined}
           value={text}
           onChange={(event) => setText(event.currentTarget.value)}
           rows={9}
-          placeholder="说点什么…"
+          placeholder={kindDetails.placeholder}
           autoFocus
         />
         <span
           id="compose-character-count"
-          className={`compose-character-count ${text.length > 300 ? 'over-limit' : ''}`}
+          className={`compose-character-count ${publishText.length > 300 ? 'over-limit' : ''}`}
           aria-live="polite"
         >
           {text.length}/300
         </span>
       </div>
+
+      {kindDetails.fields.length ? (
+        <section
+          className="special-compose-fields"
+          aria-label={`${kindDetails.tag} 补充信息`}
+        >
+          {kindDetails.fields.map((field) => (
+            <div key={field}>
+              <span>{field}</span>
+              <strong>—</strong>
+            </div>
+          ))}
+          <p>补充字段尚未开放，本次仍以帖子正文和 {kindDetails.tag} 发布。</p>
+        </section>
+      ) : null}
 
       <div className="compose-tools" aria-label="更多发布能力">
         <button type="button" disabled><Image size={18} aria-hidden="true" /> 图片</button>
@@ -107,12 +124,12 @@ function ComposePage() {
       </div>
       {notice ? <div className="form-error">{notice}</div> : null}
       <Button
-        label="发布内容"
+        label={kindDetails.publishLabel}
         variant="primary"
         width="100%"
         clickAction={submit}
         isLoading={isPublishing}
-        isDisabled={!text.trim() || text.length > 300}
+        isDisabled={!text.trim() || publishText.length > 300}
       />
     </div>
   )

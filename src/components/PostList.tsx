@@ -3,12 +3,9 @@ import { Link } from '@tanstack/react-router'
 import { Repeat2 } from 'lucide-react'
 
 import { PostActions, type RepostChange } from '~/components/PostActions'
+import { postKind, postTags } from '~/features/feed/tags'
 import { formatTimestamp } from '~/lib/format'
 import type { PostView } from '~/lib/models'
-
-function firstTag(text: string) {
-  return text.match(/#[\p{L}\p{N}_-]+/u)?.[0] ?? null
-}
 
 export function PostList({
   posts,
@@ -33,10 +30,11 @@ export function PostList({
   return (
     <div className="post-list">
       {posts.map((post) => {
-        const tag = firstTag(post.record.text)
+        const kind = postKind(post.record.text)
+        const tags = postTags(post.record.text)
         return (
           <article
-            className="post-row"
+            className={`post-row ${kind === 'post' ? '' : `${kind}-post`}`}
             key={post.reason?.uri ?? post.uri}
           >
             {post.reason ? (
@@ -51,13 +49,28 @@ export function PostList({
                   {(post.author.displayName || post.author.handle).slice(0, 1).toUpperCase()}
                 </span>
                 <div>
-                <strong>{post.author.displayName || post.author.handle.split('.')[0]}</strong>
-                <div className="post-meta">
-                  {post.author.handle} · {formatTimestamp(post.record.createdAt || post.indexedAt)}
-                </div>
+                  <strong>{post.author.displayName || post.author.handle.split('.')[0]}</strong>
+                  <div className="post-meta">
+                    {post.author.handle} ·{' '}
+                    {formatTimestamp(post.record.createdAt || post.indexedAt)}
+                  </div>
                 </div>
               </div>
-              {tag ? <span className="post-tag">{tag}</span> : null}
+              {tags.length ? (
+                <div className="post-tags" aria-label="帖子标签">
+                  {tags.map((tag) => {
+                    const tagKind = postKind(tag)
+                    return (
+                      <span
+                        className={`post-tag ${tagKind === 'post' ? '' : `${tagKind}-tag`}`}
+                        key={tag}
+                      >
+                        {tag}
+                      </span>
+                    )
+                  })}
+                </div>
+              ) : null}
             </div>
             {onOpenPost ? (
               <button

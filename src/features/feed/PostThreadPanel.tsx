@@ -14,6 +14,7 @@ import type { PostThread } from '~/lib/models'
 
 import { useStoredSession } from '../session/session'
 import { clearCachedFeed, createReply, getPostThread } from './api'
+import { POST_KINDS, postKind } from './tags'
 
 export function PostThreadPanel({
   uri,
@@ -34,6 +35,7 @@ export function PostThreadPanel({
   const [replyNotice, setReplyNotice] = useState('')
   const [isReplying, setReplying] = useState(false)
   const replyComposerId = useId()
+  const kind = thread ? postKind(thread.post.record.text) : 'post'
 
   useEffect(() => {
     if (!uri || !session) return
@@ -160,65 +162,80 @@ export function PostThreadPanel({
             </div>
           </article>
 
-          <section className="reply-section" aria-label="评论">
-            <div className="reply-composer" id={replyComposerId}>
-              <TextArea
-                label="写下评论"
-                value={replyText}
-                onChange={setReplyText}
-                rows={6}
-                maxLength={300}
-                width="100%"
-                placeholder="写下你的评论…"
-                hasAutoFocus={focusReply}
-              />
-              <div className="reply-composer-footer">
-                <span role="status">{replyNotice}</span>
-                <Button
-                  label="发布评论"
-                  variant="primary"
-                  clickAction={submitReply}
-                  isLoading={isReplying}
-                  isDisabled={!replyText.trim() || replyText.length > 300}
+          {kind === 'post' ? (
+            <section className="reply-section" aria-label="评论">
+              <div className="reply-composer" id={replyComposerId}>
+                <TextArea
+                  label="写下评论"
+                  value={replyText}
+                  onChange={setReplyText}
+                  rows={6}
+                  maxLength={300}
+                  width="100%"
+                  placeholder="写下你的评论…"
+                  hasAutoFocus={focusReply}
                 />
+                <div className="reply-composer-footer">
+                  <span role="status">{replyNotice}</span>
+                  <Button
+                    label="发布评论"
+                    variant="primary"
+                    clickAction={submitReply}
+                    isLoading={isReplying}
+                    isDisabled={!replyText.trim() || replyText.length > 300}
+                  />
+                </div>
               </div>
-            </div>
 
-            <h2>评论 <span>{thread.replies.length}</span></h2>
-            {thread.replies.length === 0 ? (
-              <div className="empty-panel replies-empty">
-                <EmptyState title="还没有评论" description="成为第一个参与讨论的人。" />
-              </div>
-            ) : (
-              <div className="reply-list">
-                {thread.replies.map((reply) => (
-                  <article className="reply-row" key={reply.post.uri}>
-                    <div className="post-author">
-                      <span className="post-avatar" aria-hidden="true">
-                        {(reply.post.author.displayName || reply.post.author.handle)
-                          .slice(0, 1)
-                          .toUpperCase()}
-                      </span>
-                      <div>
-                        <strong>
-                          {reply.post.author.displayName ||
-                            reply.post.author.handle.split('.')[0]}
-                        </strong>
-                        <div className="post-meta">
-                          {formatTimestamp(
-                            reply.post.record.createdAt || reply.post.indexedAt,
-                            true,
-                          )}
+              <h2>评论 <span>{thread.replies.length}</span></h2>
+              {thread.replies.length === 0 ? (
+                <div className="empty-panel replies-empty">
+                  <EmptyState title="还没有评论" description="成为第一个参与讨论的人。" />
+                </div>
+              ) : (
+                <div className="reply-list">
+                  {thread.replies.map((reply) => (
+                    <article className="reply-row" key={reply.post.uri}>
+                      <div className="post-author">
+                        <span className="post-avatar" aria-hidden="true">
+                          {(reply.post.author.displayName || reply.post.author.handle)
+                            .slice(0, 1)
+                            .toUpperCase()}
+                        </span>
+                        <div>
+                          <strong>
+                            {reply.post.author.displayName ||
+                              reply.post.author.handle.split('.')[0]}
+                          </strong>
+                          <div className="post-meta">
+                            {formatTimestamp(
+                              reply.post.record.createdAt || reply.post.indexedAt,
+                              true,
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <p>{reply.post.record.text}</p>
-                    <PostActions post={reply.post} onOpenComments={focusComposer} />
-                  </article>
-                ))}
-              </div>
-            )}
-          </section>
+                      <p>{reply.post.record.text}</p>
+                      <PostActions post={reply.post} onOpenComments={focusComposer} />
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+          ) : (
+            <section
+              className="special-post-details"
+              aria-label={`${POST_KINDS[kind].tag} 信息`}
+            >
+              {POST_KINDS[kind].fields.map((field) => (
+                <div key={field}>
+                  <span>{field}</span>
+                  <strong>—</strong>
+                </div>
+              ))}
+              <p>相关字段尚未接入，以正文和发布方说明为准。</p>
+            </section>
+          )}
         </>
       ) : !error ? (
         <div className="loading-line">正在加载帖子…</div>

@@ -1,6 +1,6 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
-import { Heart, MessageCircle, Repeat2 } from 'lucide-react'
+import { Heart, MessageCircle, PackageCheck, Repeat2, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import {
@@ -8,6 +8,7 @@ import {
   toggleLike,
   toggleRepost,
 } from '~/features/feed/api'
+import { postKind } from '~/features/feed/tags'
 import type { PostView } from '~/lib/models'
 import { useStoredSession } from '~/features/session/session'
 
@@ -35,6 +36,7 @@ export function PostActions({
   const [repostCount, setRepostCount] = useState(post.repostCount ?? 0)
   const [pending, setPending] = useState<'like' | 'repost' | null>(null)
   const [error, setError] = useState('')
+  const kind = postKind(post.record.text)
 
   useEffect(() => {
     setLikeUri(post.viewer?.like)
@@ -118,7 +120,15 @@ export function PostActions({
   return (
     <>
       <div className="post-actions" aria-label="帖子互动">
-        {onOpenComments ? (
+        {kind === 'activity' ? (
+          <span className="post-action special-post-state" aria-label="参与人数尚未接入">
+            <Users size={18} aria-hidden="true" /> 参与 —
+          </span>
+        ) : kind === 'product' ? (
+          <span className="post-action special-post-state" aria-label="商品可用状态尚未接入">
+            <PackageCheck size={18} aria-hidden="true" /> 可用 —
+          </span>
+        ) : onOpenComments ? (
           <button
             type="button"
             className="post-action"
@@ -140,17 +150,19 @@ export function PostActions({
             {post.replyCount ?? 0}
           </Link>
         )}
-        <button
-          type="button"
-          className={`post-action ${repostUri ? 'active' : ''}`}
-          onClick={handleRepost}
-          disabled={pending !== null}
-          aria-label={repostUri ? '取消转发' : '转发'}
-          aria-pressed={Boolean(repostUri)}
-        >
-          <Repeat2 size={18} aria-hidden="true" />
-          {repostCount}
-        </button>
+        {kind === 'post' ? (
+          <button
+            type="button"
+            className={`post-action ${repostUri ? 'active' : ''}`}
+            onClick={handleRepost}
+            disabled={pending !== null}
+            aria-label={repostUri ? '取消转发' : '转发'}
+            aria-pressed={Boolean(repostUri)}
+          >
+            <Repeat2 size={18} aria-hidden="true" />
+            {repostCount}
+          </button>
+        ) : null}
         <button
           type="button"
           className={`post-action ${likeUri ? 'active' : ''}`}
