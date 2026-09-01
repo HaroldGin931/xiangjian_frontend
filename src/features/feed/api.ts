@@ -208,36 +208,38 @@ type ToggleInteractionInput = {
   recordUri?: string
 }
 
-function toggleInteraction(
+export async function updateInteractionRecord(
+  data: ToggleInteractionInput,
   collection: 'app.bsky.feed.like' | 'app.bsky.feed.repost',
 ) {
-  return createServerFn({ method: 'POST' })
-    .validator((data: ToggleInteractionInput) => data)
-    .handler(async ({ data }) => {
-      if (data.recordUri) {
-        await deletePdsRecord(data.accessJwt, {
-          repo: data.did,
-          collection,
-          rkey: recordKeyFromUri(data.recordUri, collection),
-        })
-        return { recordUri: null }
-      }
-
-      const record = await writePdsRecord(data.accessJwt, {
-        repo: data.did,
-        collection,
-        record: {
-          $type: collection,
-          subject: { uri: data.postUri, cid: data.postCid },
-          createdAt: new Date().toISOString(),
-        },
-      })
-      return { recordUri: record.uri }
+  if (data.recordUri) {
+    await deletePdsRecord(data.accessJwt, {
+      repo: data.did,
+      collection,
+      rkey: recordKeyFromUri(data.recordUri, collection),
     })
+    return { recordUri: null }
+  }
+
+  const record = await writePdsRecord(data.accessJwt, {
+    repo: data.did,
+    collection,
+    record: {
+      $type: collection,
+      subject: { uri: data.postUri, cid: data.postCid },
+      createdAt: new Date().toISOString(),
+    },
+  })
+  return { recordUri: record.uri }
 }
 
-export const toggleLike = toggleInteraction('app.bsky.feed.like')
-export const toggleRepost = toggleInteraction('app.bsky.feed.repost')
+export const toggleLike = createServerFn({ method: 'POST' })
+  .validator((data: ToggleInteractionInput) => data)
+  .handler(({ data }) => updateInteractionRecord(data, 'app.bsky.feed.like'))
+
+export const toggleRepost = createServerFn({ method: 'POST' })
+  .validator((data: ToggleInteractionInput) => data)
+  .handler(({ data }) => updateInteractionRecord(data, 'app.bsky.feed.repost'))
 
 export const createReply = createServerFn({ method: 'POST' })
   .validator(

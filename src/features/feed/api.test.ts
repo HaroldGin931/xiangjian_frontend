@@ -5,6 +5,7 @@ import {
   normalizePostFeed,
   normalizePostThread,
   recordKeyFromUri,
+  updateInteractionRecord,
 } from './api'
 
 afterEach(() => vi.unstubAllGlobals())
@@ -68,5 +69,43 @@ describe('feed data', () => {
 
     expect(feed.posts).toEqual([post])
     expect(postCacheInit?.headers).toEqual({ 'Content-Type': 'application/json' })
+  })
+
+  it('returns the record URI needed to toggle likes and reposts', async () => {
+    const recordUri = 'at://did:example/app.bsky.feed.like/3abc'
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ uri: recordUri, cid: 'interaction-cid' }), {
+          status: 200,
+        }),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({}), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const input = {
+      did: 'did:example',
+      accessJwt: 'access-token',
+      postUri: post.uri,
+      postCid: post.cid,
+    }
+
+    await expect(
+      updateInteractionRecord(input, 'app.bsky.feed.like'),
+    ).resolves.toEqual({ recordUri })
+    await expect(
+      updateInteractionRecord(
+        { ...input, recordUri },
+        'app.bsky.feed.like',
+      ),
+    ).resolves.toEqual({ recordUri: null })
+
+    const deleteBody = JSON.parse(
+      String(fetchMock.mock.calls[1][1]?.body),
+    ) as Record<string, string>
+    expect(deleteBody).toMatchObject({
+      repo: input.did,
+      collection: 'app.bsky.feed.like',
+      rkey: '3abc',
+    })
   })
 })
