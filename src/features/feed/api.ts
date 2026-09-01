@@ -1,28 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 
-import type {
-  NotificationFeed,
-  NotificationView,
-  PostFeed,
-  PostThread,
-  PostView,
-  RiceSession,
-  RiceUser,
-} from './models'
-
-const BACKEND_BASE = process.env.XIANGJIAN_BACKEND_URL ?? 'http://localhost:19006'
-
-type JsonObject = Record<string, unknown>
-
-async function readJson(response: Response) {
-  const body = (await response.json().catch(() => ({}))) as JsonObject
-  if (!response.ok) {
-    const errors = body.errors as JsonObject | undefined
-    const detail = typeof errors?.detail === 'string' ? errors.detail : null
-    throw new Error(detail ?? '服务暂时不可用，请稍后重试。')
-  }
-  return body
-}
+import { BACKEND_BASE, requestJson, type JsonObject } from '~/lib/http'
+import type { PostFeed, PostThread, PostView } from '~/lib/models'
 
 export function recordKeyFromUri(uri: string, collection: string) {
   const parts = uri.split('/')
@@ -34,13 +13,9 @@ export function recordKeyFromUri(uri: string, collection: string) {
 
 async function writePdsRecord(
   accessJwt: string,
-  body: {
-    repo: string
-    collection: string
-    record: JsonObject
-  },
+  body: { repo: string; collection: string; record: JsonObject },
 ) {
-  const response = await fetch(
+  return requestJson<{ uri: string; cid: string }>(
     `${BACKEND_BASE}/pds/xrpc/com.atproto.repo.createRecord`,
     {
       method: 'POST',
@@ -51,14 +26,13 @@ async function writePdsRecord(
       body: JSON.stringify(body),
     },
   )
-  return (await readJson(response)) as { uri: string; cid: string }
 }
 
 async function deletePdsRecord(
   accessJwt: string,
   body: { repo: string; collection: string; rkey: string },
 ) {
-  const response = await fetch(
+  await requestJson(
     `${BACKEND_BASE}/pds/xrpc/com.atproto.repo.deleteRecord`,
     {
       method: 'POST',
@@ -69,7 +43,6 @@ async function deletePdsRecord(
       body: JSON.stringify(body),
     },
   )
-  await readJson(response)
 }
 
 async function hydrateViewerRecords(
@@ -81,13 +54,12 @@ async function hydrateViewerRecords(
 
   const list = async (collection: 'app.bsky.feed.like' | 'app.bsky.feed.repost') => {
     const params = new URLSearchParams({ repo: did, collection, limit: '100' })
-    const response = await fetch(
+    const body = await requestJson<{
+      records?: Array<{ uri: string; value?: { subject?: { uri?: string } } }>
+    }>(
       `${BACKEND_BASE}/pds/xrpc/com.atproto.repo.listRecords?${params}`,
       { headers: { Authorization: `Bearer ${accessJwt}` } },
     )
-    const body = (await readJson(response)) as {
-      records?: Array<{ uri: string; value?: { subject?: { uri?: string } } }>
-    }
     return new Map(
       (body.records ?? [])
         .filter((record) => typeof record.value?.subject?.uri === 'string')
@@ -122,9 +94,9 @@ export function normalizePostFeed(payload: unknown): PostFeed {
     .map((item): PostView | undefined =>
       'post' in item ? item.post : (item as PostView),
     )
-    .filter((post): post is PostView => {
-      return Boolean(post?.uri && post.record?.text !== undefined)
-    })
+    .filter((post): post is PostView =>
+      Boolean(post?.uri && post.record?.text !== undefined),
+    )
 
   return {
     posts,
@@ -132,73 +104,8 @@ export function normalizePostFeed(payload: unknown): PostFeed {
   }
 }
 
-export function normalizeNotificationFeed(payload: unknown): NotificationFeed {
-  const body = (payload ?? {}) as {
-    notifications?: Array<{
-      uri?: unknown
-      cid?: unknown
-      author?: { did?: unknown; handle?: unknown; displayName?: unknown }
-      reason?: unknown
-      reasonSubject?: unknown
-      record?: { text?: unknown }
-      isRead?: unknown
-      indexedAt?: unknown
-    }>
-    priority?: boolean
-    seenAt?: string
-  }
-  const notifications = (body.notifications ?? [])
-    .filter(
-      (notification) =>
-        typeof notification.uri === 'string' &&
-        typeof notification.author?.handle === 'string',
-    )
-    .map(
-      (notification): NotificationView => ({
-        uri: notification.uri as string,
-        cid: typeof notification.cid === 'string' ? notification.cid : '',
-        author: {
-          did:
-            typeof notification.author?.did === 'string'
-              ? notification.author.did
-              : '',
-          handle: notification.author?.handle as string,
-          displayName:
-            typeof notification.author?.displayName === 'string'
-              ? notification.author.displayName
-              : undefined,
-        },
-        reason:
-          typeof notification.reason === 'string'
-            ? notification.reason
-            : 'unknown',
-        reasonSubject:
-          typeof notification.reasonSubject === 'string'
-            ? notification.reasonSubject
-            : undefined,
-        text:
-          typeof notification.record?.text === 'string'
-            ? notification.record.text
-            : '',
-        isRead: notification.isRead === true,
-        indexedAt:
-          typeof notification.indexedAt === 'string'
-            ? notification.indexedAt
-            : new Date(0).toISOString(),
-      }),
-    )
-
-  return {
-    notifications,
-    priority: body.priority === true,
-    seenAt: body.seenAt,
-  }
-}
-
 export function normalizePostThread(payload: unknown): PostThread {
-  const body = payload as {
-    thread?: { post?: PostView; replies?: unknown[] }
-  }
+  const body = payload as { thread?: { post?: PostView; replies?: unknown[] } }
 
   const normalizeNode = (value: unknown): PostThread | null => {
     const node = value as { post?: PostView; replies?: unknown[] }
@@ -237,7 +144,7 @@ export const getPosts = createServerFn({ method: 'POST' })
           ...(data.repo ? { repo: data.repo } : {}),
           ...(data.tag ? { tag: data.tag } : {}),
         }
-    const response = await fetch(`${BACKEND_BASE}${endpoint}`, {
+    const payload = await requestJson<unknown>(`${BACKEND_BASE}${endpoint}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -248,7 +155,7 @@ export const getPosts = createServerFn({ method: 'POST' })
       body: JSON.stringify(requestBody),
     })
 
-    const feed = normalizePostFeed(await readJson(response))
+    const feed = normalizePostFeed(payload)
     return {
       ...feed,
       posts: await hydrateViewerRecords(feed.posts, data.did, data.accessJwt),
@@ -263,11 +170,11 @@ export const getPostThread = createServerFn({ method: 'POST' })
       depth: '20',
       parentHeight: '0',
     })
-    const response = await fetch(
+    const payload = await requestJson<unknown>(
       `${BACKEND_BASE}/pds/xrpc/app.bsky.feed.getPostThread?${params}`,
       { headers: { Authorization: `Bearer ${data.accessJwt}` } },
     )
-    const thread = normalizePostThread(await readJson(response))
+    const thread = normalizePostThread(payload)
     const [post] = await hydrateViewerRecords(
       [thread.post],
       data.did,
@@ -276,71 +183,8 @@ export const getPostThread = createServerFn({ method: 'POST' })
     return { ...thread, post }
   })
 
-export const loginRice = createServerFn({ method: 'POST' })
-  .validator((data: { identifier: string; password: string }) => data)
-  .handler(async ({ data }) => {
-    const response = await fetch(`${BACKEND_BASE}/api/session`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        identifier: data.identifier.trim().toLowerCase(),
-        password: data.password,
-      }),
-    })
-    const body = (await readJson(response)) as { data: RiceSession }
-    return body.data
-  })
-
-export const logoutRice = createServerFn({ method: 'POST' })
-  .validator((token: string) => token)
-  .handler(async ({ data: token }) => {
-    await fetch(`${BACKEND_BASE}/api/session`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    return true
-  })
-
-export const getCurrentUser = createServerFn({ method: 'POST' })
-  .validator((token: string) => token)
-  .handler(async ({ data: token }) => {
-    const response = await fetch(`${BACKEND_BASE}/api/users/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    const body = (await readJson(response)) as { data: RiceUser }
-    return body.data
-  })
-
-export const getNotifications = createServerFn({ method: 'POST' })
-  .validator((accessJwt: string) => accessJwt)
-  .handler(async ({ data: accessJwt }) => {
-    const response = await fetch(
-      `${BACKEND_BASE}/pds/xrpc/app.bsky.notification.listNotifications?limit=30`,
-      { headers: { Authorization: `Bearer ${accessJwt}` } },
-    )
-    const feed = normalizeNotificationFeed(await readJson(response))
-
-    if (feed.notifications.some((notification) => !notification.isRead)) {
-      await fetch(
-        `${BACKEND_BASE}/pds/xrpc/app.bsky.notification.updateSeen`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${accessJwt}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ seenAt: new Date().toISOString() }),
-        },
-      ).catch(() => undefined)
-    }
-
-    return feed
-  })
-
 export const createTextPost = createServerFn({ method: 'POST' })
-  .validator(
-    (data: { did: string; accessJwt: string; text: string }) => data,
-  )
+  .validator((data: { did: string; accessJwt: string; text: string }) => data)
   .handler(async ({ data }) => {
     const text = data.text.trim()
     if (!text) throw new Error('帖子内容不能为空')
@@ -367,7 +211,9 @@ type ToggleInteractionInput = {
   recordUri?: string
 }
 
-function toggleInteraction(collection: 'app.bsky.feed.like' | 'app.bsky.feed.repost') {
+function toggleInteraction(
+  collection: 'app.bsky.feed.like' | 'app.bsky.feed.repost',
+) {
   return createServerFn({ method: 'POST' })
     .validator((data: ToggleInteractionInput) => data)
     .handler(async ({ data }) => {

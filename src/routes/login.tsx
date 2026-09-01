@@ -5,8 +5,8 @@ import { useServerFn } from '@tanstack/react-start'
 import { LogIn } from 'lucide-react'
 import { useState } from 'react'
 
-import { loginRice } from '~/lib/api'
-import { useStoredSession } from '~/lib/session'
+import { loginRice } from '~/features/session/api'
+import { useStoredSession } from '~/features/session/session'
 
 export const Route = createFileRoute('/login')({ component: LoginPage })
 

@@ -5,8 +5,8 @@ import { useServerFn } from '@tanstack/react-start'
 import { Image, Link2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import { createTextPost, getPosts } from '~/lib/api'
-import { useStoredSession } from '~/lib/session'
+import { createTextPost, getPosts } from '~/features/feed/api'
+import { useStoredSession } from '~/features/session/session'
 
 export const Route = createFileRoute('/compose')({ component: ComposePage })
 

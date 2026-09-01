@@ -3,9 +3,9 @@ import { useServerFn } from '@tanstack/react-start'
 import { Heart, MessageCircle, Repeat2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import { toggleLike, toggleRepost } from '~/lib/api'
+import { toggleLike, toggleRepost } from '~/features/feed/api'
 import type { PostView } from '~/lib/models'
-import { useStoredSession } from '~/lib/session'
+import { useStoredSession } from '~/features/session/session'
 
 export function PostActions({ post }: { post: PostView }) {
   const { session } = useStoredSession()

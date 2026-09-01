@@ -3,16 +3,8 @@ import { Link } from '@tanstack/react-router'
 import { Clock3 } from 'lucide-react'
 
 import { PostActions } from '~/components/PostActions'
+import { formatTimestamp } from '~/lib/format'
 import type { PostView } from '~/lib/models'
-
-function formatTime(value: string) {
-  return new Intl.DateTimeFormat('zh-CN', {
-    month: 'numeric',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value))
-}
 
 function firstTag(text: string) {
   return text.match(/#[\p{L}\p{N}_-]+/u)?.[0] ?? null
@@ -44,7 +36,7 @@ export function PostList({ posts }: { posts: PostView[] }) {
                 <div>
                 <strong>{post.author.displayName || post.author.handle.split('.')[0]}</strong>
                 <div className="post-meta">
-                  {post.author.handle} · {formatTime(post.record.createdAt || post.indexedAt)}
+                  {post.author.handle} · {formatTimestamp(post.record.createdAt || post.indexedAt)}
                 </div>
                 </div>
               </div>

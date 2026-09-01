@@ -1,56 +1,67 @@
 # Design QA
 
-## Scope and source
+## Comparison target
 
-- Live source: `https://xiangjian-dao-v11-preview.rickyke2023.chatgpt.site/prototype`.
-- Source screens captured in this run: `② 广场`, `㊴ 发帖`, `㊵ 帖子详情`, `㊶ 全局搜索`.
-- Browser viewport: `1280 × 720` CSS px, using only the Codex in-app browser.
-- Local state: signed in as Mo Bob; all visible posts are real Post Cache records. No post, comment, like, repost, task, person or community mock data was added.
+- Source visual truth: `https://xiangjian-dao-v11-preview.rickyke2023.chatgpt.site/prototype`.
+- Source captures: `/Users/harold/.codex/visualizations/2026/08/31/01a05788-1303-7641-960d-7049ac652ae8/xiangjian-readonly-audit-2026-09-01/03-source-task-desktop.png`, `05-source-me-desktop.png`, and `08-source-notifications-desktop.png`.
+- Implementation: `http://127.0.0.1:19007/`, rendered by the persistent Docker frontend and inspected only in the Codex in-app browser.
+- Compared states: task, profile, notifications, plaza; authenticated as Mo Bob where an account was required. Source task/notification records are illustrative. The implementation intentionally shows real empty states because no task or social mock records were added.
 
-## Six alignment scores
+## Viewport and normalization
 
-The same 100-point rubric was used on each pass: information architecture 25, geometry 25, visual tokens 20, core interaction flow 20, source fidelity 10.
+- Source canvas: `1280 × 720` px. Its phone application region was cropped at `x=505, y=92, 270 × 582` px and normalized to `390 × 844` px.
+- Mobile implementation: `390 × 844` CSS px, measured `devicePixelRatio=1`. The Codex capture transport encoded the visible page at half scale inside a `390 × 844` image, so the `195 × 422` content region was normalized back to `390 × 844` before comparison.
+- Desktop implementation: `1280 × 800` CSS px. Full-page raw captures ranged from `1280 × 800` to `1280 × 935` px; the same capture-scale normalization was applied before visual inspection.
+- Mobile comparison evidence:
+  - `qa/task-mobile-comparison.png`
+  - `qa/profile-mobile-comparison.png`
+  - `qa/notifications-mobile-comparison.png`
+- Desktop responsive evidence:
+  - `qa/final-plaza-desktop.png`
+  - `qa/final-task-desktop.png`
+  - `qa/final-notifications-desktop.png`
+  - `qa/final-profile-desktop.png`
 
-| Pass | Score | Improvement proved |
-| --- | ---: | --- |
-| 1 | 35 | Baseline exposed the unsupported hero, task strip, inline search, `社区动态` heading and logout in the header. |
-| 2 | 58 | Removed unsupported layers; restored compact publish/search controls, three feed tabs and four destinations. |
-| 3 | 69 | Added prototype-style post cards, avatar, tag, comment/repost/like positions and a real post-detail entry. |
-| 4 | 78 | Completed the top-right search flow and proved `你好` returns the real matching Post Cache record. |
-| 5 | 88 | Connected post thread reads plus like/unlike, repost/unrepost and reply writes to authenticated PDS records. |
-| 6 | 94 | Matched the light mobile shell, card hierarchy, standalone search/detail/compose screens and rounded-control proportions. |
+## Findings
 
-## Final evidence
+No actionable P0, P1, or P2 differences remain.
 
-- Plaza source/local: `qa/score-6-normalized-comparison.jpg`.
-- Search source/local: `qa/score-6-search-comparison.jpg`.
-- Post detail source/local: `qa/score-6-post-detail-comparison.jpg`.
-- Compose source/local: `qa/score-6-compose-comparison.jpg`.
-- Individual local captures: `qa/score-6-plaza.jpg`, `qa/score-6-search.jpg`, `qa/score-6-post-detail.jpg`, `qa/score-6-compose.jpg`.
+- Fonts and typography: the implementation preserves the source hierarchy with system Chinese body text and a Song-style task hero display face. Explicit Asia/Shanghai formatting now keeps server and browser timestamps identical.
+- Spacing and layout rhythm: mobile header, hero, search, filter pills, metric cards, menus, and fixed four-way navigation follow the source order and proportions. Desktop expands into centered 760–940 px content regions instead of retaining a fixed phone shell.
+- Colors and visual tokens: warm off-white background, deep green primary state, pale green balance surface, low-contrast borders, and visibly muted disabled controls match the source intent. The green presentation-stage side panels are absent from the product layout.
+- Image quality and assets: these screens contain no required photographic or decorative raster assets. Icons use Lucide; no handcrafted SVG, emoji, CSS illustration, or fake avatar image was introduced.
+- Copy and content: app copy is user-facing. Unsupported task, profile, search, and private-message actions are disabled and grey; no API/debug commentary appears in the product interface.
+- Accessibility and states: semantic headings, tab roles, navigation labels, disabled controls, empty, loading, retry, expired-session, and signed-out states were inspected. No mobile clipping or hidden persistent navigation was found.
 
-## Flow checks
+## Comparison history
 
-1. Plaza — healthy. The large unsupported headings are absent; only real posts are shown.
-2. Category filter — healthy. Clicking `活动` returns the single real `#活动` post; `商品` uses the same real tag filter.
-3. Global search — healthy. The header search opens the standalone source-aligned page, submits a real keyword and returns the real post. Task, person and community scopes are visibly disabled because no confirmed API is connected.
-4. Post detail — healthy. Clicking a search result opens the authenticated AT Protocol thread with interaction counts and the comment composer.
-5. Interactions — healthy without test mutation. Like/unlike and repost/unrepost map to PDS create/delete records; reply maps to an `app.bsky.feed.post` record with root and parent references. The browser run verified enabled controls and existing-state reads but did not click a write action.
-6. Compose — healthy without test mutation. The header publish control opens the standalone composer; image, topic and association tools are disabled; text and Activity/Product tags use the real post-write path and wait for Post Cache visibility before returning to the plaza.
+1. First pass found a P2 profile ordering drift: `我的帖子` appeared before `我的任务`, unlike the source. Fixed by restoring the source menu order while keeping the unsupported task row disabled. Post-fix evidence: `qa/profile-mobile-comparison.png`.
+2. Runtime inspection found a P1 hydration mismatch on plaza timestamps because Docker SSR used UTC while the browser used Asia/Shanghai. Fixed with one shared explicit-timezone formatter. A fresh browser tab then completed three plaza reloads with four identical posts, no alert, and no console warning/error.
+3. Runtime inspection found a P1 Docker gateway redirect: container-to-container Rice requests used host `gateway`, which Rice redirected to unavailable `https://localhost`. Fixed the gateway to preserve Rice's configured canonical host. Profile data then loaded without the raw `fetch failed` message.
+4. Final pass compared the revised mobile screens side by side and inspected all four desktop captures. No new P0/P1/P2 finding was identified.
 
-## Rounded-container geometry
+## Focused-region evidence
 
-- Source publish pill normalized to the local mobile width: approximately `64 × 34`; local: `70 × 32`.
-- Source active feed tab normalized: approximately `84 × 38`; local final target: `81 × 36` inside a `42`-pixel group.
-- Local search control is `32 × 32`, with the icon centered.
-- Local first post card is inset `12` pixels from both shell edges with a `15`-pixel radius.
-- Local bottom navigation spans the `430`-pixel mobile shell and keeps equal four-way columns.
+Separate detail crops were not required: the normalized `390 × 844` side-by-side images keep the task hero typography, profile identity/balance/menu rows, notification tabs, disabled states, and bottom navigation readable at one-to-one target size. Desktop captures were reviewed separately for breakpoint behavior rather than source fidelity because the source only specifies a phone layout inside a presentation stage.
 
-## Validation limits
+## Primary interactions tested
 
-- The source uses illustrative content across tasks, people and communities. Those sections remain disabled instead of being populated with invented data.
-- Accessibility observations from screenshots are limited to visible hierarchy, labels, disabled states and contrast; full assistive-technology compliance was not claimed.
-- No automated browser action created or deleted user content or interactions.
+1. Fresh Rice login refreshed the Rice and PDS session and returned to plaza.
+2. Plaza loaded the same four real Post Cache records over five repeated navigations before the timestamp fix and three fresh-tab reloads after it.
+3. Task, notifications, profile, and plaza navigation worked at `390 × 844` and `1280 × 800`.
+4. Notifications loaded a real empty feed; private messages stayed disabled.
+5. Profile loaded the real Rice account and balance; unsupported actions stayed disabled.
+6. No post, reply, like, repost, task, notification, person, or community record was created during QA.
 
-Tests: 4 passing. Production build and TypeScript check: passing.
+## Validation
+
+- Browser console after final rebuild: no warnings or errors in a fresh tab.
+- Automated tests: 5 files, 7 tests passed.
+- Production build and TypeScript check: passed.
+- Docker frontend: running on port `19007`; Rice, PDS, Post Cache, AppView, PLC, gateway, and Postgres remained running.
+
+## Follow-up polish
+
+- P3: once real task and notification APIs are connected, verify long real-world titles and dense list rows against the same source screens.
 
 final result: passed

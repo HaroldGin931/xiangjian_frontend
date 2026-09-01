@@ -5,22 +5,46 @@ import type { ReactNode } from 'react'
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const isStandalone = ['/login', '/post', '/search', '/compose'].includes(pathname)
+  const sectionTitle = pathname.startsWith('/tasks')
+    ? '任务'
+    : pathname.startsWith('/notifications')
+      ? '消息'
+      : pathname === '/me/posts'
+        ? '我的帖子'
+        : pathname.startsWith('/me')
+          ? '我的'
+          : null
 
   return (
     <div className={`app-shell ${isStandalone ? 'standalone-shell' : ''}`}>
       {!isStandalone ? <header className="topbar">
-        <Link to="/" className="brand" aria-label="返回乡建 DAO 广场">
-          <span>乡建</span><small>DAO</small>
-        </Link>
-        <div className="topbar-actions">
-          <Link className="header-publish" to="/compose">
-            <Plus size={18} aria-hidden="true" />
-            发布
+        {sectionTitle ? (
+          <strong className="section-title">{sectionTitle}</strong>
+        ) : (
+          <Link to="/" className="brand" aria-label="返回乡建 DAO 广场">
+            <span>乡建</span><small>DAO</small>
           </Link>
-          <Link to="/search" className="header-search" aria-label="搜索">
-            <Search size={22} aria-hidden="true" />
-          </Link>
-        </div>
+        )}
+        {pathname === '/' ? (
+          <div className="topbar-actions">
+            <Link className="header-publish" to="/compose">
+              <Plus size={18} aria-hidden="true" />
+              发布
+            </Link>
+            <Link to="/search" className="header-search" aria-label="搜索">
+              <Search size={22} aria-hidden="true" />
+            </Link>
+          </div>
+        ) : pathname.startsWith('/tasks') ? (
+          <button
+            type="button"
+            className="header-publish disabled-control"
+            aria-label="发布任务，接口尚未接入"
+            disabled
+          >
+            <Plus size={18} aria-hidden="true" /> 发布任务
+          </button>
+        ) : null}
       </header> : null}
 
       <main className="page-frame">{children}</main>

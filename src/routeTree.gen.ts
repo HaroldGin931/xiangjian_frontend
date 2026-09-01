@@ -17,6 +17,7 @@ import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as PostRouteImport } from './routes/post'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as TasksRouteImport } from './routes/tasks'
+import { Route as MePostsRouteImport } from './routes/me.posts'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -58,37 +59,45 @@ const TasksRoute = TasksRouteImport.update({
   path: '/tasks',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MePostsRoute = MePostsRouteImport.update({
+  id: '/posts',
+  path: '/posts',
+  getParentRoute: () => MeRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/compose': typeof ComposeRoute
   '/login': typeof LoginRoute
-  '/me': typeof MeRoute
+  '/me': typeof MeRouteWithChildren
   '/notifications': typeof NotificationsRoute
   '/post': typeof PostRoute
   '/search': typeof SearchRoute
   '/tasks': typeof TasksRoute
+  '/me/posts': typeof MePostsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/compose': typeof ComposeRoute
   '/login': typeof LoginRoute
-  '/me': typeof MeRoute
+  '/me': typeof MeRouteWithChildren
   '/notifications': typeof NotificationsRoute
   '/post': typeof PostRoute
   '/search': typeof SearchRoute
   '/tasks': typeof TasksRoute
+  '/me/posts': typeof MePostsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/compose': typeof ComposeRoute
   '/login': typeof LoginRoute
-  '/me': typeof MeRoute
+  '/me': typeof MeRouteWithChildren
   '/notifications': typeof NotificationsRoute
   '/post': typeof PostRoute
   '/search': typeof SearchRoute
   '/tasks': typeof TasksRoute
+  '/me/posts': typeof MePostsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/post'
     | '/search'
     | '/tasks'
+    | '/me/posts'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/post'
     | '/search'
     | '/tasks'
+    | '/me/posts'
   id:
     | '__root__'
     | '/'
@@ -121,13 +132,14 @@ export interface FileRouteTypes {
     | '/post'
     | '/search'
     | '/tasks'
+    | '/me/posts'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ComposeRoute: typeof ComposeRoute
   LoginRoute: typeof LoginRoute
-  MeRoute: typeof MeRoute
+  MeRoute: typeof MeRouteWithChildren
   NotificationsRoute: typeof NotificationsRoute
   PostRoute: typeof PostRoute
   SearchRoute: typeof SearchRoute
@@ -192,14 +204,31 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TasksRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/me/posts': {
+      id: '/me/posts'
+      path: '/posts'
+      fullPath: '/me/posts'
+      preLoaderRoute: typeof MePostsRouteImport
+      parentRoute: typeof MeRoute
+    }
   }
 }
+
+interface MeRouteChildren {
+  MePostsRoute: typeof MePostsRoute
+}
+
+const MeRouteChildren: MeRouteChildren = {
+  MePostsRoute: MePostsRoute,
+}
+
+const MeRouteWithChildren = MeRoute._addFileChildren(MeRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ComposeRoute: ComposeRoute,
   LoginRoute: LoginRoute,
-  MeRoute: MeRoute,
+  MeRoute: MeRouteWithChildren,
   NotificationsRoute: NotificationsRoute,
   PostRoute: PostRoute,
   SearchRoute: SearchRoute,

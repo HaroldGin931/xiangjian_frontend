@@ -7,9 +7,10 @@ import { ArrowLeft } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { PostActions } from '~/components/PostActions'
-import { createReply, getPostThread } from '~/lib/api'
+import { createReply, getPostThread } from '~/features/feed/api'
+import { formatTimestamp } from '~/lib/format'
 import type { PostThread } from '~/lib/models'
-import { useStoredSession } from '~/lib/session'
+import { useStoredSession } from '~/features/session/session'
 
 export const Route = createFileRoute('/post')({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -17,16 +18,6 @@ export const Route = createFileRoute('/post')({
   }),
   component: PostPage,
 })
-
-function formatTime(value: string) {
-  return new Intl.DateTimeFormat('zh-CN', {
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(value))
-}
 
 function PostPage() {
   const { uri } = Route.useSearch()
@@ -133,7 +124,10 @@ function PostPage() {
             </div>
             <p className="post-detail-copy">{thread.post.record.text}</p>
             <time className="post-detail-time">
-              {formatTime(thread.post.record.createdAt || thread.post.indexedAt)}
+              {formatTimestamp(
+                thread.post.record.createdAt || thread.post.indexedAt,
+                true,
+              )}
             </time>
             <div className="detail-actions">
               <PostActions post={thread.post} />
@@ -182,8 +176,9 @@ function PostPage() {
                             reply.post.author.handle.split('.')[0]}
                         </strong>
                         <div className="post-meta">
-                          {formatTime(
+                          {formatTimestamp(
                             reply.post.record.createdAt || reply.post.indexedAt,
+                            true,
                           )}
                         </div>
                       </div>

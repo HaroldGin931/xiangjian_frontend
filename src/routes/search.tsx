@@ -4,9 +4,9 @@ import { ArrowLeft, Search } from 'lucide-react'
 import { useState } from 'react'
 
 import { PostList } from '~/components/PostList'
-import { getPosts } from '~/lib/api'
+import { getPosts } from '~/features/feed/api'
 import type { PostFeed } from '~/lib/models'
-import { useStoredSession } from '~/lib/session'
+import { useStoredSession } from '~/features/session/session'
 
 export const Route = createFileRoute('/search')({ component: SearchPage })
 
