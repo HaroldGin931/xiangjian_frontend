@@ -18,33 +18,35 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className={`app-shell ${isStandalone ? 'standalone-shell' : ''}`}>
       {!isStandalone ? <header className="topbar">
-        {sectionTitle ? (
-          <strong className="section-title">{sectionTitle}</strong>
-        ) : (
-          <Link to="/" className="brand" aria-label="返回乡建 DAO 广场">
-            <span>乡建</span><small>DAO</small>
-          </Link>
-        )}
-        {pathname === '/' ? (
-          <div className="topbar-actions">
-            <Link className="header-publish" to="/compose">
-              <Plus size={18} aria-hidden="true" />
-              发布
+        <div className="topbar-inner">
+          {sectionTitle ? (
+            <strong className="section-title">{sectionTitle}</strong>
+          ) : (
+            <Link to="/" className="brand" aria-label="返回乡建 DAO 广场">
+              <span>乡建</span><small>DAO</small>
             </Link>
-            <Link to="/search" className="header-search" aria-label="搜索">
-              <Search size={22} aria-hidden="true" />
-            </Link>
-          </div>
-        ) : pathname.startsWith('/tasks') ? (
-          <button
-            type="button"
-            className="header-publish disabled-control"
-            aria-label="发布任务，接口尚未接入"
-            disabled
-          >
-            <Plus size={18} aria-hidden="true" /> 发布任务
-          </button>
-        ) : null}
+          )}
+          {pathname === '/' ? (
+            <div className="topbar-actions">
+              <Link className="header-publish" to="/compose">
+                <Plus size={18} aria-hidden="true" />
+                发布
+              </Link>
+              <Link to="/search" className="header-search" aria-label="搜索">
+                <Search size={22} aria-hidden="true" />
+              </Link>
+            </div>
+          ) : pathname.startsWith('/tasks') ? (
+            <button
+              type="button"
+              className="header-publish disabled-control"
+              aria-label="发布任务，接口尚未接入"
+              disabled
+            >
+              <Plus size={18} aria-hidden="true" /> 发布任务
+            </button>
+          ) : null}
+        </div>
       </header> : null}
 
       <main className="page-frame">{children}</main>
