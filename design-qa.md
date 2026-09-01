@@ -166,3 +166,33 @@ final result: passed
 - Docker frontend, Rice, Post Cache, and gateway: running.
 
 final result: passed
+
+## Profile single-column layout QA · 2026-09-01
+
+### Source and state
+
+- Product hierarchy source: the profile screen in `qa/profile-mobile-comparison.png`, which orders identity, rice balance, personal functions, and logout as one continuous reading flow.
+- Reported desktop bug state: `/var/folders/hw/p2sd7bcx3j5g6km12ml617600000gn/T/codex-clipboard-45e71db5-9dd4-4819-a1e1-3c065cb65fc2.png` (`1602 × 1406` px).
+- Final implementation: `http://127.0.0.1:19007/me`, authenticated as the existing Mo Bob account and captured as `qa/profile-single-column-desktop.jpg` at `1280 × 720` px.
+- Normalized before/after evidence: `qa/profile-single-column-before-after.png`; both sides were normalized to `720` px height for structural comparison. The bug screenshot is evidence of the rejected layout, not a pixel-fidelity target.
+
+### Finding and fix
+
+1. P1: the desktop-only two-column grid placed identity and rice balance in the first grid row, then forced the personal-function menu into the second row. Because the identity card was taller than the rice card, the right column contained a large empty region and the user's reading flow was split. The desktop grid, explicit grid placement, and artificial identity minimum height were removed. The page now uses the same centered `760 px` single column at every breakpoint: identity → rice balance → personal functions → logout.
+
+### Fidelity surfaces
+
+- Typography: unchanged; the existing profile heading, account metadata, balance, and menu hierarchy remain intact.
+- Spacing and layout rhythm: sections now use one shared `10 px` vertical gap with no empty grid track; the column matches the width already used by the user's post list.
+- Colors and tokens: unchanged.
+- Image quality and assets: unchanged Lucide account icon; no new asset was added.
+- Copy and content: unchanged real Rice account data and existing grey unsupported actions.
+
+### Validation
+
+- Browser: identity, rice balance, “我的帖子”, and bottom navigation rendered in one continuous column; no browser warning or error.
+- Automated tests: 6 files, 17 tests passed.
+- Production build and TypeScript check: passed.
+- No post, reply, interaction, account, or mock record was created.
+
+final result: passed
