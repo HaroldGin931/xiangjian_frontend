@@ -3,6 +3,28 @@ import { createServerFn } from '@tanstack/react-start'
 import { BACKEND_BASE, requestJson } from '~/lib/http'
 import type { RiceSession, RiceUser } from '~/lib/models'
 
+export async function requestPdsSessionRefresh(pds: RiceSession['pds']) {
+  const body = await requestJson<{
+    accessJwt: string
+    refreshJwt: string
+    did: string
+    handle: string
+  }>(
+    `${BACKEND_BASE}/pds/xrpc/com.atproto.server.refreshSession`,
+    {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${pds.refresh_jwt}` },
+    },
+  )
+  return {
+    service: pds.service,
+    did: body.did,
+    handle: body.handle,
+    access_jwt: body.accessJwt,
+    refresh_jwt: body.refreshJwt,
+  }
+}
+
 export const loginRice = createServerFn({ method: 'POST' })
   .validator((data: { identifier: string; password: string }) => data)
   .handler(async ({ data }) => {
@@ -38,21 +60,4 @@ export const getCurrentUser = createServerFn({ method: 'POST' })
 
 export const refreshPdsSession = createServerFn({ method: 'POST' })
   .validator((pds: RiceSession['pds']) => pds)
-  .handler(async ({ data: pds }) => {
-    const body = await requestJson<{
-      accessJwt: string
-      refreshJwt: string
-      did: string
-      handle: string
-    }>(
-      `${BACKEND_BASE}/pds/xrpc/com.atproto.server.refreshSession`,
-      { headers: { Authorization: `Bearer ${pds.refresh_jwt}` } },
-    )
-    return {
-      service: pds.service,
-      did: body.did,
-      handle: body.handle,
-      access_jwt: body.accessJwt,
-      refresh_jwt: body.refreshJwt,
-    }
-  })
+  .handler(({ data }) => requestPdsSessionRefresh(data))

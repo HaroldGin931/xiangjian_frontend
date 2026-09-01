@@ -6,6 +6,10 @@ import { refreshPdsSession } from './api'
 
 const STORAGE_KEY = 'xiangjian-rice-session'
 const CHANGE_EVENT = 'xiangjian-session-change'
+const pendingRefreshes = new Map<string, Promise<RiceSession>>()
+type PdsRefresh = (input: {
+  data: RiceSession['pds']
+}) => Promise<RiceSession['pds']>
 
 export function readStoredSession(): RiceSession | null {
   if (typeof window === 'undefined') return null
@@ -42,6 +46,27 @@ export function tokenExpiresSoon(
   }
 }
 
+export function refreshStoredSession(
+  stored: RiceSession,
+  refresh: PdsRefresh = refreshPdsSession,
+) {
+  const key = stored.pds.refresh_jwt
+  const pending = pendingRefreshes.get(key)
+  if (pending) return pending
+
+  const request = refresh({ data: stored.pds })
+    .then((pds) => {
+      const refreshed = { ...stored, pds }
+      writeStoredSession(refreshed)
+      return refreshed
+    })
+    .finally(() => {
+      if (pendingRefreshes.get(key) === request) pendingRefreshes.delete(key)
+    })
+  pendingRefreshes.set(key, request)
+  return request
+}
+
 export function useStoredSession() {
   const [session, setSession] = useState<RiceSession | null>(null)
   const [isReady, setIsReady] = useState(false)
@@ -60,12 +85,8 @@ export function useStoredSession() {
       }
 
       try {
-        const pds = await refreshPdsSession({ data: stored.pds })
-        const refreshed = { ...stored, pds }
-        if (active) {
-          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(refreshed))
-          setSession(refreshed)
-        }
+        const refreshed = await refreshStoredSession(stored)
+        if (active) setSession(refreshed)
       } catch {
         if (active) setSession(stored)
       } finally {

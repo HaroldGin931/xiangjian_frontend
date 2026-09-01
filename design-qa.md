@@ -39,6 +39,7 @@ No actionable P0, P1, or P2 differences remain.
 2. Runtime inspection found a P1 hydration mismatch on plaza timestamps because Docker SSR used UTC while the browser used Asia/Shanghai. Fixed with one shared explicit-timezone formatter. A fresh browser tab then completed three plaza reloads with four identical posts, no alert, and no console warning/error.
 3. Runtime inspection found a P1 Docker gateway redirect: container-to-container Rice requests used host `gateway`, which Rice redirected to unavailable `https://localhost`. Fixed the gateway to preserve Rice's configured canonical host. Profile data then loaded without the raw `fetch failed` message.
 4. Final pass compared the revised mobile screens side by side and inspected all four desktop captures. No new P0/P1/P2 finding was identified.
+5. Follow-up runtime inspection reproduced a P1 refresh collapse: the server-rendered four-post feed was replaced by an authenticated empty response after about 400 ms, while PDS refresh calls incorrectly used GET and raced across mounted components. Fixed by using POST, deduplicating refreshes by rotating refresh token, and keeping public Post Cache reads independent from PDS authentication. Four consecutive plaza reloads retained all four posts; two notification reloads retained a valid session.
 
 ## Focused-region evidence
 
@@ -56,7 +57,7 @@ Separate detail crops were not required: the normalized `390 × 844` side-by-sid
 ## Validation
 
 - Browser console after final rebuild: no warnings or errors in a fresh tab.
-- Automated tests: 5 files, 7 tests passed.
+- Automated tests: 6 files, 10 tests passed.
 - Production build and TypeScript check: passed.
 - Docker frontend: running on port `19007`; Rice, PDS, Post Cache, AppView, PLC, gateway, and Postgres remained running.
 

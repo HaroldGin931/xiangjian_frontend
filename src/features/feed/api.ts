@@ -123,44 +123,41 @@ export function normalizePostThread(payload: unknown): PostThread {
   return thread
 }
 
-export const getPosts = createServerFn({ method: 'POST' })
-  .validator(
-    (data: {
-      query?: string
-      repo?: string
-      tag?: string
-      accessJwt?: string
-      did?: string
-    }) => data,
-  )
-  .handler(async ({ data }) => {
-    const query = data.query?.trim()
-    const endpoint = query ? '/post/api/posts/search' : '/post/api/posts'
-    const requestBody = query
-      ? { q: query, limit: 25, sort: 'latest' }
-      : {
-          page: 1,
-          per_page: 20,
-          ...(data.repo ? { repo: data.repo } : {}),
-          ...(data.tag ? { tag: data.tag } : {}),
-        }
-    const payload = await requestJson<unknown>(`${BACKEND_BASE}${endpoint}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(data.accessJwt
-          ? { Authorization: `Bearer ${data.accessJwt}` }
-          : {}),
-      },
-      body: JSON.stringify(requestBody),
-    })
+export type GetPostsInput = {
+  query?: string
+  repo?: string
+  tag?: string
+  accessJwt?: string
+  did?: string
+}
 
-    const feed = normalizePostFeed(payload)
-    return {
-      ...feed,
-      posts: await hydrateViewerRecords(feed.posts, data.did, data.accessJwt),
-    }
+export async function loadPosts(data: GetPostsInput) {
+  const query = data.query?.trim()
+  const endpoint = query ? '/post/api/posts/search' : '/post/api/posts'
+  const requestBody = query
+    ? { q: query, limit: 25, sort: 'latest' }
+    : {
+        page: 1,
+        per_page: 20,
+        ...(data.repo ? { repo: data.repo } : {}),
+        ...(data.tag ? { tag: data.tag } : {}),
+      }
+  const payload = await requestJson<unknown>(`${BACKEND_BASE}${endpoint}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestBody),
   })
+
+  const feed = normalizePostFeed(payload)
+  return {
+    ...feed,
+    posts: await hydrateViewerRecords(feed.posts, data.did, data.accessJwt),
+  }
+}
+
+export const getPosts = createServerFn({ method: 'POST' })
+  .validator((data: GetPostsInput) => data)
+  .handler(({ data }) => loadPosts(data))
 
 export const getPostThread = createServerFn({ method: 'POST' })
   .validator((data: { uri: string; accessJwt: string; did: string }) => data)

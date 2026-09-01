@@ -1,10 +1,13 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  loadPosts,
   normalizePostFeed,
   normalizePostThread,
   recordKeyFromUri,
 } from './api'
+
+afterEach(() => vi.unstubAllGlobals())
 
 const post = {
   uri: 'at://did:example/app.bsky.feed.post/1',
@@ -43,5 +46,27 @@ describe('feed data', () => {
         'app.bsky.feed.like',
       ),
     ).toBe('3abc')
+  })
+
+  it('keeps public Post Cache reads independent from an expired PDS token', async () => {
+    const fetchMock = vi.fn(async (input: string | URL, _init?: RequestInit) => {
+      if (String(input).includes('/post/api/posts')) {
+        return new Response(JSON.stringify({ posts: [post] }), { status: 200 })
+      }
+      return new Response(
+        JSON.stringify({ error: 'ExpiredToken', message: 'Token has expired' }),
+        { status: 400 },
+      )
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const feed = await loadPosts({
+      did: 'did:example',
+      accessJwt: 'expired-access',
+    })
+    const [, postCacheInit] = fetchMock.mock.calls[0]
+
+    expect(feed.posts).toEqual([post])
+    expect(postCacheInit?.headers).toEqual({ 'Content-Type': 'application/json' })
   })
 })
