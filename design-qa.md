@@ -1,5 +1,8 @@
 # Design QA
 
+`qa/` 中只有本文引用的最终对照图进入 Git；源截图、单页过程截图和评分过程图仅保留在
+本地并由 `.gitignore` 排除。仓库以本文件的验收结论和最终对照图为准。
+
 ## Comparison target
 
 - Source visual truth: `https://xiangjian-dao-v11-preview.rickyke2023.chatgpt.site/prototype`.

@@ -1,66 +1,56 @@
 import { Link } from '@tanstack/react-router'
 import { Bell } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 
-import { formatTimestamp } from '~/lib/format'
-import type { NotificationFeed, NotificationView } from '~/lib/models'
+import { authorDisplayName, formatTimestamp } from '~/lib/format'
+import type { NotificationView } from '~/lib/models'
 
 import { useStoredSession } from '../session/session'
 import { getNotifications } from './api'
 
-const emptyFeed: NotificationFeed = { notifications: [], priority: false }
-
-const reasonLabels: Record<string, string> = {
-  like: '点赞',
-  repost: '转发',
-  follow: '关注',
-  mention: '提及',
-  reply: '评论',
-  quote: '引用',
-  'subscribed-post': '帖子',
+const reasonCopy: Record<string, { label: string; action: string }> = {
+  like: { label: '点赞', action: '赞了你的帖子' },
+  repost: { label: '转发', action: '转发了你的帖子' },
+  follow: { label: '关注', action: '关注了你' },
+  mention: { label: '提及', action: '在帖子中提到了你' },
+  reply: { label: '评论', action: '回复了你的帖子' },
+  quote: { label: '引用', action: '引用了你的帖子' },
+  'subscribed-post': { label: '帖子', action: '发布了新帖子' },
 }
 
 function notificationTitle(notification: NotificationView) {
-  const author =
-    notification.author.displayName || notification.author.handle.split('.')[0]
-  const action: Record<string, string> = {
-    like: '赞了你的帖子',
-    repost: '转发了你的帖子',
-    follow: '关注了你',
-    mention: '在帖子中提到了你',
-    reply: '回复了你的帖子',
-    quote: '引用了你的帖子',
-    'subscribed-post': '发布了新帖子',
-  }
-  return `${author} ${action[notification.reason] || '与你有新的互动'}`
+  return `${authorDisplayName(notification.author)} ${reasonCopy[notification.reason]?.action || '与你有新的互动'}`
 }
 
 export function NotificationsPage() {
   const { session, isReady } = useStoredSession()
-  const [feed, setFeed] = useState<NotificationFeed>(emptyFeed)
+  const [notifications, setNotifications] = useState<NotificationView[]>([])
   const [isLoading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
-  const requestSequence = useRef(0)
   const accessJwt = session?.pds.access_jwt
 
   useEffect(() => {
-    if (!isReady || !accessJwt) return
-    const requestId = ++requestSequence.current
+    if (!isReady || !accessJwt) {
+      setLoading(false)
+      return
+    }
+    let active = true
     setLoading(true)
     setError('')
     void getNotifications({ data: accessJwt })
-      .then((nextFeed) => {
-        if (requestId === requestSequence.current) setFeed(nextFeed)
+      .then((nextNotifications) => {
+        if (active) setNotifications(nextNotifications)
       })
       .catch((reason) => {
-        if (requestId === requestSequence.current) {
+        if (active) {
           setError(reason instanceof Error ? reason.message : '通知暂时无法加载')
         }
       })
       .finally(() => {
-        if (requestId === requestSequence.current) setLoading(false)
+        if (active) setLoading(false)
       })
+    return () => { active = false }
   }, [accessJwt, isReady, reloadKey])
 
   if (isReady && !session) {
@@ -96,7 +86,7 @@ export function NotificationsPage() {
         </div>
       ) : null}
 
-      {feed.notifications.length === 0 && !isLoading ? (
+      {notifications.length === 0 && !isLoading ? (
         <section className="notification-empty-state">
           <Bell size={28} aria-hidden="true" />
           <strong>暂时没有通知</strong>
@@ -104,13 +94,13 @@ export function NotificationsPage() {
         </section>
       ) : (
         <section className="notification-list" aria-label="通知列表">
-          {feed.notifications.map((notification) => (
+          {notifications.map((notification) => (
             <article
               className={`notification-row ${notification.isRead ? '' : 'unread'}`}
               key={`${notification.uri}-${notification.reason}`}
             >
               <span className={`notification-reason reason-${notification.reason}`}>
-                {reasonLabels[notification.reason] || '互动'}
+                {reasonCopy[notification.reason]?.label || '互动'}
               </span>
               <div className="notification-body">
                 <strong>{notificationTitle(notification)}</strong>

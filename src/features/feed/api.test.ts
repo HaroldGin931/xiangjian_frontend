@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import type { RiceSession } from '~/lib/models'
+
 import {
   clearCachedFeed,
+  createdPostView,
   loadPosts,
   normalizePostFeed,
   normalizePostThread,
@@ -114,7 +117,7 @@ describe('feed data', () => {
 
   it('reuses one account feed until that account writes', () => {
     vi.stubGlobal('window', {})
-    const feed = { posts: [post], total: 1 }
+    const feed = { posts: [post] }
 
     writeCachedFeed(feed, 'did:alice')
     expect(readCachedFeed('did:alice')).toBe(feed)
@@ -130,20 +133,34 @@ describe('feed data', () => {
     vi.stubGlobal('window', {})
     const created = { ...post, uri: `${post.uri}-new` }
 
-    writeCachedFeed({ posts: [post], total: 1 }, 'did:alice')
+    writeCachedFeed({ posts: [post] }, 'did:alice')
     prependCachedPost(created, 'did:alice')
 
     expect(readCachedFeed('did:alice')?.posts).toEqual([created, post])
   })
 
+  it('builds the same optimistic view for posts and replies', () => {
+    const session = {
+      user: { nickname: 'Mo Alice' },
+      pds: { did: 'did:alice', handle: 'alice.local' },
+    } as RiceSession
+    const subject = { uri: post.uri, cid: post.cid }
+    const reply = { root: subject, parent: subject }
+
+    expect(createdPostView(
+      { ...post, text: post.record.text, createdAt: post.indexedAt },
+      session,
+      reply,
+    ))
+      .toMatchObject({ author: { did: 'did:alice' }, record: { reply } })
+  })
+
   it('accepts both feed wrappers and direct search results', () => {
     expect(normalizePostFeed({ posts: [{ post }], total: 1 })).toEqual({
       posts: [post],
-      total: 1,
     })
     expect(normalizePostFeed({ posts: [post] })).toEqual({
       posts: [post],
-      total: 1,
     })
   })
 
@@ -173,13 +190,19 @@ describe('feed data', () => {
           { post, reason },
         ],
       }),
-    ).toEqual({ posts: [{ ...post, reason }], total: 1 })
+    ).toEqual({ posts: [{ ...post, reason }] })
   })
 
-  it('normalizes threads without inventing replies', () => {
-    expect(normalizePostThread({ thread: { post } })).toEqual({
+  it('normalizes only the reply depth rendered by the product', () => {
+    const reply = { ...post, uri: `${post.uri}-reply` }
+    expect(normalizePostThread({
+      thread: {
+        post,
+        replies: [{ post: reply, replies: [{ post }] }, { blocked: true }],
+      },
+    })).toEqual({
       post,
-      replies: [],
+      replies: [{ post: reply }],
     })
   })
 

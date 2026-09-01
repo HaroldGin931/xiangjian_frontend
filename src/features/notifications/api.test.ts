@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { normalizeNotificationFeed } from './api'
+import { normalizeNotifications } from './api'
 
 describe('notification data', () => {
   it('keeps only usable notifications without adding demo entries', () => {
@@ -15,25 +15,19 @@ describe('notification data', () => {
     }
 
     expect(
-      normalizeNotificationFeed({
+      normalizeNotifications({
         notifications: [notification, { reason: 'like' }],
         priority: true,
       }),
-    ).toEqual({
-      notifications: [
-        {
-          uri: notification.uri,
-          cid: notification.cid,
-          author: notification.author,
-          reason: notification.reason,
-          reasonSubject: undefined,
-          text: '一条通知内容',
-          isRead: notification.isRead,
-          indexedAt: notification.indexedAt,
-        },
-      ],
-      priority: true,
-      seenAt: undefined,
-    })
+    ).toEqual([
+      {
+        uri: notification.uri,
+        author: { handle: notification.author.handle },
+        reason: notification.reason,
+        text: '一条通知内容',
+        isRead: notification.isRead,
+        indexedAt: notification.indexedAt,
+      },
+    ])
   })
 })

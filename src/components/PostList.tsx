@@ -4,7 +4,7 @@ import { Repeat2 } from 'lucide-react'
 
 import { PostActions, type RepostChange } from '~/components/PostActions'
 import { postDisplayText, postKind, postTags } from '~/features/feed/tags'
-import { formatTimestamp } from '~/lib/format'
+import { authorDisplayName, authorInitial, formatTimestamp } from '~/lib/format'
 import type { PostView } from '~/lib/models'
 
 export function PostList({
@@ -40,16 +40,16 @@ export function PostList({
             {post.reason ? (
               <div className="post-reason">
                 <Repeat2 size={14} aria-hidden="true" />
-                {post.reason.by.displayName || post.reason.by.handle.split('.')[0]} 转发了
+                {authorDisplayName(post.reason.by)} 转发了
               </div>
             ) : null}
             <div className="post-heading">
               <div className="post-author">
                 <span className="post-avatar" aria-hidden="true">
-                  {(post.author.displayName || post.author.handle).slice(0, 1).toUpperCase()}
+                  {authorInitial(post.author)}
                 </span>
                 <div>
-                  <strong>{post.author.displayName || post.author.handle.split('.')[0]}</strong>
+                  <strong>{authorDisplayName(post.author)}</strong>
                   <div className="post-meta">
                     {post.author.handle} ·{' '}
                     {formatTimestamp(post.record.createdAt || post.indexedAt)}

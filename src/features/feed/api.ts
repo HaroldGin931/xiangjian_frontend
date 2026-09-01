@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import { BACKEND_BASE, requestJson, type JsonObject } from '~/lib/http'
-import type { PostFeed, PostThread, PostView } from '~/lib/models'
+import type { PostFeed, PostThread, PostView, RiceSession } from '~/lib/models'
 
 import { hasPostTag } from './tags'
 
@@ -26,7 +26,7 @@ export function prependCachedPost(post: PostView, did?: string) {
   const posts = [post, ...clientFeedCache.feed.posts.filter((item) => item.uri !== post.uri)]
   clientFeedCache = {
     owner: did ?? null,
-    feed: { posts, total: posts.length },
+    feed: { posts },
   }
 }
 
@@ -45,6 +45,31 @@ export function recordKeyFromUri(uri: string, collection: string) {
   const recordKey = parts[collectionIndex + 1]
   if (collectionIndex < 0 || !recordKey) throw new Error('互动记录地址无效')
   return recordKey
+}
+
+export function createdPostView(
+  created: { uri: string; cid: string; text: string; createdAt: string },
+  session: RiceSession,
+  reply?: PostView['record']['reply'],
+): PostView {
+  return {
+    uri: created.uri,
+    cid: created.cid,
+    indexedAt: created.createdAt,
+    author: {
+      did: session.pds.did,
+      handle: session.pds.handle,
+      displayName: session.user.nickname ?? undefined,
+    },
+    record: {
+      text: created.text,
+      createdAt: created.createdAt,
+      ...(reply ? { reply } : {}),
+    },
+    replyCount: 0,
+    repostCount: 0,
+    likeCount: 0,
+  }
 }
 
 async function writePdsRecord(
@@ -130,7 +155,6 @@ export function normalizePostFeed(payload: unknown): PostFeed {
         reason?: PostView['reason']
       }
     >
-    total?: number
   }
   const posts = (body.posts ?? [])
     .map((item): PostView | undefined => {
@@ -146,10 +170,7 @@ export function normalizePostFeed(payload: unknown): PostFeed {
       ),
     )
 
-  return {
-    posts,
-    total: typeof body.total === 'number' ? body.total : posts.length,
-  }
+  return { posts }
 }
 
 async function loadTimelineReposts(accessJwt?: string) {
@@ -186,21 +207,20 @@ function mergeFeedPosts(posts: PostView[], reposts: PostView[]) {
 
 export function normalizePostThread(payload: unknown): PostThread {
   const body = payload as { thread?: { post?: PostView; replies?: unknown[] } }
-
-  const normalizeNode = (value: unknown): PostThread | null => {
-    const node = value as { post?: PostView; replies?: unknown[] }
-    if (!node?.post?.uri || node.post.record?.text === undefined) return null
-    return {
-      post: node.post,
-      replies: (node.replies ?? [])
-        .map(normalizeNode)
-        .filter((reply): reply is PostThread => reply !== null),
-    }
+  const post = body.thread?.post
+  if (!post?.uri || post.record?.text === undefined) {
+    throw new Error('帖子暂时无法显示')
   }
 
-  const thread = normalizeNode(body.thread)
-  if (!thread) throw new Error('帖子暂时无法显示')
-  return thread
+  // ponytail: 当前产品只展示根帖下一层评论，嵌套回复留到 UI 真正支持时再取。
+  const replies = (body.thread?.replies ?? [])
+    .map((value) => (value as { post?: PostView }).post)
+    .filter(
+      (reply): reply is PostView =>
+        Boolean(reply?.uri && reply.record?.text !== undefined),
+    )
+    .map((reply) => ({ post: reply }))
+  return { post, replies }
 }
 
 export type GetPostsInput = {
@@ -235,11 +255,7 @@ export async function loadPosts(data: GetPostsInput) {
   const posts = mergeFeedPosts(feed.posts, timelineReposts).filter(
     (post) => !data.tag || hasPostTag(post.record.text, data.tag),
   )
-  return {
-    ...feed,
-    total: posts.length,
-    posts: await hydrateViewerRecords(posts, data.did, data.accessJwt),
-  }
+  return { posts: await hydrateViewerRecords(posts, data.did, data.accessJwt) }
 }
 
 export const getPosts = createServerFn({ method: 'POST' })
@@ -251,7 +267,7 @@ export const getPostThread = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const params = new URLSearchParams({
       uri: data.uri,
-      depth: '20',
+      depth: '1',
       parentHeight: '0',
     })
     const payload = await requestJson<unknown>(

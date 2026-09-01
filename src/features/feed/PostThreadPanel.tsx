@@ -2,18 +2,22 @@ import { Button } from '@astryxdesign/core/Button'
 import { EmptyState } from '@astryxdesign/core/EmptyState'
 import { TextArea } from '@astryxdesign/core/TextArea'
 import { useNavigate } from '@tanstack/react-router'
-import { useServerFn } from '@tanstack/react-start'
 import { useEffect, useId, useState } from 'react'
 
 import {
   PostActions,
   type RepostChange,
 } from '~/components/PostActions'
-import { formatTimestamp } from '~/lib/format'
-import type { PostThread, PostView } from '~/lib/models'
+import { authorDisplayName, authorInitial, formatTimestamp } from '~/lib/format'
+import type { PostThread } from '~/lib/models'
 
 import { useStoredSession } from '../session/session'
-import { clearCachedFeed, createReply, getPostThread } from './api'
+import {
+  clearCachedFeed,
+  createdPostView,
+  createReply,
+  getPostThread,
+} from './api'
 import {
   formatPostFieldValue,
   POST_KINDS,
@@ -37,8 +41,6 @@ export function PostThreadPanel({
 }) {
   const { session, isReady } = useStoredSession()
   const navigate = useNavigate()
-  const fetchThread = useServerFn(getPostThread)
-  const publishReply = useServerFn(createReply)
   const [thread, setThread] = useState<PostThread | null>(null)
   const [error, setError] = useState('')
   const [replyText, setReplyText] = useState('')
@@ -60,7 +62,7 @@ export function PostThreadPanel({
   useEffect(() => {
     if (!uri || !session) return
     setError('')
-    fetchThread({
+    getPostThread({
       data: {
         uri,
         accessJwt: session.pds.access_jwt,
@@ -71,7 +73,7 @@ export function PostThreadPanel({
       .catch((reason) => {
         setError(reason instanceof Error ? reason.message : '帖子暂时无法显示')
       })
-  }, [fetchThread, session, uri])
+  }, [session, uri])
 
   useEffect(() => {
     if (!focusReply || !thread) return
@@ -90,76 +92,58 @@ export function PostThreadPanel({
 
   const publishComment = async (text: string) => {
     if (!session || !thread) return
-    const result = await publishReply({
+    const subject = { uri: thread.post.uri, cid: thread.post.cid }
+    const reply = { root: subject, parent: subject }
+    const result = await createReply({
       data: {
         did: session.pds.did,
         accessJwt: session.pds.access_jwt,
         text,
-        root: { uri: thread.post.uri, cid: thread.post.cid },
-        parent: { uri: thread.post.uri, cid: thread.post.cid },
+        ...reply,
       },
     })
-    const post: PostView = {
-      uri: result.uri,
-      cid: result.cid,
-      indexedAt: result.createdAt,
-      author: {
-        did: session.pds.did,
-        handle: session.pds.handle,
-        displayName: session.user.nickname ?? undefined,
-      },
-      record: {
-        text: result.text,
-        createdAt: result.createdAt,
-        langs: ['zh'],
-        reply: {
-          root: { uri: thread.post.uri, cid: thread.post.cid },
-          parent: { uri: thread.post.uri, cid: thread.post.cid },
-        },
-      },
-      replyCount: 0,
-      repostCount: 0,
-      likeCount: 0,
-    }
+    const post = createdPostView(result, session, reply)
     setThread((current) => current ? {
       ...current,
       post: {
         ...current.post,
         replyCount: (current.post.replyCount ?? 0) + 1,
       },
-      replies: [...current.replies, { post, replies: [] }],
+      replies: [...current.replies, { post }],
     } : current)
     clearCachedFeed(session.pds.did)
     onReplyCreated?.(thread.post.uri)
   }
 
-  const submitReply = async () => {
-    if (!session || !thread || !replyText.trim()) return
+  const submitComment = async (
+    text: string,
+    successMessage: string,
+    failureMessage: string,
+  ) => {
     setReplying(true)
     setReplyNotice('')
     try {
-      await publishComment(replyText)
-      setReplyText('')
-      setReplyNotice('评论已发布。')
+      await publishComment(text)
+      setReplyNotice(successMessage)
+      return true
     } catch (reason) {
-      setReplyNotice(reason instanceof Error ? reason.message : '评论失败')
+      setReplyNotice(reason instanceof Error ? reason.message : failureMessage)
+      return false
     } finally {
       setReplying(false)
     }
   }
 
+  const submitReply = async () => {
+    if (!session || !thread || !replyText.trim()) return
+    if (await submitComment(replyText, '评论已发布。', '评论失败')) {
+      setReplyText('')
+    }
+  }
+
   const participate = async () => {
     if (!session || !thread || hasParticipated || participationClosed) return
-    setReplying(true)
-    setReplyNotice('')
-    try {
-      await publishComment(ACTIVITY_REPLY)
-      setReplyNotice('已参与活动。')
-    } catch (reason) {
-      setReplyNotice(reason instanceof Error ? reason.message : '参与失败')
-    } finally {
-      setReplying(false)
-    }
+    await submitComment(ACTIVITY_REPLY, '已参与活动。', '参与失败')
   }
 
   if (isReady && !session) {
@@ -188,14 +172,11 @@ export function PostThreadPanel({
           <article className="post-detail-card">
             <div className="post-author">
               <span className="post-avatar" aria-hidden="true">
-                {(thread.post.author.displayName || thread.post.author.handle)
-                  .slice(0, 1)
-                  .toUpperCase()}
+                {authorInitial(thread.post.author)}
               </span>
               <div>
                 <strong>
-                  {thread.post.author.displayName ||
-                    thread.post.author.handle.split('.')[0]}
+                  {authorDisplayName(thread.post.author)}
                 </strong>
                 <div className="post-meta">{thread.post.author.handle}</div>
               </div>
@@ -254,14 +235,11 @@ export function PostThreadPanel({
                     <article className="reply-row" key={reply.post.uri}>
                       <div className="post-author">
                         <span className="post-avatar" aria-hidden="true">
-                          {(reply.post.author.displayName || reply.post.author.handle)
-                            .slice(0, 1)
-                            .toUpperCase()}
+                          {authorInitial(reply.post.author)}
                         </span>
                         <div>
                           <strong>
-                            {reply.post.author.displayName ||
-                              reply.post.author.handle.split('.')[0]}
+                            {authorDisplayName(reply.post.author)}
                           </strong>
                           <div className="post-meta">
                             {formatTimestamp(

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import type { RepostChange } from '~/components/PostActions'
 import { PostList } from '~/components/PostList'
@@ -22,7 +22,6 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
     focusReply: boolean
     kind: PostKind
   } | null>(null)
-  const requestSequence = useRef(0)
   const { session, isReady } = useStoredSession()
   const accessJwt = session?.pds.access_jwt
   const did = session?.pds.did
@@ -32,17 +31,21 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
     if (activeTab === 'all' && reloadKey === 0) {
       const cachedFeed = readCachedFeed(did)
       if (cachedFeed) {
+        setLoading(false)
+        setError('')
         setFeed(cachedFeed)
         return
       }
       if (!session) {
+        setLoading(false)
+        setError('')
         writeCachedFeed(initialFeed)
         setFeed(initialFeed)
         return
       }
     }
 
-    const requestId = ++requestSequence.current
+    let active = true
     setLoading(true)
     setError('')
     void getPosts({
@@ -58,19 +61,17 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
       },
     })
       .then((nextFeed) => {
-        if (requestId === requestSequence.current) {
-          if (activeTab === 'all') writeCachedFeed(nextFeed, did)
-          setFeed(nextFeed)
-        }
+        if (!active) return
+        if (activeTab === 'all') writeCachedFeed(nextFeed, did)
+        setFeed(nextFeed)
       })
       .catch((reason) => {
-        if (requestId === requestSequence.current) {
-          setError(reason instanceof Error ? reason.message : '帖子暂时无法加载')
-        }
+        if (active) setError(reason instanceof Error ? reason.message : '帖子暂时无法加载')
       })
       .finally(() => {
-        if (requestId === requestSequence.current) setLoading(false)
+        if (active) setLoading(false)
       })
+    return () => { active = false }
   }, [accessJwt, activeTab, did, initialFeed, isReady, reloadKey, session])
 
   const handleRepostChange = ({ post, reason }: RepostChange) => {
@@ -89,7 +90,7 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
       const posts = reason
         ? [{ ...basePost, viewer, reason }, ...remaining]
         : remaining
-      return { ...current, posts, total: posts.length }
+      return { posts }
     })
   }
 

@@ -35,3 +35,9 @@ npm run build
 ```
 
 视觉对照结论见 [design-qa.md](./design-qa.md)。
+
+Rice 当前能力、前端接入状态与后续缺口见
+[docs/rice-capability-baseline.md](./docs/rice-capability-baseline.md)。
+
+前端复杂度、健康评分与连续优化记录见
+[docs/frontend-health.md](./docs/frontend-health.md)。

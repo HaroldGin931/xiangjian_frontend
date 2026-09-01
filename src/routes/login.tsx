@@ -1,7 +1,6 @@
 import { Button } from '@astryxdesign/core/Button'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useServerFn } from '@tanstack/react-start'
 import { LogIn } from 'lucide-react'
 import { useState } from 'react'
 
@@ -14,14 +13,13 @@ function LoginPage() {
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const login = useServerFn(loginRice)
   const { saveSession } = useStoredSession()
   const navigate = useNavigate()
 
   const submit = async () => {
     setError('')
     try {
-      const session = await login({ data: { identifier, password } })
+      const session = await loginRice({ data: { identifier, password } })
       saveSession(session)
       await navigate({ to: '/' })
     } catch (reason) {

@@ -1,5 +1,4 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { useServerFn } from '@tanstack/react-start'
 import { Heart, MessageCircle, PackageCheck, Repeat2, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -28,8 +27,6 @@ export function PostActions({
 }) {
   const { session } = useStoredSession()
   const navigate = useNavigate()
-  const like = useServerFn(toggleLike)
-  const repost = useServerFn(toggleRepost)
   const [likeUri, setLikeUri] = useState(post.viewer?.like)
   const [repostUri, setRepostUri] = useState(post.viewer?.repost)
   const [likeCount, setLikeCount] = useState(post.likeCount ?? 0)
@@ -58,7 +55,7 @@ export function PostActions({
     setPending('like')
     setError('')
     try {
-      const result = await like({
+      const result = await toggleLike({
         data: {
           did: activeSession.pds.did,
           accessJwt: activeSession.pds.access_jwt,
@@ -83,7 +80,7 @@ export function PostActions({
     setPending('repost')
     setError('')
     try {
-      const result = await repost({
+      const result = await toggleRepost({
         data: {
           did: activeSession.pds.did,
           accessJwt: activeSession.pds.access_jwt,

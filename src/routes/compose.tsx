@@ -1,11 +1,11 @@
 import { Button } from '@astryxdesign/core/Button'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { useServerFn } from '@tanstack/react-start'
 import { Image, Link2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import {
   createTextPost,
+  createdPostView,
   getPosts,
   prependCachedPost,
   readCachedFeed,
@@ -18,8 +18,6 @@ export const Route = createFileRoute('/compose')({ component: ComposePage })
 
 function ComposePage() {
   const { session, isReady } = useStoredSession()
-  const publish = useServerFn(createTextPost)
-  const fetchPosts = useServerFn(getPosts)
   const navigate = useNavigate()
   const [kind, setKind] = useState<PostKind>('post')
   const [text, setText] = useState('')
@@ -46,13 +44,13 @@ function ComposePage() {
       const cachedFeed = readCachedFeed(session.pds.did)
       const feedPromise = cachedFeed
         ? Promise.resolve(cachedFeed)
-        : fetchPosts({
+        : getPosts({
             data: {
               accessJwt: session.pds.access_jwt,
               did: session.pds.did,
             },
           }).catch(() => null)
-      const result = await publish({
+      const result = await createTextPost({
         data: {
           did: session.pds.did,
           accessJwt: session.pds.access_jwt,
@@ -61,27 +59,7 @@ function ComposePage() {
       })
       const feed = await feedPromise
       if (feed) writeCachedFeed(feed, session.pds.did)
-      prependCachedPost(
-        {
-          uri: result.uri,
-          cid: result.cid,
-          indexedAt: result.createdAt,
-          author: {
-            did: session.pds.did,
-            handle: session.pds.handle,
-            displayName: session.user.nickname ?? undefined,
-          },
-          record: {
-            text: result.text,
-            createdAt: result.createdAt,
-            langs: ['zh'],
-          },
-          replyCount: 0,
-          repostCount: 0,
-          likeCount: 0,
-        },
-        session.pds.did,
-      )
+      prependCachedPost(createdPostView(result, session), session.pds.did)
       await navigate({ to: '/' })
     } catch (reason) {
       setNotice(reason instanceof Error ? reason.message : '发布失败')

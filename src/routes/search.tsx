@@ -1,5 +1,4 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useServerFn } from '@tanstack/react-start'
 import { ArrowLeft, Search } from 'lucide-react'
 import { useState } from 'react'
 
@@ -11,7 +10,6 @@ import { useStoredSession } from '~/features/session/session'
 export const Route = createFileRoute('/search')({ component: SearchPage })
 
 function SearchPage() {
-  const searchPosts = useServerFn(getPosts)
   const { session } = useStoredSession()
   const [query, setQuery] = useState('')
   const [feed, setFeed] = useState<PostFeed | null>(null)
@@ -25,7 +23,7 @@ function SearchPage() {
     setError('')
     try {
       setFeed(
-        await searchPosts({
+        await getPosts({
           data: {
             query: value,
             accessJwt: session?.pds.access_jwt,
@@ -80,7 +78,7 @@ function SearchPage() {
       {error ? <div className="form-error">{error}</div> : null}
       {feed ? (
         <section className="search-results">
-          <div className="result-heading">帖子 · {feed.total}</div>
+          <div className="result-heading">帖子 · {feed.posts.length}</div>
           <PostList posts={feed.posts} />
         </section>
       ) : (

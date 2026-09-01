@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react'
 
 import type { RiceSession } from '~/lib/models'
 
@@ -10,6 +17,14 @@ const pendingRefreshes = new Map<string, Promise<RiceSession>>()
 type PdsRefresh = (input: {
   data: RiceSession['pds']
 }) => Promise<RiceSession['pds']>
+
+type SessionState = {
+  session: RiceSession | null
+  isReady: boolean
+  saveSession: (session: RiceSession | null) => void
+}
+
+const SessionContext = createContext<SessionState | null>(null)
 
 export function readStoredSession(): RiceSession | null {
   if (typeof window === 'undefined') return null
@@ -67,7 +82,7 @@ export function refreshStoredSession(
   return request
 }
 
-export function useStoredSession() {
+export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<RiceSession | null>(null)
   const [isReady, setIsReady] = useState(false)
 
@@ -108,5 +123,15 @@ export function useStoredSession() {
     writeStoredSession(next)
   }, [])
 
-  return { session, isReady, saveSession }
+  return (
+    <SessionContext.Provider value={{ session, isReady, saveSession }}>
+      {children}
+    </SessionContext.Provider>
+  )
+}
+
+export function useStoredSession() {
+  const state = useContext(SessionContext)
+  if (!state) throw new Error('useStoredSession 必须在 SessionProvider 内使用')
+  return state
 }

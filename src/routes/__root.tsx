@@ -11,6 +11,7 @@ import {
 import type { ReactNode } from 'react'
 
 import { AppShell } from '~/components/AppShell'
+import { SessionProvider } from '~/features/session/session'
 import '~/styles/app.css'
 
 export const Route = createRootRoute({
@@ -32,9 +33,11 @@ function RootComponent() {
   return (
     <RootDocument>
       <Theme theme={neutralTheme} mode="light">
-        <AppShell>
-          <Outlet />
-        </AppShell>
+        <SessionProvider>
+          <AppShell>
+            <Outlet />
+          </AppShell>
+        </SessionProvider>
       </Theme>
     </RootDocument>
   )

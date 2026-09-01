@@ -20,3 +20,13 @@ const longTimestamp = new Intl.DateTimeFormat('zh-CN', {
 export function formatTimestamp(value: string, includeYear = false) {
   return (includeYear ? longTimestamp : shortTimestamp).format(new Date(value))
 }
+
+type AuthorLabel = { handle: string; displayName?: string }
+
+export function authorDisplayName(author: AuthorLabel) {
+  return author.displayName || author.handle.split('.')[0]
+}
+
+export function authorInitial(author: AuthorLabel) {
+  return authorDisplayName(author).slice(0, 1).toUpperCase()
+}

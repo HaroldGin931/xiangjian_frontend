@@ -45,7 +45,6 @@ export type PostView = {
   record: {
     text: string
     createdAt: string
-    langs?: string[]
     reply?: {
       root: { uri: string; cid: string }
       parent: { uri: string; cid: string }
@@ -57,9 +56,6 @@ export type PostView = {
   viewer?: {
     like?: string
     repost?: string
-    bookmarked?: boolean
-    threadMuted?: boolean
-    embeddingDisabled?: boolean
   }
   reason?: {
     $type: 'app.bsky.feed.defs#reasonRepost'
@@ -76,31 +72,21 @@ export type PostView = {
 
 export type PostFeed = {
   posts: PostView[]
-  total: number
 }
 
 export type PostThread = {
   post: PostView
-  replies: PostThread[]
+  replies: Array<{ post: PostView }>
 }
 
 export type NotificationView = {
   uri: string
-  cid: string
   author: {
-    did: string
     handle: string
     displayName?: string
   }
   reason: string
-  reasonSubject?: string
   text: string
   isRead: boolean
   indexedAt: string
-}
-
-export type NotificationFeed = {
-  notifications: NotificationView[]
-  priority: boolean
-  seenAt?: string
 }
