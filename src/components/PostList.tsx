@@ -1,8 +1,8 @@
 import { EmptyState } from '@astryxdesign/core/EmptyState'
 import { Link } from '@tanstack/react-router'
-import { Clock3 } from 'lucide-react'
+import { Clock3, Repeat2 } from 'lucide-react'
 
-import { PostActions } from '~/components/PostActions'
+import { PostActions, type RepostChange } from '~/components/PostActions'
 import { formatTimestamp } from '~/lib/format'
 import type { PostView } from '~/lib/models'
 
@@ -10,7 +10,15 @@ function firstTag(text: string) {
   return text.match(/#[\p{L}\p{N}_-]+/u)?.[0] ?? null
 }
 
-export function PostList({ posts }: { posts: PostView[] }) {
+export function PostList({
+  posts,
+  onOpenPost,
+  onRepostChange,
+}: {
+  posts: PostView[]
+  onOpenPost?: (post: PostView, focusReply: boolean) => void
+  onRepostChange?: (change: RepostChange) => void
+}) {
   if (posts.length === 0) {
     return (
       <div className="empty-panel">
@@ -27,7 +35,16 @@ export function PostList({ posts }: { posts: PostView[] }) {
       {posts.map((post) => {
         const tag = firstTag(post.record.text)
         return (
-          <article className="post-row" key={post.uri}>
+          <article
+            className="post-row"
+            key={post.reason?.uri ?? post.uri}
+          >
+            {post.reason ? (
+              <div className="post-reason">
+                <Repeat2 size={14} aria-hidden="true" />
+                {post.reason.by.displayName || post.reason.by.handle.split('.')[0]} 转发了
+              </div>
+            ) : null}
             <div className="post-heading">
               <div className="post-author">
                 <span className="post-avatar" aria-hidden="true">
@@ -42,10 +59,24 @@ export function PostList({ posts }: { posts: PostView[] }) {
               </div>
               {tag ? <span className="post-tag">{tag}</span> : null}
             </div>
-            <Link to="/post" search={{ uri: post.uri }} className="post-copy-link">
-              <p className="post-copy">{post.record.text}</p>
-            </Link>
-            <PostActions post={post} />
+            {onOpenPost ? (
+              <button
+                type="button"
+                className="post-copy-link post-copy-button"
+                onClick={() => onOpenPost(post, false)}
+              >
+                <p className="post-copy">{post.record.text}</p>
+              </button>
+            ) : (
+              <Link to="/post" search={{ uri: post.uri }} className="post-copy-link">
+                <p className="post-copy">{post.record.text}</p>
+              </Link>
+            )}
+            <PostActions
+              post={post}
+              onOpenComments={onOpenPost ? () => onOpenPost(post, true) : undefined}
+              onRepostChange={onRepostChange}
+            />
           </article>
         )
       })}

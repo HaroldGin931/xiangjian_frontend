@@ -114,6 +114,7 @@ button:disabled, .disabled-control { cursor: not-allowed; opacity: .46; }
   background: var(--xj-surface);
   box-shadow: 0 3px 12px rgba(21, 54, 41, .06);
 }
+.post-reason { margin: 0 0 10px 43px; display: flex; align-items: center; gap: 5px; color: var(--xj-text-soft); font-size: 10px; font-weight: 650; }
 .post-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .post-author { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .post-avatar { width: 34px; height: 34px; flex: 0 0 auto; border-radius: 50%; display: grid; place-items: center; background: #dbe9cc; color: var(--xj-text); font-size: 12px; font-weight: 720; }
@@ -121,6 +122,7 @@ button:disabled, .disabled-control { cursor: not-allowed; opacity: .46; }
 .post-meta { margin-top: 2px; color: var(--xj-muted); font-size: 10px; overflow-wrap: anywhere; }
 .post-tag { padding: 3px 7px; border-radius: 999px; background: #eef4df; color: #557044; font-size: 9px; }
 .post-copy-link { display: block; }
+.post-copy-button { width: 100%; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
 .post-copy { margin: 12px 0 10px; color: var(--xj-text); font-size: 14px; line-height: 1.55; white-space: pre-wrap; }
 .post-actions { display: flex; align-items: center; gap: 18px; }
 .post-action { min-width: 38px; min-height: 32px; padding: 2px 0; border: 0; display: inline-flex; align-items: center; gap: 5px; background: transparent; color: var(--xj-muted); font-size: 10px; cursor: pointer; }
@@ -237,15 +239,37 @@ button:disabled, .disabled-control { cursor: not-allowed; opacity: .46; }
 .search-results .post-list { gap: 0; }
 .search-results .post-row { border-width: 0 0 1px; border-radius: 0; box-shadow: none; }
 .post-page { padding: 12px; }
+.post-dialog {
+  width: min(680px, calc(100% - 24px));
+  height: min(820px, calc(100dvh - 32px));
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  border: 1px solid var(--xj-line);
+  border-radius: 20px;
+  overflow: hidden;
+  background: var(--xj-bg);
+  color: var(--xj-text);
+  box-shadow: 0 24px 80px rgba(15, 40, 30, .2);
+}
+.post-dialog::backdrop { background: rgba(20, 38, 31, .34); backdrop-filter: blur(4px); }
+.post-dialog-shell { height: 100%; display: flex; flex-direction: column; }
+.post-dialog-header { min-height: 58px; padding: 0 18px; border-bottom: 1px solid var(--xj-line); flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; background: var(--xj-surface); }
+.post-dialog-header strong { font-size: 15px; }
+.post-dialog-header button { width: 34px; height: 34px; padding: 0; border: 0; border-radius: 50%; display: grid; place-items: center; background: var(--xj-surface-soft); cursor: pointer; }
+.post-dialog-scroll { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; }
+.post-dialog .post-thread-panel { padding: 16px; }
+.post-dialog .post-detail-card { border: 0; border-radius: 0; background: transparent; }
 .post-detail-card { padding: 14px; border: 1px solid var(--xj-line); border-radius: 15px; background: var(--xj-surface); }
 .post-detail-copy { margin: 14px 0 10px; font-size: 15px; line-height: 1.65; white-space: pre-wrap; }
 .post-detail-time { display: block; padding-bottom: 9px; border-bottom: 1px solid var(--xj-line); color: var(--xj-muted); font-size: 10px; }
 .detail-actions { padding-top: 9px; }
 .reply-section { margin-top: 14px; }
-.reply-section h2 { margin-bottom: 8px; font-size: 13px; }
-.reply-composer { margin: 0 0 8px; padding: 8px; border: 1px solid var(--xj-line); border-radius: 12px; background: var(--xj-surface); }
-.reply-composer textarea { min-height: 42px !important; background: var(--xj-surface) !important; font-size: 12px !important; }
-.reply-composer-footer { margin-top: 6px; display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--xj-muted); font-size: 10px; }
+.reply-section h2 { margin: 16px 0 8px; display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.reply-section h2 span { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; display: inline-grid; place-items: center; background: var(--xj-surface-soft); color: var(--xj-muted); font-size: 9px; }
+.reply-composer { margin: 12px 0 8px; padding: 14px; border: 1px solid var(--xj-line); border-radius: 15px; background: var(--xj-surface); box-shadow: 0 4px 16px rgba(21, 54, 41, .05); }
+.reply-composer textarea { min-height: 118px !important; background: var(--xj-surface) !important; font-size: 13px !important; line-height: 1.6 !important; }
+.reply-composer-footer { min-height: 38px; margin-top: 9px; display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--xj-muted); font-size: 10px; }
 .reply-list { border-top: 1px solid var(--xj-line); }
 .reply-row { padding: 12px 8px; border-bottom: 1px solid var(--xj-line); }
 .reply-row p { margin: 9px 0; font-size: 12px; }
@@ -311,4 +335,7 @@ button:disabled, .disabled-control { cursor: not-allowed; opacity: .46; }
   .feed-tabs button { padding-inline: 13px; }
   .compose-header { grid-template-columns: 1fr repeat(3, auto); }
   .compose-header button:last-child { grid-column: 1 / -1; justify-self: end; }
+  .post-dialog { width: 100%; height: 100dvh; border: 0; border-radius: 0; }
+  .post-dialog .post-thread-panel { padding: 10px; }
+  .post-dialog-header { padding-inline: 12px; }
 }

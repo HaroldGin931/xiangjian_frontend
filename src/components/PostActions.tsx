@@ -7,7 +7,20 @@ import { toggleLike, toggleRepost } from '~/features/feed/api'
 import type { PostView } from '~/lib/models'
 import { useStoredSession } from '~/features/session/session'
 
-export function PostActions({ post }: { post: PostView }) {
+export type RepostChange = {
+  post: PostView
+  reason?: NonNullable<PostView['reason']>
+}
+
+export function PostActions({
+  post,
+  onOpenComments,
+  onRepostChange,
+}: {
+  post: PostView
+  onOpenComments?: () => void
+  onRepostChange?: (change: RepostChange) => void
+}) {
   const { session } = useStoredSession()
   const navigate = useNavigate()
   const like = useServerFn(toggleLike)
@@ -72,7 +85,23 @@ export function PostActions({ post }: { post: PostView }) {
         },
       })
       setRepostCount((count) => Math.max(0, count + (repostUri ? -1 : 1)))
-      setRepostUri(result.recordUri ?? undefined)
+      const nextUri = result.recordUri ?? undefined
+      setRepostUri(nextUri)
+      onRepostChange?.({
+        post,
+        reason: nextUri && result.indexedAt
+          ? {
+              $type: 'app.bsky.feed.defs#reasonRepost',
+              by: {
+                did: activeSession.pds.did,
+                handle: activeSession.pds.handle,
+                displayName: activeSession.user.nickname ?? undefined,
+              },
+              uri: nextUri,
+              indexedAt: result.indexedAt,
+            }
+          : undefined,
+      })
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '转发失败')
     } finally {
@@ -83,16 +112,28 @@ export function PostActions({ post }: { post: PostView }) {
   return (
     <>
       <div className="post-actions" aria-label="帖子互动">
-        <Link
-          to="/post"
-          search={{ uri: post.uri }}
-          hash="reply"
-          className="post-action"
-          aria-label={`${post.replyCount ?? 0} 条评论`}
-        >
-          <MessageCircle size={18} aria-hidden="true" />
-          {post.replyCount ?? 0}
-        </Link>
+        {onOpenComments ? (
+          <button
+            type="button"
+            className="post-action"
+            aria-label={`${post.replyCount ?? 0} 条评论`}
+            onClick={onOpenComments}
+          >
+            <MessageCircle size={18} aria-hidden="true" />
+            {post.replyCount ?? 0}
+          </button>
+        ) : (
+          <Link
+            to="/post"
+            search={{ uri: post.uri }}
+            hash="reply"
+            className="post-action"
+            aria-label={`${post.replyCount ?? 0} 条评论`}
+          >
+            <MessageCircle size={18} aria-hidden="true" />
+            {post.replyCount ?? 0}
+          </Link>
+        )}
         <button
           type="button"
           className={`post-action ${repostUri ? 'active' : ''}`}

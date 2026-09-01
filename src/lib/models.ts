@@ -46,6 +46,10 @@ export type PostView = {
     text: string
     createdAt: string
     langs?: string[]
+    reply?: {
+      root: { uri: string; cid: string }
+      parent: { uri: string; cid: string }
+    }
   }
   replyCount: number
   repostCount: number
@@ -56,6 +60,17 @@ export type PostView = {
     bookmarked?: boolean
     threadMuted?: boolean
     embeddingDisabled?: boolean
+  }
+  reason?: {
+    $type: 'app.bsky.feed.defs#reasonRepost'
+    by: {
+      did: string
+      handle: string
+      displayName?: string
+    }
+    uri?: string
+    cid?: string
+    indexedAt: string
   }
 }
 

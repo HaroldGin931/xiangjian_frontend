@@ -87,21 +87,65 @@ async function hydrateViewerRecords(
 
 export function normalizePostFeed(payload: unknown): PostFeed {
   const body = (payload ?? {}) as {
-    posts?: Array<PostView | { post?: PostView }>
+    posts?: Array<
+      PostView | {
+        post?: PostView
+        reply?: unknown
+        reason?: PostView['reason']
+      }
+    >
     total?: number
   }
   const posts = (body.posts ?? [])
-    .map((item): PostView | undefined =>
-      'post' in item ? item.post : (item as PostView),
-    )
+    .map((item): PostView | undefined => {
+      if (!('post' in item)) return item as PostView
+      if (!item.post || item.reply) return undefined
+      return item.reason ? { ...item.post, reason: item.reason } : item.post
+    })
     .filter((post): post is PostView =>
-      Boolean(post?.uri && post.record?.text !== undefined),
+      Boolean(
+        post?.uri &&
+        post.record?.text !== undefined &&
+        !post.record.reply,
+      ),
     )
 
   return {
     posts,
     total: typeof body.total === 'number' ? body.total : posts.length,
   }
+}
+
+async function loadTimelineReposts(accessJwt?: string) {
+  if (!accessJwt) return []
+  try {
+    const payload = await requestJson<{ feed?: unknown[] }>(
+      `${BACKEND_BASE}/pds/xrpc/app.bsky.feed.getTimeline?limit=50`,
+      { headers: { Authorization: `Bearer ${accessJwt}` } },
+    )
+    return normalizePostFeed({ posts: payload.feed }).posts.filter(
+      (post) => post.reason?.$type === 'app.bsky.feed.defs#reasonRepost',
+    )
+  } catch {
+    return []
+  }
+}
+
+function mergeFeedPosts(posts: PostView[], reposts: PostView[]) {
+  const seenReposts = new Set<string>()
+  return [...posts, ...reposts]
+    .filter((post) => {
+      if (!post.reason) return true
+      const key = post.reason.uri ?? `${post.reason.by.did}:${post.uri}`
+      if (seenReposts.has(key)) return false
+      seenReposts.add(key)
+      return true
+    })
+    .sort((a, b) =>
+      (b.reason?.indexedAt ?? b.indexedAt).localeCompare(
+        a.reason?.indexedAt ?? a.indexedAt,
+      ),
+    )
 }
 
 export function normalizePostThread(payload: unknown): PostThread {
@@ -133,7 +177,7 @@ export type GetPostsInput = {
 
 export async function loadPosts(data: GetPostsInput) {
   const query = data.query?.trim()
-  const endpoint = query ? '/post/api/posts/search' : '/post/api/posts'
+  const endpoint = query ? '/post/api/posts/search' : '/post/api/posts/list'
   const requestBody = query
     ? { q: query, limit: 25, sort: 'latest' }
     : {
@@ -149,9 +193,14 @@ export async function loadPosts(data: GetPostsInput) {
   })
 
   const feed = normalizePostFeed(payload)
+  const timelineReposts = !query && !data.repo
+    ? await loadTimelineReposts(data.accessJwt)
+    : []
+  const posts = mergeFeedPosts(feed.posts, timelineReposts)
   return {
     ...feed,
-    posts: await hydrateViewerRecords(feed.posts, data.did, data.accessJwt),
+    total: posts.length,
+    posts: await hydrateViewerRecords(posts, data.did, data.accessJwt),
   }
 }
 
@@ -218,19 +267,20 @@ export async function updateInteractionRecord(
       collection,
       rkey: recordKeyFromUri(data.recordUri, collection),
     })
-    return { recordUri: null }
+    return { recordUri: null, indexedAt: null }
   }
 
+  const indexedAt = new Date().toISOString()
   const record = await writePdsRecord(data.accessJwt, {
     repo: data.did,
     collection,
     record: {
       $type: collection,
       subject: { uri: data.postUri, cid: data.postCid },
-      createdAt: new Date().toISOString(),
+      createdAt: indexedAt,
     },
   })
-  return { recordUri: record.uri }
+  return { recordUri: record.uri, indexedAt }
 }
 
 export const toggleLike = createServerFn({ method: 'POST' })

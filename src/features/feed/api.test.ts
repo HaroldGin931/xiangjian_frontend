@@ -33,6 +33,35 @@ describe('feed data', () => {
     })
   })
 
+  it('keeps replies out of top-level feeds and preserves repost reasons', () => {
+    const reply = {
+      ...post,
+      uri: 'at://did:example/app.bsky.feed.post/reply',
+      record: {
+        ...post.record,
+        reply: {
+          root: { uri: post.uri, cid: post.cid },
+          parent: { uri: post.uri, cid: post.cid },
+        },
+      },
+    }
+    const reason = {
+      $type: 'app.bsky.feed.defs#reasonRepost' as const,
+      by: { did: 'did:viewer', handle: 'viewer.local' },
+      uri: 'at://did:viewer/app.bsky.feed.repost/1',
+      indexedAt: '2026-09-01T01:00:00.000Z',
+    }
+
+    expect(
+      normalizePostFeed({
+        posts: [
+          { post: reply, reply: { parent: post } },
+          { post, reason },
+        ],
+      }),
+    ).toEqual({ posts: [{ ...post, reason }], total: 1 })
+  })
+
   it('normalizes threads without inventing replies', () => {
     expect(normalizePostThread({ thread: { post } })).toEqual({
       post,
@@ -51,7 +80,7 @@ describe('feed data', () => {
 
   it('keeps public Post Cache reads independent from an expired PDS token', async () => {
     const fetchMock = vi.fn(async (input: string | URL, _init?: RequestInit) => {
-      if (String(input).includes('/post/api/posts')) {
+      if (String(input).includes('/post/api/posts/list')) {
         return new Response(JSON.stringify({ posts: [post] }), { status: 200 })
       }
       return new Response(
@@ -91,13 +120,13 @@ describe('feed data', () => {
 
     await expect(
       updateInteractionRecord(input, 'app.bsky.feed.like'),
-    ).resolves.toEqual({ recordUri })
+    ).resolves.toMatchObject({ recordUri })
     await expect(
       updateInteractionRecord(
         { ...input, recordUri },
         'app.bsky.feed.like',
       ),
-    ).resolves.toEqual({ recordUri: null })
+    ).resolves.toEqual({ recordUri: null, indexedAt: null })
 
     const deleteBody = JSON.parse(
       String(fetchMock.mock.calls[1][1]?.body),
