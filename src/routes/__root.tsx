@@ -1,6 +1,5 @@
 /// <reference types="vite/client" />
 
-import { LinkProvider } from '@astryxdesign/core/Link'
 import { Theme } from '@astryxdesign/core/theme'
 import { neutralTheme } from '@astryxdesign/theme-neutral/built'
 import {
@@ -33,11 +32,9 @@ function RootComponent() {
   return (
     <RootDocument>
       <Theme theme={neutralTheme} mode="light">
-        <LinkProvider component="a">
-          <AppShell>
-            <Outlet />
-          </AppShell>
-        </LinkProvider>
+        <AppShell>
+          <Outlet />
+        </AppShell>
       </Theme>
     </RootDocument>
   )

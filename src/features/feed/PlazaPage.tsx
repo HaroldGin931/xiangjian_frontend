@@ -5,7 +5,7 @@ import { PostList } from '~/components/PostList'
 import type { PostFeed } from '~/lib/models'
 
 import { useStoredSession } from '../session/session'
-import { getPosts } from './api'
+import { getPosts, readCachedFeed, writeCachedFeed } from './api'
 import { PostThreadDialog } from './PostThreadDialog'
 
 type FeedTab = 'all' | 'activity' | 'product'
@@ -27,9 +27,17 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
 
   useEffect(() => {
     if (!isReady) return
-    if (activeTab === 'all' && !session && reloadKey === 0) {
-      setFeed(initialFeed)
-      return
+    if (activeTab === 'all' && reloadKey === 0) {
+      const cachedFeed = readCachedFeed(did)
+      if (cachedFeed) {
+        setFeed(cachedFeed)
+        return
+      }
+      if (!session) {
+        writeCachedFeed(initialFeed)
+        setFeed(initialFeed)
+        return
+      }
     }
 
     const requestId = ++requestSequence.current
@@ -48,7 +56,10 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
       },
     })
       .then((nextFeed) => {
-        if (requestId === requestSequence.current) setFeed(nextFeed)
+        if (requestId === requestSequence.current) {
+          if (activeTab === 'all') writeCachedFeed(nextFeed, did)
+          setFeed(nextFeed)
+        }
       })
       .catch((reason) => {
         if (requestId === requestSequence.current) {

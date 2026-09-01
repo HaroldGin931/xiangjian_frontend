@@ -1,6 +1,7 @@
 import { Button } from '@astryxdesign/core/Button'
 import { EmptyState } from '@astryxdesign/core/EmptyState'
 import { TextArea } from '@astryxdesign/core/TextArea'
+import { useNavigate } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import { useEffect, useId, useState } from 'react'
 
@@ -12,7 +13,7 @@ import { formatTimestamp } from '~/lib/format'
 import type { PostThread } from '~/lib/models'
 
 import { useStoredSession } from '../session/session'
-import { createReply, getPostThread } from './api'
+import { clearCachedFeed, createReply, getPostThread } from './api'
 
 export function PostThreadPanel({
   uri,
@@ -24,6 +25,7 @@ export function PostThreadPanel({
   onRepostChange?: (change: RepostChange) => void
 }) {
   const { session, isReady } = useStoredSession()
+  const navigate = useNavigate()
   const fetchThread = useServerFn(getPostThread)
   const publishReply = useServerFn(createReply)
   const [thread, setThread] = useState<PostThread | null>(null)
@@ -78,6 +80,7 @@ export function PostThreadPanel({
           parent: { uri: thread.post.uri, cid: thread.post.cid },
         },
       })
+      clearCachedFeed(session.pds.did)
       setReplyText('')
       setReplyNotice('评论已发布，正在同步。')
       for (let attempt = 0; attempt < 10; attempt += 1) {
@@ -109,7 +112,13 @@ export function PostThreadPanel({
         <EmptyState
           title="登录后查看帖子详情"
           description="登录后可以查看评论并参与互动。"
-          actions={<Button label="前往登录" variant="primary" href="/login" />}
+          actions={
+            <Button
+              label="前往登录"
+              variant="primary"
+              clickAction={() => { void navigate({ to: '/login' }) }}
+            />
+          }
         />
       </div>
     )

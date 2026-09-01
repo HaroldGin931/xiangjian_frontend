@@ -1,6 +1,6 @@
 import { EmptyState } from '@astryxdesign/core/EmptyState'
 import { Link } from '@tanstack/react-router'
-import { Clock3, Repeat2 } from 'lucide-react'
+import { Repeat2 } from 'lucide-react'
 
 import { PostActions, type RepostChange } from '~/components/PostActions'
 import { formatTimestamp } from '~/lib/format'
@@ -81,22 +81,5 @@ export function PostList({
         )
       })}
     </div>
-  )
-}
-
-export function PendingPost({ handle, text }: { handle: string; text: string }) {
-  return (
-    <article className="post-row pending-post" aria-live="polite">
-      <div className="post-heading">
-        <div>
-          <strong>{handle.split('.')[0]}</strong>
-          <div className="post-meta">{handle} · 刚刚</div>
-        </div>
-        <span className="sync-badge">
-          <Clock3 size={16} aria-hidden="true" /> 发布中
-        </span>
-      </div>
-      <p className="post-copy">{text}</p>
-    </article>
   )
 }

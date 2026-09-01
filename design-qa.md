@@ -57,7 +57,7 @@ Separate detail crops were not required: the normalized `390 × 844` side-by-sid
 ## Validation
 
 - Browser console after final rebuild: no warnings or errors in a fresh tab.
-- Automated tests: 6 files, 10 tests passed.
+- Automated tests: 6 files, 13 tests passed.
 - Production build and TypeScript check: passed.
 - Docker frontend: running on port `19007`; Rice, PDS, Post Cache, AppView, PLC, gateway, and Postgres remained running.
 

@@ -1,10 +1,15 @@
 import { Button } from '@astryxdesign/core/Button'
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import { Image, Link2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import { createTextPost, getPosts } from '~/features/feed/api'
+import {
+  clearCachedFeed,
+  createTextPost,
+  getPosts,
+  writeCachedFeed,
+} from '~/features/feed/api'
 import { useStoredSession } from '~/features/session/session'
 
 export const Route = createFileRoute('/compose')({ component: ComposePage })
@@ -36,6 +41,7 @@ function ComposePage() {
           text: [text.trim(), tag].filter(Boolean).join('\n'),
         },
       })
+      clearCachedFeed(session.pds.did)
       setNotice('发布成功，正在同步。')
       for (let attempt = 0; attempt < 12; attempt += 1) {
         await new Promise((resolve) => window.setTimeout(resolve, 1000))
@@ -45,7 +51,10 @@ function ComposePage() {
             did: session.pds.did,
           },
         })
-        if (feed.posts.some((post) => post.uri === result.uri)) break
+        if (feed.posts.some((post) => post.uri === result.uri)) {
+          writeCachedFeed(feed, session.pds.did)
+          break
+        }
       }
       await navigate({ to: '/' })
     } catch (reason) {
@@ -58,7 +67,7 @@ function ComposePage() {
   return (
     <div className="page compose-page">
       <header className="compose-header">
-        <a href="/" className="back-link"><X size={18} aria-hidden="true" /> 取消</a>
+        <Link to="/" className="back-link"><X size={18} aria-hidden="true" /> 取消</Link>
         <button type="button" className={kind === 'post' ? 'active' : ''} onClick={() => setKind('post')}>帖子</button>
         <button type="button" className={kind === 'activity' ? 'active' : ''} onClick={() => setKind('activity')}>活动 Tag</button>
         <button type="button" className={kind === 'product' ? 'active' : ''} onClick={() => setKind('product')}>商品 Tag</button>

@@ -3,6 +3,27 @@ import { createServerFn } from '@tanstack/react-start'
 import { BACKEND_BASE, requestJson, type JsonObject } from '~/lib/http'
 import type { PostFeed, PostThread, PostView } from '~/lib/models'
 
+let clientFeedCache: { owner: string | null; feed: PostFeed } | null = null
+
+export function readCachedFeed(did?: string) {
+  if (typeof window === 'undefined') return null
+  return clientFeedCache?.owner === (did ?? null) ? clientFeedCache.feed : null
+}
+
+export function writeCachedFeed(feed: PostFeed, did?: string) {
+  if (typeof window === 'undefined') return
+  clientFeedCache = { owner: did ?? null, feed }
+}
+
+export function clearCachedFeed(did?: string) {
+  if (
+    typeof window !== 'undefined' &&
+    clientFeedCache?.owner === (did ?? null)
+  ) {
+    clientFeedCache = null
+  }
+}
+
 export function recordKeyFromUri(uri: string, collection: string) {
   const parts = uri.split('/')
   const collectionIndex = parts.lastIndexOf(collection)

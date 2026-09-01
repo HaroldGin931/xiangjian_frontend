@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 
 import { PostThreadPanel } from '~/features/feed/PostThreadPanel'
@@ -16,9 +16,9 @@ function PostPage() {
 
   return (
     <div className="page post-page">
-      <a href="/" className="back-link">
+      <Link to="/" className="back-link">
         <ArrowLeft size={19} aria-hidden="true" /> 返回广场
-      </a>
+      </Link>
       <PostThreadPanel uri={uri} focusReply={focusReply} />
     </div>
   )

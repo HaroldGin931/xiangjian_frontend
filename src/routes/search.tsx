@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import { ArrowLeft, Search } from 'lucide-react'
 import { useState } from 'react'
@@ -43,9 +43,9 @@ function SearchPage() {
   return (
     <div className="page search-page">
       <header className="standalone-header">
-        <a href="/" className="back-link" aria-label="返回广场">
+        <Link to="/" className="back-link" aria-label="返回广场">
           <ArrowLeft size={18} aria-hidden="true" />
-        </a>
+        </Link>
         <label className="global-search-field">
           <span className="sr-only">全局搜索</span>
           <input

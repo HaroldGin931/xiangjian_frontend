@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  clearCachedFeed,
   loadPosts,
   normalizePostFeed,
   normalizePostThread,
+  readCachedFeed,
   recordKeyFromUri,
   updateInteractionRecord,
+  writeCachedFeed,
 } from './api'
 
 afterEach(() => vi.unstubAllGlobals())
@@ -22,6 +25,20 @@ const post = {
 }
 
 describe('feed data', () => {
+  it('reuses one account feed until that account writes', () => {
+    vi.stubGlobal('window', {})
+    const feed = { posts: [post], total: 1 }
+
+    writeCachedFeed(feed, 'did:alice')
+    expect(readCachedFeed('did:alice')).toBe(feed)
+    expect(readCachedFeed('did:bob')).toBeNull()
+
+    clearCachedFeed('did:bob')
+    expect(readCachedFeed('did:alice')).toBe(feed)
+    clearCachedFeed('did:alice')
+    expect(readCachedFeed('did:alice')).toBeNull()
+  })
+
   it('accepts both feed wrappers and direct search results', () => {
     expect(normalizePostFeed({ posts: [{ post }], total: 1 })).toEqual({
       posts: [post],

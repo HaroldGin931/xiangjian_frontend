@@ -3,7 +3,11 @@ import { useServerFn } from '@tanstack/react-start'
 import { Heart, MessageCircle, Repeat2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import { toggleLike, toggleRepost } from '~/features/feed/api'
+import {
+  clearCachedFeed,
+  toggleLike,
+  toggleRepost,
+} from '~/features/feed/api'
 import type { PostView } from '~/lib/models'
 import { useStoredSession } from '~/features/session/session'
 
@@ -60,6 +64,7 @@ export function PostActions({
           recordUri: likeUri,
         },
       })
+      clearCachedFeed(activeSession.pds.did)
       setLikeCount((count) => Math.max(0, count + (likeUri ? -1 : 1)))
       setLikeUri(result.recordUri ?? undefined)
     } catch (reason) {
@@ -84,6 +89,7 @@ export function PostActions({
           recordUri: repostUri,
         },
       })
+      clearCachedFeed(activeSession.pds.did)
       setRepostCount((count) => Math.max(0, count + (repostUri ? -1 : 1)))
       const nextUri = result.recordUri ?? undefined
       setRepostUri(nextUri)
