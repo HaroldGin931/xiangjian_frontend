@@ -119,6 +119,67 @@ Separate detail crops were not required: the normalized `390 × 844` side-by-sid
 
 final result: passed
 
+## Task V1 and Rice account integration QA · 2026-09-01
+
+### Source and scope
+
+- Canonical prototype: `https://xiangjian-dao-v11-preview.rickyke2023.chatgpt.site/`.
+- Source states were captured in the Codex in-app browser before implementation: task list,
+  open/apply/applicants/submit/review/changes task states, my tasks, settings, account, and profile
+  editing. Process captures remain ignored under `qa/`.
+- Final reviewed comparisons: `qa/task-v1-list-comparison.png`,
+  `qa/task-v1-detail-comparison.png`, and `qa/account-security-comparison.png`.
+- The prototype phone is shown inside a green presentation stage. The implementation keeps the
+  same hierarchy and tokens but uses the previously approved responsive `760 px` centered desktop
+  column; it does not reproduce the green stage as product UI.
+
+### Findings and fixes
+
+1. P1: `/tasks/:taskId` and `/tasks/new` were nested below a `/tasks` component that rendered the
+   list directly, so child routes could not appear. `/tasks` is now a layout route with `Outlet`, and
+   the list lives at the dedicated task index route.
+2. P1: an existing browser session retained the user object from before
+   `can_publish_tasks` existed. Rice correctly authorized the user, but the frontend still showed a
+   disabled publish control. Session startup now refreshes the current Rice user independently from
+   PDS token refresh, so permissions and profile changes cannot remain stale.
+3. P1: rebuilding Rice changed its Docker IP while Nginx retained the old resolved address and
+   returned `502`. The local gateway now uses Docker DNS with a five-second resolver TTL for Rice.
+4. P2: the first account implementation exposed both phone and email forms at once and no longer
+   resembled the compact prototype hierarchy. The default page now shows verified login, masked
+   contacts, DID, password reset, and account deletion as rows; a single change form expands only
+   after the user selects a contact.
+5. P2: Task and account code were simplified after runtime QA: one unused frontend application
+   request and three unused backend status accessors were removed; task responses use a public-user
+   type instead of pretending private account fields are present.
+
+### Product behavior verified
+
+1. Task state machine ran against the real Docker Rice API:
+   `可领取 → 申请领取 → 确认任命 → 进行中 → 提交完成 → 待审核 → 驳回并留言 → 进行中 → 重新提交 → 审核通过 → 已完成`.
+2. Rejection required and preserved the reason, retained the same assignee, and kept both submission
+   attempts in the detail history.
+3. The completed task appeared under Mo Bob's `我的任务 / 我承作的` after a real UI logout/login.
+4. Mo Alice's refreshed profile exposed `发布任务`; Mo Bob remained explicitly unauthorized.
+5. Registration, password reset, profile editing, attachment selection/upload wiring, contact changes,
+   password navigation, and account deletion controls render against documented Rice endpoints.
+6. The one Task QA record was deleted after verification. The local database again contains zero
+   tasks, so no mock or assistant-created task content remains.
+7. Node grain pool and task settlement remain an explicit blocker: the UI shows no reward fields and
+   performs no balance mutation; the capability ledger records the current pool value as `0` until a
+   settlement API is confirmed.
+
+### Validation
+
+- Rice: simplified production release compiled; complete regression suite passed,
+  `578 tests, 0 failures` (one redundant applications-endpoint test was removed with that endpoint).
+- Frontend: production build and TypeScript check passed; `6` test files and `19` tests passed.
+- Runtime: Rice migration ran, Task endpoints returned expected statuses, the completed assignee
+  history survived relogin, and the final task list returned its real empty state.
+- Browser: task list, detail, my-task history, settings, profile edit, account, register, and password
+  reset pages were inspected only in the Codex in-app browser.
+
+final result: passed
+
 ## Activity/product publish and participation QA · 2026-09-01
 
 ### Source and state

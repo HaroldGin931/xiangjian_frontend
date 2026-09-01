@@ -12,9 +12,9 @@
 
 | 项目 | 本次核对结果 |
 | --- | --- |
-| Rice 仓库 | `xjdao2025/rice` |
-| 分支与提交 | `master` · `b0d3da515b6a750d297d8178ce21a274d82d6415` |
-| Git 状态 | `master` 与 `origin/master` 一致，核对时工作区干净 |
+| Rice 仓库 | `HaroldGin931/rice`（上游：`xjdao2025/rice`） |
+| 分支与基线提交 | `feat/task-v1`，从 `b0d3da515b6a750d297d8178ce21a274d82d6415` 开始实现 |
+| Git 状态 | Task V1 已按账号与任务边界拆分为本地提交，尚未推送 |
 | 实现依据 | `lib/rice_web/router.ex`、对应 controller / JSON view |
 | 文档依据 | `docs/api/README.md` 与各 controller 文档 |
 | 前端依据 | 本仓库 `src/features/**/api.ts` 及调用页面 |
@@ -54,7 +54,11 @@
 | --- | --- | --- | --- | --- |
 | `POST /api/session` | 用账号和密码登录；一次取得 Rice token、用户档案和 PDS session | `src/features/session/api.ts` → 登录页 | 已接入 | `docs/api/session_controller.md` |
 | `DELETE /api/session` | 退出时撤销当前 Rice token；前端随后清除本地会话 | `src/features/session/api.ts` → 个人中心 | 已接入 | `docs/api/session_controller.md` |
-| `GET /api/users/me` | 刷新当前用户档案；展示昵称、handle、节点身份和可用稻米余额 | `src/features/session/api.ts` → 个人中心 | 已接入 | `docs/api/user_controller.md` |
+| 注册与找回密码 4 个接口 | 验证手机号/邮箱后注册；通过已登记联系方式重置 PDS 密码 | `src/features/account/api.ts` → 注册页、找回密码页 | 已接入 | `verification_code_controller.md`、`registration_controller.md`、`password_controller.md` |
+| `GET/PATCH/DELETE /api/users/me` | 会话启动时刷新权限与档案；编辑昵称、简介、头像；注销账号 | `src/features/session/api.ts`、`src/features/account/api.ts` → 我的、资料、账号页 | 已接入 | `docs/api/user_controller.md` |
+| `PUT /api/users/me/phone`、`PUT /api/users/me/email` | 验证新联系方式后改绑 | `src/features/account/api.ts` → 账号与安全 | 已接入 | `docs/api/user_controller.md` |
+| `POST/GET /api/attachments` | 上传 Rice 头像并通过公开附件地址显示 | `src/features/account/api.ts`、`src/lib/attachments.ts` → 编辑资料 | 已接入 | `docs/api/attachment_controller.md` |
+| Task V1 任务接口 | 列表/详情、发布、申请、任命、提交结果、审核通过、驳回并留言 | `src/features/tasks/api.ts` → 任务、任务详情、我的任务 | 已接入 | `docs/api/task_controller.md` |
 
 当前登录后，前端保存的是两套互不替代的凭据：
 
@@ -66,14 +70,10 @@ Rice 不保存 PDS 密码，也不代管 PDS session。前端不得拿其中一�
 
 ### 2. Rice 已提供、但当前前端尚未接入的 C 端能力
 
-Rice 当前共有 **33 个 C 端 JSON 接口**。下面按产品能力完整归组；“Rice 就绪”
-表示后续只需做前端接入，不应再要求后端重复实现。
+下面按产品能力归组；“Rice 就绪”表示后续只需做前端接入，不应再要求后端重复实现。
 
 | 能力 | Rice 已有接口 | 当前前端状态 | 结论 | Rice 文档 |
 | --- | --- | --- | --- | --- |
-| 注册与找回密码 | `POST /api/verification_codes`；`POST /api/registrations/verification`；`POST /api/registrations`；`POST /api/passwords/reset` | 登录页只有登录表单 | Rice 就绪 | `verification_code_controller.md`、`registration_controller.md`、`password_controller.md` |
-| 当前用户档案与账号 | `GET/PATCH/DELETE /api/users/me`；`PUT /api/users/me/phone`；`PUT /api/users/me/email` | 只接了 `GET`；“编辑资料”与设置仍标灰 | Rice 就绪 | `user_controller.md` |
-| 附件 | `POST /api/attachments`；`GET /api/attachments/:id` | 尚未上传头像或业务附件 | Rice 就绪；公开帖图片应走 PDS blob，不应混用 Rice 附件 | `attachment_controller.md` |
 | 首页运营内容 | `GET /api/apps`；`GET /api/banners`；`GET /api/announcements`；`GET /api/announcements/:id`；`GET /api/settings/foundation` | 独立前端尚未展示 | Rice 就绪 | `app_controller.md`、`banner_controller.md`、`announcement_controller.md`、`settings_controller.md` |
 | 节点与勋章 | `GET /api/nodes`；`GET /api/nodes/members`；`GET /api/users/:user_id/badges` | 个人中心只使用 `user.node_member` 布尔值；“我的社区”仍标灰 | 基础读取已就绪，但“我的社区”是否等同节点仍需产品确认 | `node_controller.md`、`badge_controller.md` |
 | 稻米 | `GET /api/grain_grants`；`GET/POST /api/grain_transfers` | 只展示 `GET /api/users/me` 返回的 `grain_balance`；“查看流水”仍标灰 | 流水和转账均已就绪，不需要新增后端 | `grain_grant_controller.md`、`grain_transfer_controller.md` |
@@ -123,14 +123,14 @@ Rice 的共同约定已经完整记录在 `docs/api/README.md`：成功响应使
 
 | 优先级 | 后续能力 | Rice 当前情况 | 最小验收边界 |
 | --- | --- | --- | --- |
-| P0 | Task 业务 | 没有 Task 路由、业务模型或 C 端接口；现有 Oban `task` 只是后台作业，不是产品任务 | 任务列表/详情、发布、领取、验收、拒绝；“我的任务”；发布者必须是管理员或拥有明确权限标签的用户；第一版以 Rice 数据库为读取权威，不要求同步 PDS |
 | P1 | 公共用户主页与人物搜索 | 只有 `GET /api/users/me`；其他接口只在提案、节点、转账等响应里嵌入精简 public user，没有独立的公开用户详情或搜索 | 能按 Rice id、DID 或 handle 读取公开档案；支持人物搜索；绝不返回手机、邮箱、余额等私有字段 |
 | P1（待定义） | 社区归属与“我的社区” | 有节点列表、节点成员名单和单个 `node_member` 布尔值，但没有用户与社区的成员关系、角色或“我的社区”查询 | 先确认“节点”是否就是产品里的“社区”；若不是，再定义社区、成员关系、角色和我的社区，不在结论前复用错误模型 |
 | P2（按 UI 取舍） | 稻米汇总指标 | 有可用余额、个人流水和公开发放记录；没有“冻结余额”模型，也没有“累计获得”汇总字段 | 若继续展示冻结/累计获得，先定义业务口径，再决定由现有流水前端计算还是由 Rice 返回汇总；不能用占位数字冒充真实数据 |
+| P2（阻塞记录） | 节点稻米池与任务结算 | Rice 当前没有节点稻米池余额或任务奖励结算 API，产品也尚未确认结算口径 | 当前节点稻米池统一显示 `0`；Task V1 不展示奖励、不填写金额、不冻结或划转余额，审核通过后直接完成任务。待结算 API 确认后，再把结算阶段接回状态机 |
 | P2（按设置范围） | 通知与隐私偏好 | Rice 已能改档案、改绑联系方式和注销账号，但没有通知偏好或隐私偏好接口 | 只有在设置页确认具体开关及其执行方后新增；账号资料编辑可直接接现有接口 |
 
-Task 是当前唯一已经明确要在 Rice 中新建的 P0 业务域。其余 P1/P2 项都要先确认产品
-语义，避免因为页面上有一个入口就提前制造后端模型。
+Task V1 已从缺口移入第一块。其余 P1/P2 项都要先确认产品语义，避免因为页面上有
+一个入口就提前制造后端模型。
 
 ### 2. 产品需要，但不应新增到 Rice 的能力
 

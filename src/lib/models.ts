@@ -14,6 +14,7 @@ export type RiceUser = {
   }
   grain_balance: number
   node_member: boolean
+  can_publish_tasks: boolean
   email: string | null
   phone: string | null
   phone_region: string | null
@@ -22,6 +23,10 @@ export type RiceUser = {
 }
 
 export type RiceAttachment = NonNullable<RiceUser['avatar']>
+export type RicePublicUser = Pick<
+  RiceUser,
+  'id' | 'did' | 'handle' | 'nickname' | 'bio' | 'avatar' | 'node_member'
+>
 
 export type RiceSession = {
   token: string

@@ -80,15 +80,10 @@ export function ProfilePage() {
       </section>
 
       <nav className="profile-menu" aria-label="个人中心功能">
-        <button
-          type="button"
-          className="profile-menu-row disabled"
-          disabled
-          aria-label="我的任务，接口尚未接入"
-        >
-          <span><strong>我的任务</strong><small>承作 / 发布 / 申请 / 协作 / 监督</small></span>
+        <Link to="/me/tasks" className="profile-menu-row">
+          <span><strong>我的任务</strong><small>承作 / 发布 / 申请</small></span>
           <ChevronRight size={18} aria-hidden="true" />
-        </button>
+        </Link>
         <Link to="/me/posts" className="profile-menu-row">
           <span><strong>我的帖子</strong><small>在广场发布的真实内容</small></span>
           <ChevronRight size={18} aria-hidden="true" />

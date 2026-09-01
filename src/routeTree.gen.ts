@@ -11,14 +11,24 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ComposeRouteImport } from './routes/compose'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MeRouteImport } from './routes/me'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as PostRouteImport } from './routes/post'
+import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as MeIndexRouteImport } from './routes/me.index'
 import { Route as MePostsRouteImport } from './routes/me.posts'
+import { Route as MeSettingsRouteImport } from './routes/me.settings'
+import { Route as MeTasksRouteImport } from './routes/me.tasks'
+import { Route as TasksIndexRouteImport } from './routes/tasks.index'
+import { Route as TasksTaskIdRouteImport } from './routes/tasks.$taskId'
+import { Route as TasksNewRouteImport } from './routes/tasks.new'
+import { Route as MeSettingsIndexRouteImport } from './routes/me.settings.index'
+import { Route as MeSettingsAccountRouteImport } from './routes/me.settings.account'
+import { Route as MeSettingsProfileRouteImport } from './routes/me.settings.profile'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,6 +38,11 @@ const IndexRoute = IndexRouteImport.update({
 const ComposeRoute = ComposeRouteImport.update({
   id: '/compose',
   path: '/compose',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -50,6 +65,11 @@ const PostRoute = PostRouteImport.update({
   path: '/post',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SearchRoute = SearchRouteImport.update({
   id: '/search',
   path: '/search',
@@ -70,90 +90,188 @@ const MePostsRoute = MePostsRouteImport.update({
   path: '/posts',
   getParentRoute: () => MeRoute,
 } as any)
+const MeSettingsRoute = MeSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => MeRoute,
+} as any)
+const MeTasksRoute = MeTasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => MeRoute,
+} as any)
+const TasksIndexRoute = TasksIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => TasksRoute,
+} as any)
+const TasksTaskIdRoute = TasksTaskIdRouteImport.update({
+  id: '/$taskId',
+  path: '/$taskId',
+  getParentRoute: () => TasksRoute,
+} as any)
+const TasksNewRoute = TasksNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => TasksRoute,
+} as any)
+const MeSettingsIndexRoute = MeSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => MeSettingsRoute,
+} as any)
+const MeSettingsAccountRoute = MeSettingsAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => MeSettingsRoute,
+} as any)
+const MeSettingsProfileRoute = MeSettingsProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => MeSettingsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/compose': typeof ComposeRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/me': typeof MeRouteWithChildren
   '/notifications': typeof NotificationsRoute
   '/post': typeof PostRoute
+  '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
-  '/tasks': typeof TasksRoute
+  '/tasks': typeof TasksRouteWithChildren
   '/me/posts': typeof MePostsRoute
+  '/me/settings': typeof MeSettingsRouteWithChildren
+  '/me/tasks': typeof MeTasksRoute
+  '/tasks/$taskId': typeof TasksTaskIdRoute
+  '/tasks/new': typeof TasksNewRoute
   '/me/': typeof MeIndexRoute
+  '/tasks/': typeof TasksIndexRoute
+  '/me/settings/account': typeof MeSettingsAccountRoute
+  '/me/settings/profile': typeof MeSettingsProfileRoute
+  '/me/settings/': typeof MeSettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/compose': typeof ComposeRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/notifications': typeof NotificationsRoute
   '/post': typeof PostRoute
+  '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
-  '/tasks': typeof TasksRoute
   '/me/posts': typeof MePostsRoute
+  '/me/tasks': typeof MeTasksRoute
+  '/tasks/$taskId': typeof TasksTaskIdRoute
+  '/tasks/new': typeof TasksNewRoute
   '/me': typeof MeIndexRoute
+  '/tasks': typeof TasksIndexRoute
+  '/me/settings/account': typeof MeSettingsAccountRoute
+  '/me/settings/profile': typeof MeSettingsProfileRoute
+  '/me/settings': typeof MeSettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/compose': typeof ComposeRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/me': typeof MeRouteWithChildren
   '/notifications': typeof NotificationsRoute
   '/post': typeof PostRoute
+  '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
-  '/tasks': typeof TasksRoute
+  '/tasks': typeof TasksRouteWithChildren
   '/me/posts': typeof MePostsRoute
+  '/me/settings': typeof MeSettingsRouteWithChildren
+  '/me/tasks': typeof MeTasksRoute
+  '/tasks/$taskId': typeof TasksTaskIdRoute
+  '/tasks/new': typeof TasksNewRoute
   '/me/': typeof MeIndexRoute
+  '/tasks/': typeof TasksIndexRoute
+  '/me/settings/account': typeof MeSettingsAccountRoute
+  '/me/settings/profile': typeof MeSettingsProfileRoute
+  '/me/settings/': typeof MeSettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/compose'
+    | '/forgot-password'
     | '/login'
     | '/me'
     | '/notifications'
     | '/post'
+    | '/register'
     | '/search'
     | '/tasks'
     | '/me/posts'
+    | '/me/settings'
+    | '/me/tasks'
+    | '/tasks/$taskId'
+    | '/tasks/new'
     | '/me/'
+    | '/tasks/'
+    | '/me/settings/account'
+    | '/me/settings/profile'
+    | '/me/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/compose'
+    | '/forgot-password'
     | '/login'
     | '/notifications'
     | '/post'
+    | '/register'
     | '/search'
-    | '/tasks'
     | '/me/posts'
+    | '/me/tasks'
+    | '/tasks/$taskId'
+    | '/tasks/new'
     | '/me'
+    | '/tasks'
+    | '/me/settings/account'
+    | '/me/settings/profile'
+    | '/me/settings'
   id:
     | '__root__'
     | '/'
     | '/compose'
+    | '/forgot-password'
     | '/login'
     | '/me'
     | '/notifications'
     | '/post'
+    | '/register'
     | '/search'
     | '/tasks'
     | '/me/posts'
+    | '/me/settings'
+    | '/me/tasks'
+    | '/tasks/$taskId'
+    | '/tasks/new'
     | '/me/'
+    | '/tasks/'
+    | '/me/settings/account'
+    | '/me/settings/profile'
+    | '/me/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ComposeRoute: typeof ComposeRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   MeRoute: typeof MeRouteWithChildren
   NotificationsRoute: typeof NotificationsRoute
   PostRoute: typeof PostRoute
+  RegisterRoute: typeof RegisterRoute
   SearchRoute: typeof SearchRoute
-  TasksRoute: typeof TasksRoute
+  TasksRoute: typeof TasksRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -170,6 +288,13 @@ declare module '@tanstack/react-router' {
       path: '/compose'
       fullPath: '/compose'
       preLoaderRoute: typeof ComposeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -200,6 +325,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PostRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/search': {
       id: '/search'
       path: '/search'
@@ -228,30 +360,122 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MePostsRouteImport
       parentRoute: typeof MeRoute
     }
+    '/me/settings': {
+      id: '/me/settings'
+      path: '/settings'
+      fullPath: '/me/settings'
+      preLoaderRoute: typeof MeSettingsRouteImport
+      parentRoute: typeof MeRoute
+    }
+    '/me/tasks': {
+      id: '/me/tasks'
+      path: '/tasks'
+      fullPath: '/me/tasks'
+      preLoaderRoute: typeof MeTasksRouteImport
+      parentRoute: typeof MeRoute
+    }
+    '/tasks/': {
+      id: '/tasks/'
+      path: '/'
+      fullPath: '/tasks/'
+      preLoaderRoute: typeof TasksIndexRouteImport
+      parentRoute: typeof TasksRoute
+    }
+    '/tasks/$taskId': {
+      id: '/tasks/$taskId'
+      path: '/$taskId'
+      fullPath: '/tasks/$taskId'
+      preLoaderRoute: typeof TasksTaskIdRouteImport
+      parentRoute: typeof TasksRoute
+    }
+    '/tasks/new': {
+      id: '/tasks/new'
+      path: '/new'
+      fullPath: '/tasks/new'
+      preLoaderRoute: typeof TasksNewRouteImport
+      parentRoute: typeof TasksRoute
+    }
+    '/me/settings/': {
+      id: '/me/settings/'
+      path: '/'
+      fullPath: '/me/settings/'
+      preLoaderRoute: typeof MeSettingsIndexRouteImport
+      parentRoute: typeof MeSettingsRoute
+    }
+    '/me/settings/account': {
+      id: '/me/settings/account'
+      path: '/account'
+      fullPath: '/me/settings/account'
+      preLoaderRoute: typeof MeSettingsAccountRouteImport
+      parentRoute: typeof MeSettingsRoute
+    }
+    '/me/settings/profile': {
+      id: '/me/settings/profile'
+      path: '/profile'
+      fullPath: '/me/settings/profile'
+      preLoaderRoute: typeof MeSettingsProfileRouteImport
+      parentRoute: typeof MeSettingsRoute
+    }
   }
 }
 
+interface MeSettingsRouteChildren {
+  MeSettingsAccountRoute: typeof MeSettingsAccountRoute
+  MeSettingsProfileRoute: typeof MeSettingsProfileRoute
+  MeSettingsIndexRoute: typeof MeSettingsIndexRoute
+}
+
+const MeSettingsRouteChildren: MeSettingsRouteChildren = {
+  MeSettingsAccountRoute: MeSettingsAccountRoute,
+  MeSettingsProfileRoute: MeSettingsProfileRoute,
+  MeSettingsIndexRoute: MeSettingsIndexRoute,
+}
+
+const MeSettingsRouteWithChildren = MeSettingsRoute._addFileChildren(
+  MeSettingsRouteChildren,
+)
+
 interface MeRouteChildren {
   MePostsRoute: typeof MePostsRoute
+  MeSettingsRoute: typeof MeSettingsRouteWithChildren
+  MeTasksRoute: typeof MeTasksRoute
   MeIndexRoute: typeof MeIndexRoute
 }
 
 const MeRouteChildren: MeRouteChildren = {
   MePostsRoute: MePostsRoute,
+  MeSettingsRoute: MeSettingsRouteWithChildren,
+  MeTasksRoute: MeTasksRoute,
   MeIndexRoute: MeIndexRoute,
 }
 
 const MeRouteWithChildren = MeRoute._addFileChildren(MeRouteChildren)
 
+interface TasksRouteChildren {
+  TasksTaskIdRoute: typeof TasksTaskIdRoute
+  TasksNewRoute: typeof TasksNewRoute
+  TasksIndexRoute: typeof TasksIndexRoute
+}
+
+const TasksRouteChildren: TasksRouteChildren = {
+  TasksTaskIdRoute: TasksTaskIdRoute,
+  TasksNewRoute: TasksNewRoute,
+  TasksIndexRoute: TasksIndexRoute,
+}
+
+const TasksRouteWithChildren = TasksRoute._addFileChildren(TasksRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ComposeRoute: ComposeRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   MeRoute: MeRouteWithChildren,
   NotificationsRoute: NotificationsRoute,
   PostRoute: PostRoute,
+  RegisterRoute: RegisterRoute,
   SearchRoute: SearchRoute,
-  TasksRoute: TasksRoute,
+  TasksRoute: TasksRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

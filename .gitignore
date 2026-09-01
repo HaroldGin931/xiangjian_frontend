@@ -22,3 +22,5 @@ qa/*
 !qa/profile-single-column-before-after.png
 !qa/sync-state-before-after.png
 !qa/task-mobile-comparison.png
+!qa/task-v1-detail-comparison.png
+!qa/task-v1-list-comparison.png

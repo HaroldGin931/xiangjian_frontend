@@ -2,10 +2,14 @@ import { Link, useRouterState } from '@tanstack/react-router'
 import { Plus, Search } from 'lucide-react'
 import type { ReactNode } from 'react'
 
+import { useStoredSession } from '~/features/session/session'
+
 export function AppShell({ children }: { children: ReactNode }) {
+  const { session } = useStoredSession()
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const isStandalone =
-    ['/login', '/register', '/forgot-password', '/post', '/search', '/compose'].includes(pathname)
+    ['/login', '/register', '/forgot-password', '/post', '/search', '/compose'].includes(pathname) ||
+    pathname.startsWith('/tasks/')
   const sectionTitle = pathname.startsWith('/tasks')
     ? '任务'
     : pathname.startsWith('/notifications')
@@ -37,15 +41,16 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Search size={22} aria-hidden="true" />
               </Link>
             </div>
-          ) : pathname.startsWith('/tasks') ? (
-            <button
-              type="button"
-              className="header-publish disabled-control"
-              aria-label="发布任务，接口尚未接入"
-              disabled
-            >
-              <Plus size={18} aria-hidden="true" /> 发布任务
-            </button>
+          ) : pathname === '/tasks' ? (
+            session?.user.can_publish_tasks ? (
+              <Link to="/tasks/new" className="header-publish">
+                <Plus size={18} aria-hidden="true" /> 发布任务
+              </Link>
+            ) : (
+              <button type="button" className="header-publish disabled-control" disabled>
+                <Plus size={18} aria-hidden="true" /> 暂无发布权限
+              </button>
+            )
           ) : null}
         </div>
       </header> : null}
