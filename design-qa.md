@@ -142,13 +142,11 @@ final result: passed
    `can_publish_tasks` existed. Rice correctly authorized the user, but the frontend still showed a
    disabled publish control. Session startup now refreshes the current Rice user independently from
    PDS token refresh, so permissions and profile changes cannot remain stale.
-3. P1: rebuilding Rice changed its Docker IP while Nginx retained the old resolved address and
-   returned `502`. The local gateway now uses Docker DNS with a five-second resolver TTL for Rice.
-4. P2: the first account implementation exposed both phone and email forms at once and no longer
+3. P2: the first account implementation exposed both phone and email forms at once and no longer
    resembled the compact prototype hierarchy. The default page now shows verified login, masked
    contacts, DID, password reset, and account deletion as rows; a single change form expands only
    after the user selects a contact.
-5. P2: Task and account code were simplified after runtime QA: one unused frontend application
+4. P2: Task and account code were simplified after runtime QA: one unused frontend application
    request and three unused backend status accessors were removed; task responses use a public-user
    type instead of pretending private account fields are present.
 

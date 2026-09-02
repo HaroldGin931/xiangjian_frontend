@@ -14,7 +14,7 @@
 | --- | --- |
 | Rice 仓库 | `HaroldGin931/rice`（上游：`xjdao2025/rice`） |
 | 分支与基线提交 | `feat/task-v1`，从 `b0d3da515b6a750d297d8178ce21a274d82d6415` 开始实现 |
-| Git 状态 | Task V1 已按账号与任务边界拆分为本地提交，尚未推送 |
+| Git 状态 | 前端账号与 Task 用户流程位于独立提交；Rice Task 状态机提交仍仅在本地、等待 review |
 | 实现依据 | `lib/rice_web/router.ex`、对应 controller / JSON view |
 | 文档依据 | `docs/api/README.md` 与各 controller 文档 |
 | 前端依据 | 本仓库 `src/features/**/api.ts` 及调用页面 |
