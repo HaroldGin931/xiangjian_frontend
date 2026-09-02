@@ -9,6 +9,7 @@ import {
   applyForTask,
   appointTaskApplication,
   approveTaskResult,
+  cancelTask,
   getTask,
   requestTaskChanges,
   submitTaskResult,
@@ -16,17 +17,20 @@ import {
 import { taskStatusLabel, type RiceTask, type TaskSubmission } from './types'
 
 export function TaskDetailPage({ taskId }: { taskId: string }) {
-  const { session } = useStoredSession()
+  const { session, isReady } = useStoredSession()
   const [task, setTask] = useState<RiceTask | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [applyOpen, setApplyOpen] = useState(false)
+  const [cancelOpen, setCancelOpen] = useState(false)
   const [reason, setReason] = useState('')
+  const [appointmentReason, setAppointmentReason] = useState('')
   const [result, setResult] = useState('')
   const [reviewReason, setReviewReason] = useState('')
 
   const load = useCallback(async () => {
+    if (!isReady) return
     setLoading(true)
     setError('')
     try {
@@ -36,7 +40,7 @@ export function TaskDetailPage({ taskId }: { taskId: string }) {
     } finally {
       setLoading(false)
     }
-  }, [session?.token, taskId])
+  }, [isReady, session?.token, taskId])
 
   useEffect(() => {
     void load()
@@ -58,7 +62,9 @@ export function TaskDetailPage({ taskId }: { taskId: string }) {
       const next = await action()
       setTask(next)
       setApplyOpen(false)
+      setCancelOpen(false)
       setReason('')
+      setAppointmentReason('')
       setResult('')
       setReviewReason('')
     } catch (reason) {
@@ -68,7 +74,7 @@ export function TaskDetailPage({ taskId }: { taskId: string }) {
     }
   }
 
-  if (loading) return <div className="page loading-line">正在加载任务…</div>
+  if (!isReady || loading) return <div className="page loading-line">正在加载任务…</div>
   if (!task) return <div className="page"><div className="inline-error">{error || '任务不存在'}</div></div>
 
   const actions = new Set(task.allowed_actions)
@@ -95,11 +101,34 @@ export function TaskDetailPage({ taskId }: { taskId: string }) {
           <div><strong>{task.assignee?.nickname || task.assignee?.handle || '待任命'}</strong><span>承作人</span></div>
         </section>
 
+        {task.application_deadline ? (
+          <div className="task-neutral-note">领取截止：{formatTimestamp(task.application_deadline, true)}</div>
+        ) : null}
+        {task.assignee && task.appointed_at ? (
+          <section className="task-appointment-record">
+            <h2>任命记录</h2>
+            <p>
+              <strong>{task.assignee.nickname || task.assignee.handle}</strong>
+              {' '}于 {formatTimestamp(task.appointed_at, true)} 被任命为承作人。
+            </p>
+            {task.appointment_reason ? <blockquote>{task.appointment_reason}</blockquote> : null}
+          </section>
+        ) : null}
+
         {task.status === 'completed' ? (
           <div className="task-success-note"><CheckCircle2 size={18} /> 结果已认可，任务完成</div>
         ) : null}
+        {task.status === 'draft' ? <div className="task-neutral-note">草稿仅你可见，发布后才进入任务列表。</div> : null}
+        {task.status === 'cancelled' ? <div className="task-neutral-note">该任务已由发布者取消。</div> : null}
+        {task.status === 'expired' ? <div className="task-neutral-note">领取截止前无人获任命，任务已失效。</div> : null}
         {latestRejected && task.status === 'in_progress' ? <ChangesRequested submission={latestRejected} /> : null}
         {error ? <div className="inline-error" role="alert">{error}</div> : null}
+
+        {actions.has('publish') && token ? (
+          <section className="task-action-section">
+            <Link to="/tasks/new" className="primary-link">继续编辑</Link>
+          </section>
+        ) : null}
 
         {!session && task.status === 'open' ? (
           <Link to="/login" className="primary-link">登录后申请领取</Link>
@@ -141,6 +170,15 @@ export function TaskDetailPage({ taskId }: { taskId: string }) {
         {actions.has('appoint') && token ? (
           <section className="task-action-section">
             <h2>申请人</h2>
+            <label className="field-label">
+              <span>任命理由（选填）</span>
+              <textarea
+                value={appointmentReason}
+                onChange={(event) => setAppointmentReason(event.target.value)}
+                maxLength={512}
+                rows={3}
+              />
+            </label>
             <div className="applicant-list">
               {(task.applications ?? []).filter((item) => item.status === 'pending').map((application) => (
                 <article key={application.id}>
@@ -151,12 +189,43 @@ export function TaskDetailPage({ taskId }: { taskId: string }) {
                     className="primary-button"
                     disabled={busy}
                     onClick={() => run(() => appointTaskApplication({
-                      data: { token, taskId, applicationId: application.id },
+                      data: {
+                        token,
+                        taskId,
+                        applicationId: application.id,
+                        appointmentReason,
+                      },
                     }))}
                   >确认任命</button>
                 </article>
               ))}
             </div>
+          </section>
+        ) : null}
+
+        {actions.has('cancel') && token ? (
+          <section className="task-action-section">
+            {!cancelOpen ? (
+              <button type="button" className="danger-button" onClick={() => setCancelOpen(true)}>
+                取消任务
+              </button>
+            ) : (
+              <>
+                <div className="task-warning-note">
+                  <CircleAlert size={18} />
+                  <div><strong>确认取消这个任务？</strong><p>取消后任务保留记录，但不能再申请或任命。</p></div>
+                </div>
+                <div className="button-row">
+                  <button type="button" className="secondary-button" onClick={() => setCancelOpen(false)}>保留任务</button>
+                  <button
+                    type="button"
+                    className="danger-button"
+                    disabled={busy}
+                    onClick={() => run(() => cancelTask({ data: { token, taskId } }))}
+                  >确认取消</button>
+                </div>
+              </>
+            )}
           </section>
         ) : null}
 
