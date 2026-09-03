@@ -16,10 +16,11 @@ import {
   readCachedFeed,
   writeCachedFeed,
 } from '~/features/feed/api'
-import { POST_KINDS, type PostKind, withPostKind } from '~/features/feed/tags'
+import { POST_CATEGORIES, withPostCategory } from '~/features/feed/tags'
 import { useStoredSession } from '~/features/session/session'
 import { TaskCreatePage } from '~/features/tasks/TaskCreatePage'
 import { localDateTimeValue } from '~/lib/format'
+import type { PostCategory } from '~/lib/models'
 
 export const Route = createFileRoute('/compose')({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -28,7 +29,7 @@ export const Route = createFileRoute('/compose')({
   component: ComposePage,
 })
 
-type ComposeKind = PostKind | 'task'
+type ComposeKind = PostCategory | 'task'
 
 const composeKinds: Array<{ value: ComposeKind; label: string }> = [
   { value: 'post', label: '帖子' },
@@ -46,9 +47,9 @@ function ComposePage() {
   const [fields, setFields] = useState<Record<string, string>>({})
   const [notice, setNotice] = useState('')
   const [isPublishing, setPublishing] = useState(false)
-  const postKind = kind === 'task' ? null : kind
-  const kindDetails = postKind ? POST_KINDS[postKind] : null
-  const publishText = postKind ? withPostKind(text, postKind, fields) : ''
+  const postCategory = kind === 'task' ? null : kind
+  const categoryDetails = postCategory ? POST_CATEGORIES[postCategory] : null
+  const publishText = postCategory ? withPostCategory(text, postCategory, fields) : ''
   const publishLength = text.trim() ? publishText.length : 0
   const minDateTime = localDateTimeValue()
   const deadlineIsPast = Boolean(fields.deadline && fields.deadline < minDateTime)
@@ -61,7 +62,7 @@ function ComposePage() {
   }, [isReady, navigate, session])
 
   const submit = async () => {
-    if (!session || !kindDetails || !text.trim() || deadlineIsPast || publishLength > 300) return
+    if (!session || !categoryDetails || !postCategory || !text.trim() || deadlineIsPast || publishLength > 300) return
     setPublishing(true)
     setNotice('')
     try {
@@ -79,6 +80,7 @@ function ComposePage() {
           did: session.pds.did,
           accessJwt: session.pds.access_jwt,
           text: publishText,
+          category: postCategory,
         },
       })
       const feed = await feedPromise
@@ -113,7 +115,7 @@ function ComposePage() {
         </div>
       </header>
 
-      {kind === 'task' ? <TaskCreatePage embedded /> : kindDetails && postKind ? (
+      {kind === 'task' ? <TaskCreatePage embedded /> : categoryDetails && postCategory ? (
         <>
       <div className="compose-editor">
         <TextArea
@@ -122,7 +124,7 @@ function ComposePage() {
           value={text}
           onChange={setText}
           rows={5}
-          placeholder={kindDetails.placeholder}
+          placeholder={categoryDetails.placeholder}
           width="100%"
           size="lg"
           hasAutoFocus
@@ -137,16 +139,16 @@ function ComposePage() {
         </span>
       </div>
 
-      {kindDetails.fields.length ? (
+      {categoryDetails.fields.length ? (
         <section
           className="special-compose-form"
-          aria-label={`${kindDetails.tag} 补充信息`}
+          aria-label={`${categoryDetails.label}补充信息`}
         >
           <header>
-            <strong>{postKind === 'activity' ? '活动信息' : '商品信息'}</strong>
+            <strong>{postCategory === 'activity' ? '活动信息' : '商品信息'}</strong>
             <span>随帖子公开</span>
           </header>
-          {kindDetails.fields.map((field) => (
+          {categoryDetails.fields.map((field) => (
             field.type === 'select' ? (
               <Selector
                 key={field.key}
@@ -212,7 +214,7 @@ function ComposePage() {
       </div>
       {notice ? <div className="form-error">{notice}</div> : null}
       <Button
-        label={kindDetails.publishLabel}
+        label={categoryDetails.publishLabel}
         variant="primary"
         width="100%"
         clickAction={submit}

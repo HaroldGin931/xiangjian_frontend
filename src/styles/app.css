@@ -140,8 +140,9 @@ input:-webkit-autofill:focus {
 .post-reason { margin: 0 0 10px 55px; display: flex; align-items: center; gap: 5px; color: var(--xj-text-soft); font-size: var(--xj-font-small); font-weight: 650; }
 .post-row.activity-post { border-color: rgba(31, 91, 67, .16); }
 .post-row.product-post { border-color: rgba(121, 91, 34, .18); }
-.post-copy-link { display: block; }
-.post-copy-button { width: 100%; padding: 0; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.post-copy-link { display: block; cursor: pointer; }
+.post-tag-link { color: var(--xj-accent); font-weight: 650; }
+.post-tag-link:hover { text-decoration: underline; }
 .post-copy { margin: 16px 0 12px; color: var(--xj-text); font-size: var(--xj-font-lead); line-height: 1.65; white-space: pre-wrap; }
 .content-card-actions { min-height: 44px; display: flex; align-items: center; gap: 6px; }
 .post-actions > .post-action { min-width: 44px; height: 44px; padding: 0 10px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 6px; color: var(--xj-muted); font-size: var(--xj-font-body); line-height: 1; white-space: nowrap; }

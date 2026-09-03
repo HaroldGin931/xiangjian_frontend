@@ -1,4 +1,4 @@
-export type PostKind = 'post' | 'activity' | 'product'
+import type { PostCategory, PostView } from '~/lib/models'
 
 export const ACTIVITY_PARTICIPATION_TEXT = '参与活动'
 
@@ -10,15 +10,15 @@ type PostField = {
   options?: readonly string[]
 }
 
-export const POST_KINDS = {
+export const POST_CATEGORIES = {
   post: {
-    tag: null,
+    label: '帖子',
     placeholder: '说点什么…',
     publishLabel: '发布内容',
     fields: [],
   },
   activity: {
-    tag: '#活动',
+    label: '活动',
     placeholder: '介绍活动内容、时间和地点…',
     publishLabel: '发布活动',
     fields: [
@@ -28,7 +28,7 @@ export const POST_KINDS = {
     ] satisfies readonly PostField[],
   },
   product: {
-    tag: '#商品',
+    label: '商品',
     placeholder: '介绍商品、价格和履约方式…',
     publishLabel: '发布商品',
     fields: [
@@ -53,14 +53,15 @@ export function hasPostTag(text: string, tag: string) {
   return postTags(text).some((value) => value.toLocaleLowerCase() === expected)
 }
 
-export function postKind(text: string): PostKind {
-  const specialTag = postTags(text).find((tag) => tag === '#活动' || tag === '#商品')
-  return specialTag === '#活动' ? 'activity' : specialTag === '#商品' ? 'product' : 'post'
+export function postCategory(record: PostView['record']): PostCategory {
+  return record.xjdaoCategory === 'activity' || record.xjdaoCategory === 'product'
+    ? record.xjdaoCategory
+    : 'post'
 }
 
-export function postFieldValues(text: string, kind = postKind(text)) {
+export function postFieldValues(text: string, category: PostCategory) {
   const values: Record<string, string> = {}
-  for (const field of POST_KINDS[kind].fields) {
+  for (const field of POST_CATEGORIES[category].fields) {
     const prefix = `${field.label}：`
     const line = text.split('\n').find((value) => value.startsWith(prefix))
     if (line) values[field.key] = line.slice(prefix.length).trim()
@@ -68,8 +69,8 @@ export function postFieldValues(text: string, kind = postKind(text)) {
   return values
 }
 
-export function postDisplayText(text: string) {
-  const fields = POST_KINDS[postKind(text)].fields
+export function postDisplayText(text: string, category: PostCategory) {
+  const fields = POST_CATEGORIES[category].fields
   return text
     .split('\n')
     .filter((line) => !fields.some((field) => line.startsWith(`${field.label}：`)))
@@ -82,17 +83,23 @@ export function formatPostFieldValue(key: string, value?: string) {
   return key === 'deadline' ? value.replace('T', ' ') : value
 }
 
-export function withPostKind(
+export function withPostCategory(
   text: string,
-  kind: PostKind,
+  category: PostCategory,
   values: Record<string, string> = {},
 ) {
   const body = text.trim()
-  const details = POST_KINDS[kind]
+  const details = POST_CATEGORIES[category]
   const metadata = details.fields.flatMap((field) => {
     const value = values[field.key]?.trim()
     return value ? [`${field.label}：${value}`] : []
   })
-  const tag = details.tag && !hasPostTag(body, details.tag) ? details.tag : null
-  return [body, ...metadata, tag].filter(Boolean).join('\n')
+  return [body, ...metadata].filter(Boolean).join('\n')
+}
+
+export function postTextParts(text: string) {
+  return text
+    .split(/(#[\p{L}\p{N}_-]+)/gu)
+    .filter(Boolean)
+    .map((value) => ({ value, isTag: /^#[\p{L}\p{N}_-]+$/u.test(value) }))
 }

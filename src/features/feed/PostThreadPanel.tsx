@@ -5,6 +5,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useId, useState } from 'react'
 
 import { ContentCardHeader } from '~/components/ContentCardHeader'
+import { PostText } from '~/components/PostText'
 import {
   PostActions,
   type RepostChange,
@@ -22,10 +23,10 @@ import {
 import {
   ACTIVITY_PARTICIPATION_TEXT,
   formatPostFieldValue,
-  POST_KINDS,
+  POST_CATEGORIES,
+  postCategory,
   postDisplayText,
   postFieldValues,
-  postKind,
 } from './tags'
 
 export function PostThreadPanel({
@@ -49,8 +50,8 @@ export function PostThreadPanel({
   const [replyNotice, setReplyNotice] = useState('')
   const [isReplying, setReplying] = useState(false)
   const replyComposerId = useId()
-  const kind = thread ? postKind(thread.post.record.text) : 'post'
-  const fields = thread ? postFieldValues(thread.post.record.text, kind) : {}
+  const category = thread ? postCategory(thread.post.record) : 'post'
+  const fields = thread ? postFieldValues(thread.post.record.text, category) : {}
   const participants = thread?.replies.filter(
     (reply) => reply.post.record.text === ACTIVITY_PARTICIPATION_TEXT,
   ) ?? []
@@ -182,7 +183,7 @@ export function PostThreadPanel({
               profileActor={thread.post.author.did}
             />
             <p className="post-detail-copy">
-              {postDisplayText(thread.post.record.text)}
+              <PostText text={postDisplayText(thread.post.record.text, category)} />
             </p>
             <div className="detail-actions">
               <PostActions
@@ -200,7 +201,7 @@ export function PostThreadPanel({
             </div>
           </article>
 
-          {kind === 'post' ? (
+          {category === 'post' ? (
             <section className="reply-section" aria-label="评论">
               <div className="reply-composer" id={replyComposerId}>
                 <TextArea
@@ -243,7 +244,7 @@ export function PostThreadPanel({
                         )}
                         profileActor={reply.post.author.did}
                       />
-                      <p>{reply.post.record.text}</p>
+                      <p><PostText text={reply.post.record.text} /></p>
                       <PostActions post={reply.post} onOpenComments={focusComposer} />
                     </article>
                   ))}
@@ -253,15 +254,15 @@ export function PostThreadPanel({
           ) : (
             <section
               className="special-post-details"
-              aria-label={`${POST_KINDS[kind].tag} 信息`}
+              aria-label={`${POST_CATEGORIES[category].label}信息`}
             >
-              {POST_KINDS[kind].fields.map((field) => (
+              {POST_CATEGORIES[category].fields.map((field) => (
                 <div key={field.key}>
                   <span>{field.label}</span>
                   <strong>{formatPostFieldValue(field.key, fields[field.key])}</strong>
                 </div>
               ))}
-              {kind === 'activity' ? (
+              {category === 'activity' ? (
                 <div className="activity-participation">
                   <span>{participants.length} 人已参与</span>
                   <Button

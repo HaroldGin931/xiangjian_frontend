@@ -18,13 +18,20 @@ import { useStoredSession } from '~/features/session/session'
 import { getTaskPage } from '~/features/tasks/api'
 import { TaskCard } from '~/features/tasks/TaskCard'
 
-export const Route = createFileRoute('/search')({ component: SearchPage })
+export const Route = createFileRoute('/search')({
+  validateSearch: (search: Record<string, unknown>): { q?: string } => {
+    const q = typeof search.q === 'string' ? search.q.trim() : ''
+    return q ? { q } : {}
+  },
+  component: SearchPage,
+})
 
 const pageSize = 10
 
 function SearchPage() {
+  const { q: requestedQuery } = Route.useSearch()
   const { session } = useStoredSession()
-  const [query, setQuery] = useState('')
+  const [query, setQuery] = useState(requestedQuery ?? '')
   const [scope, setScope] = useState<SearchScope>('all')
   const [items, setItems] = useState<SearchItem[]>([])
   const [hasSearched, setHasSearched] = useState(false)
@@ -36,6 +43,7 @@ function SearchPage() {
   const activeQuery = useRef('')
   const loadMoreMarker = useRef<HTMLDivElement | null>(null)
   const requestVersion = useRef(0)
+  const lastRoutedQuery = useRef('')
 
   const loaders = (value: string) => ({
     posts: async (cursor?: string) => {
@@ -64,8 +72,8 @@ function SearchPage() {
     },
   })
 
-  const search = async (selectedScope = scope) => {
-    const value = query.trim()
+  const search = async (selectedScope = scope, requestedValue = query) => {
+    const value = requestedValue.trim()
     if (!value) return
     const version = ++requestVersion.current
     activeQuery.current = value
@@ -97,6 +105,13 @@ function SearchPage() {
       }
     }
   }
+
+  useEffect(() => {
+    if (!requestedQuery || requestedQuery === lastRoutedQuery.current) return
+    lastRoutedQuery.current = requestedQuery
+    setQuery(requestedQuery)
+    void search(scope, requestedQuery)
+  }, [requestedQuery])
 
   const loadMore = async () => {
     const current = timeline.current

@@ -1,12 +1,13 @@
 import { EmptyState } from '@astryxdesign/core/EmptyState'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { Repeat2 } from 'lucide-react'
 import { useState } from 'react'
 
 import { ContentCardHeader } from '~/components/ContentCardHeader'
+import { PostText } from '~/components/PostText'
 import { PostActions, type RepostChange } from '~/components/PostActions'
 import { isPostHidden } from '~/features/feed/api'
-import { postDisplayText, postKind } from '~/features/feed/tags'
+import { postCategory, postDisplayText } from '~/features/feed/tags'
 import { authorDisplayName, authorInitial, formatTimestamp } from '~/lib/format'
 import type { PostView } from '~/lib/models'
 
@@ -66,10 +67,18 @@ export function PostCard({
   onRepostChange?: (change: RepostChange) => void
   onPostDeleted?: (uri: string) => void
 }) {
-  const kind = postKind(post.record.text)
+  const navigate = useNavigate()
+  const category = postCategory(post.record)
+  const openPost = () => {
+    if (onOpenPost) {
+      onOpenPost(post, false)
+    } else {
+      void navigate({ to: '/post', search: { uri: post.uri } })
+    }
+  }
 
   return (
-    <article className={`content-card post-row ${kind === 'post' ? '' : `${kind}-post`}`}>
+    <article className={`content-card post-row ${category === 'post' ? '' : `${category}-post`}`}>
       {post.reason ? (
         <div className="post-reason">
           <Repeat2 size={14} aria-hidden="true" />
@@ -85,19 +94,21 @@ export function PostCard({
         timestamp={formatTimestamp(post.record.createdAt || post.indexedAt)}
         profileActor={post.author.did}
       />
-      {onOpenPost ? (
-        <button
-          type="button"
-          className="post-copy-link post-copy-button"
-          onClick={() => onOpenPost(post, false)}
-        >
-          <p className="post-copy">{postDisplayText(post.record.text)}</p>
-        </button>
-      ) : (
-        <Link to="/post" search={{ uri: post.uri }} className="post-copy-link">
-          <p className="post-copy">{postDisplayText(post.record.text)}</p>
-        </Link>
-      )}
+      <p
+        className="post-copy post-copy-link"
+        role="link"
+        tabIndex={0}
+        onClick={openPost}
+        onKeyDown={(event) => {
+          if (event.target !== event.currentTarget) return
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault()
+            openPost()
+          }
+        }}
+      >
+        <PostText text={postDisplayText(post.record.text, category)} />
+      </p>
       <PostActions
         post={post}
         onOpenComments={onOpenPost ? () => onOpenPost(post, true) : undefined}

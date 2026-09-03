@@ -20,11 +20,12 @@ import {
 } from './api'
 import {
   hasPostTag,
+  postCategory,
   postDisplayText,
   postFieldValues,
-  postKind,
+  postTextParts,
   postTags,
-  withPostKind,
+  withPostCategory,
 } from './tags'
 
 afterEach(() => vi.unstubAllGlobals())
@@ -41,51 +42,60 @@ const post = {
 }
 
 describe('feed data', () => {
-  it('uses exact tags to select one special rendering while preserving every tag', () => {
+  it('keeps category independent from exact searchable tags', () => {
     const text = '赶集信息\n#乡村 #商品 #活动'
+    const productRecord = { ...post.record, text, xjdaoCategory: 'product' as const }
 
     expect(postTags(text)).toEqual(['#乡村', '#商品', '#活动'])
-    expect(postKind(text)).toBe('product')
+    expect(postCategory(productRecord)).toBe('product')
+    expect(postCategory({ ...post.record, text })).toBe('post')
     expect(hasPostTag('#活动周', '活动')).toBe(false)
-    expect(withPostKind('开放日 #活动', 'activity')).toBe('开放日 #活动')
-    expect(withPostKind('开放日', 'activity')).toBe('开放日\n#活动')
+    expect(postTextParts('开放日 #活动').filter((part) => part.isTag)).toEqual([
+      { value: '#活动', isTag: true },
+    ])
+    expect(withPostCategory('开放日 #商品', 'activity')).toBe('开放日 #商品')
+    expect(withPostCategory('开放日', 'activity')).toBe('开放日')
   })
 
   it('stores special fields in the post and reads them back for rendering', () => {
-    const text = withPostKind('古村开放日', 'activity', {
+    const text = withPostCategory('古村开放日 #乡村', 'activity', {
       deadline: '2026-09-10T18:00',
       location: '漈下村村委',
       conditions: '自带水杯',
     })
 
     expect(text).toBe(
-      '古村开放日\n截止时间：2026-09-10T18:00\n活动地点：漈下村村委\n参与条件：自带水杯\n#活动',
+      '古村开放日 #乡村\n截止时间：2026-09-10T18:00\n活动地点：漈下村村委\n参与条件：自带水杯',
     )
-    expect(postFieldValues(text)).toEqual({
+    expect(postFieldValues(text, 'activity')).toEqual({
       deadline: '2026-09-10T18:00',
       location: '漈下村村委',
       conditions: '自带水杯',
     })
-    expect(postDisplayText(text)).toBe('古村开放日\n#活动')
+    expect(postDisplayText(text, 'activity')).toBe('古村开放日 #乡村')
 
-    const product = withPostKind('秋收新米', 'product', {
+    const product = withPostCategory('秋收新米', 'product', {
       price: '88',
       availability: '可提供',
       fulfillment: '村口自提',
     })
-    expect(postFieldValues(product)).toEqual({
+    expect(postFieldValues(product, 'product')).toEqual({
       price: '88',
       availability: '可提供',
       fulfillment: '村口自提',
     })
-    expect(postDisplayText(product)).toBe('秋收新米\n#商品')
+    expect(postDisplayText(product, 'product')).toBe('秋收新米')
   })
 
-  it('filters direct posts and repost events by the original post tag', async () => {
+  it('filters direct posts and repost events by category rather than tag', async () => {
     const activityPost = {
       ...post,
       uri: `${post.uri}-activity`,
-      record: { ...post.record, text: '开放日\n#活动 #乡村' },
+      record: { ...post.record, text: '开放日\n#商品 #乡村', xjdaoCategory: 'activity' as const },
+    }
+    const taggedPlainPost = {
+      ...post,
+      record: { ...post.record, text: '普通讨论\n#活动' },
     }
     const reason = {
       $type: 'app.bsky.feed.defs#reasonRepost' as const,
@@ -96,7 +106,7 @@ describe('feed data', () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ posts: [activityPost, post] }), {
+        new Response(JSON.stringify({ posts: [activityPost, taggedPlainPost] }), {
           status: 200,
         }),
       )
@@ -104,7 +114,7 @@ describe('feed data', () => {
         new Response(
           JSON.stringify({
             feed: [
-              { post, reason: { ...reason, uri: `${reason.uri}-plain` } },
+              { post: taggedPlainPost, reason: { ...reason, uri: `${reason.uri}-plain` } },
               { post: activityPost, reason },
             ],
           }),
@@ -113,10 +123,10 @@ describe('feed data', () => {
       )
     vi.stubGlobal('fetch', fetchMock)
 
-    const feed = await loadPosts({ tag: '活动', accessJwt: 'access-token' })
+    const feed = await loadPosts({ category: 'activity', accessJwt: 'access-token' })
 
     expect(feed.posts).toHaveLength(2)
-    expect(feed.posts.every((item) => hasPostTag(item.record.text, '活动'))).toBe(true)
+    expect(feed.posts.every((item) => postCategory(item.record) === 'activity')).toBe(true)
   })
 
   it('reuses one account feed until that account writes', () => {

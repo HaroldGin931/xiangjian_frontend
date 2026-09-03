@@ -41,6 +41,8 @@ export type RiceSession = {
   }
 }
 
+export type PostCategory = 'post' | 'activity' | 'product'
+
 export type PostView = {
   uri: string
   cid: string
@@ -53,6 +55,7 @@ export type PostView = {
   record: {
     text: string
     createdAt: string
+    xjdaoCategory?: PostCategory
     reply?: {
       root: { uri: string; cid: string }
       parent: { uri: string; cid: string }

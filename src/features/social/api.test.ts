@@ -74,7 +74,11 @@ describe('social graph data', () => {
       cid: 'activity-cid',
       indexedAt: '2026-09-03T08:00:00Z',
       author: { did: 'did:plc:bob', handle: 'bob.local' },
-      record: { text: '村庄开放日\n#活动', createdAt: '2026-09-03T08:00:00Z' },
+      record: {
+        text: '村庄开放日\n#乡村',
+        createdAt: '2026-09-03T08:00:00Z',
+        xjdaoCategory: 'activity' as const,
+      },
       replyCount: 1,
       repostCount: 0,
       likeCount: 0,

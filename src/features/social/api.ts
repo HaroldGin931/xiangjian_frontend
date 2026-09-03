@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 
-import { ACTIVITY_PARTICIPATION_TEXT, hasPostTag } from '~/features/feed/tags'
+import { ACTIVITY_PARTICIPATION_TEXT, postCategory } from '~/features/feed/tags'
 import { BACKEND_BASE, requestJson } from '~/lib/http'
 import type { PostView, SocialConnectionPage, SocialProfile } from '~/lib/models'
 import { createPdsRecord, deletePdsRecord, recordKeyFromUri } from '~/lib/pds'
@@ -136,7 +136,7 @@ export async function loadActivityParticipations(
     if (
       reply?.record.text !== ACTIVITY_PARTICIPATION_TEXT ||
       !activity?.uri ||
-      !hasPostTag(activity.record.text, '活动') ||
+      postCategory(activity.record) !== 'activity' ||
       seen.has(activity.uri)
     ) return []
 

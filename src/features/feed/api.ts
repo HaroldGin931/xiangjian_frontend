@@ -1,10 +1,10 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import { BACKEND_BASE, requestJson } from '~/lib/http'
-import type { PostFeed, PostThread, PostView, RiceSession } from '~/lib/models'
+import type { PostCategory, PostFeed, PostThread, PostView, RiceSession } from '~/lib/models'
 import { createPdsRecord, deletePdsRecord, recordKeyFromUri } from '~/lib/pds'
 
-import { hasPostTag } from './tags'
+import { hasPostTag, postCategory } from './tags'
 
 let clientFeedCache: { owner: string | null; feed: PostFeed } | null = null
 const clientDeletedPostUris = new Set<string>()
@@ -60,7 +60,13 @@ export function clearCachedFeed(did?: string) {
 }
 
 export function createdPostView(
-  created: { uri: string; cid: string; text: string; createdAt: string },
+  created: {
+    uri: string
+    cid: string
+    text: string
+    createdAt: string
+    category?: PostCategory
+  },
   session: RiceSession,
   reply?: PostView['record']['reply'],
 ): PostView {
@@ -76,6 +82,7 @@ export function createdPostView(
     record: {
       text: created.text,
       createdAt: created.createdAt,
+      ...(created.category ? { xjdaoCategory: created.category } : {}),
       ...(reply ? { reply } : {}),
     },
     replyCount: 0,
@@ -205,6 +212,7 @@ export type GetPostsInput = {
   query?: string
   repo?: string
   tag?: string
+  category?: PostCategory
   cursor?: string
   limit?: number
   accessJwt?: string
@@ -238,7 +246,9 @@ export async function loadPostPage(data: GetPostsInput) {
     ? await loadTimelineReposts(data.accessJwt)
     : []
   const posts = mergeFeedPosts(feed.posts, timelineReposts).filter(
-    (post) => !data.tag || hasPostTag(post.record.text, data.tag),
+    (post) =>
+      (!data.tag || hasPostTag(post.record.text, data.tag)) &&
+      (!data.category || postCategory(post.record) === data.category),
   )
   const body = payload as { cursor?: unknown }
   return {
@@ -284,11 +294,19 @@ export const getPostThread = createServerFn({ method: 'POST' })
   })
 
 export const createTextPost = createServerFn({ method: 'POST' })
-  .validator((data: { did: string; accessJwt: string; text: string }) => data)
+  .validator((data: {
+    did: string
+    accessJwt: string
+    text: string
+    category: PostCategory
+  }) => data)
   .handler(async ({ data }) => {
     const text = data.text.trim()
     if (!text) throw new Error('帖子内容不能为空')
     if (text.length > 300) throw new Error('首版文字帖最多 300 个字符')
+    if (!['post', 'activity', 'product'].includes(data.category)) {
+      throw new Error('内容分类无效')
+    }
 
     const createdAt = new Date().toISOString()
     const body = await createPdsRecord(data.accessJwt, {
@@ -298,10 +316,11 @@ export const createTextPost = createServerFn({ method: 'POST' })
         $type: 'app.bsky.feed.post',
         text,
         langs: ['zh'],
+        xjdaoCategory: data.category,
         createdAt,
       },
     })
-    return { uri: body.uri, cid: body.cid, text, createdAt }
+    return { uri: body.uri, cid: body.cid, text, createdAt, category: data.category }
   })
 
 type DeletePostInput = {

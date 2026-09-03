@@ -5,11 +5,11 @@ import { useEffect, useRef } from 'react'
 import type { RepostChange } from '~/components/PostActions'
 
 import { PostThreadPanel } from './PostThreadPanel'
-import type { PostKind } from './tags'
+import type { PostCategory } from '~/lib/models'
 
 export function PostThreadDialog({
   uri,
-  kind,
+  category,
   focusReply,
   onClose,
   onRepostChange,
@@ -17,7 +17,7 @@ export function PostThreadDialog({
   onPostDeleted,
 }: {
   uri: string
-  kind: PostKind
+  category: PostCategory
   focusReply: boolean
   onClose: () => void
   onRepostChange?: (change: RepostChange) => void
@@ -50,7 +50,7 @@ export function PostThreadDialog({
       <div className="post-dialog-shell">
         <header className="post-dialog-header">
           <strong id="post-dialog-title">
-            {kind === 'activity' ? '活动' : kind === 'product' ? '商品' : '帖子'}
+            {category === 'activity' ? '活动' : category === 'product' ? '商品' : '帖子'}
           </strong>
           <IconButton
             label="关闭详情"

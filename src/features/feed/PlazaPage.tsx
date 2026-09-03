@@ -8,7 +8,8 @@ import type { PostFeed } from '~/lib/models'
 import { useStoredSession } from '../session/session'
 import { getPosts, readCachedFeed, writeCachedFeed } from './api'
 import { PostThreadDialog } from './PostThreadDialog'
-import { postKind, type PostKind } from './tags'
+import { postCategory } from './tags'
+import type { PostCategory } from '~/lib/models'
 
 type FeedTab = 'all' | 'activity' | 'product'
 
@@ -21,7 +22,7 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
   const [selectedPost, setSelectedPost] = useState<{
     uri: string
     focusReply: boolean
-    kind: PostKind
+    category: PostCategory
   } | null>(null)
   const { session, isReady } = useStoredSession()
   const accessJwt = session?.pds.access_jwt
@@ -53,12 +54,7 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
       data: {
         accessJwt,
         did,
-        tag:
-          activeTab === 'activity'
-            ? '活动'
-            : activeTab === 'product'
-              ? '商品'
-              : undefined,
+        category: activeTab === 'all' ? undefined : activeTab,
       },
     })
       .then((nextFeed) => {
@@ -154,7 +150,7 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
             setSelectedPost({
               uri: post.uri,
               focusReply,
-              kind: postKind(post.record.text),
+              category: postCategory(post.record),
             })
           }
           onRepostChange={handleRepostChange}
@@ -165,7 +161,7 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
       {selectedPost ? (
         <PostThreadDialog
           uri={selectedPost.uri}
-          kind={selectedPost.kind}
+          category={selectedPost.category}
           focusReply={selectedPost.focusReply}
           onClose={() => setSelectedPost(null)}
           onRepostChange={handleRepostChange}

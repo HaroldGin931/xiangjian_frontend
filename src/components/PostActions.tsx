@@ -11,7 +11,7 @@ import {
   toggleLike,
   toggleRepost,
 } from '~/features/feed/api'
-import { postFieldValues, postKind } from '~/features/feed/tags'
+import { postCategory, postFieldValues } from '~/features/feed/tags'
 import type { PostView } from '~/lib/models'
 import { useStoredSession } from '~/features/session/session'
 
@@ -39,8 +39,8 @@ export function PostActions({
   const [repostCount, setRepostCount] = useState(post.repostCount ?? 0)
   const [pending, setPending] = useState<'like' | 'repost' | 'delete' | null>(null)
   const [error, setError] = useState('')
-  const kind = postKind(post.record.text)
-  const fields = postFieldValues(post.record.text, kind)
+  const category = postCategory(post.record)
+  const fields = postFieldValues(post.record.text, category)
   const canDelete = Boolean(
     session &&
     session.pds.did === post.author.did &&
@@ -152,11 +152,11 @@ export function PostActions({
   return (
     <>
       <div className="content-card-actions post-actions" aria-label="帖子互动">
-        {kind === 'activity' ? (
+        {category === 'activity' ? (
           <span className="post-action special-post-state" aria-label={`${post.replyCount ?? 0} 人参与`}>
             <Users size={18} aria-hidden="true" /> 参与 {post.replyCount ?? 0}
           </span>
-        ) : kind === 'product' ? (
+        ) : category === 'product' ? (
           <span className="post-action special-post-state" aria-label={`商品状态：${fields.availability || '待确认'}`}>
             <PackageCheck size={18} aria-hidden="true" /> {fields.availability || '状态待确认'}
           </span>
@@ -183,7 +183,7 @@ export function PostActions({
             {post.replyCount ?? 0}
           </Link>
         )}
-        {kind === 'post' ? (
+        {category === 'post' ? (
           <Button
             label={repostUri ? '取消转发' : '转发'}
             variant="ghost"
