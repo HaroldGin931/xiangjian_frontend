@@ -1,11 +1,9 @@
 import { Button } from '@astryxdesign/core/Button'
 import { DateTimeInput, type ISODateTimeString } from '@astryxdesign/core/DateTimeInput'
-import { NumberInput } from '@astryxdesign/core/NumberInput'
-import { Selector } from '@astryxdesign/core/Selector'
 import { TextArea } from '@astryxdesign/core/TextArea'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { Image, Link2, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import {
@@ -29,12 +27,11 @@ export const Route = createFileRoute('/compose')({
   component: ComposePage,
 })
 
-type ComposeKind = PostCategory | 'task'
+type ComposeKind = Exclude<PostCategory, 'product'> | 'task'
 
 const composeKinds: Array<{ value: ComposeKind; label: string }> = [
   { value: 'post', label: '帖子' },
   { value: 'activity', label: '活动' },
-  { value: 'product', label: '商品' },
   { value: 'task', label: '任务' },
 ]
 
@@ -145,22 +142,11 @@ function ComposePage() {
           aria-label={`${categoryDetails.label}补充信息`}
         >
           <header>
-            <strong>{postCategory === 'activity' ? '活动信息' : '商品信息'}</strong>
+            <strong>活动信息</strong>
             <span>随帖子公开</span>
           </header>
           {categoryDetails.fields.map((field) => (
-            field.type === 'select' ? (
-              <Selector
-                key={field.key}
-                label={field.label}
-                options={[...field.options]}
-                value={fields[field.key] ?? ''}
-                onChange={(value) => setField(field.key, value)}
-                placeholder="选择状态"
-                width="100%"
-                isOptional
-              />
-            ) : field.type === 'datetime-local' ? (
+            field.type === 'datetime-local' ? (
               <DateTimeInput
                 key={field.key}
                 label={field.label}
@@ -170,19 +156,6 @@ function ComposePage() {
                 hourFormat="24h"
                 timeOptionInterval={15}
                 min={minDateTime as ISODateTimeString}
-                width="100%"
-                isOptional
-                hasClear
-              />
-            ) : field.type === 'number' ? (
-              <NumberInput
-                key={field.key}
-                label={field.label}
-                value={fields[field.key] ? Number(fields[field.key]) : null}
-                onChange={(value) => setField(field.key, value === null ? '' : String(value))}
-                placeholder={field.placeholder}
-                min={0}
-                step={0.01}
                 width="100%"
                 isOptional
                 hasClear
@@ -201,12 +174,6 @@ function ComposePage() {
           ))}
         </section>
       ) : null}
-
-      <div className="compose-tools" aria-label="更多发布能力">
-        <Button label="图片" icon={<Image size={18} aria-hidden="true" />} variant="secondary" size="sm" isDisabled tooltip="图片发布接口尚未接入" />
-        <Button label="话题" icon={<span>#</span>} variant="secondary" size="sm" isDisabled tooltip="话题选择尚未接入" />
-        <Button label="关联" icon={<Link2 size={18} aria-hidden="true" />} variant="secondary" size="sm" isDisabled tooltip="关联内容尚未接入" />
-      </div>
 
       <div className="publish-target">
         <span>发布到</span>

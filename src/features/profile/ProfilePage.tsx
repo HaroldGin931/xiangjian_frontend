@@ -9,11 +9,6 @@ import type { RiceUser } from '~/lib/models'
 import { getCurrentUser, logoutRice } from '../session/api'
 import { useStoredSession } from '../session/session'
 
-const disabledRows = [
-  ['我的社区', '社区接口尚未接入'],
-  ['联盟与治理', '社区指南、联盟公告和只读提案'],
-] as const
-
 export function ProfilePage() {
   const { session, isReady, saveSession } = useStoredSession()
   const [user, setUser] = useState<RiceUser | null>(null)
@@ -106,18 +101,8 @@ export function ProfilePage() {
           <span><strong>我的帖子</strong><small>在广场发布的真实内容</small></span>
           <ChevronRight size={18} aria-hidden="true" />
         </Link>
-        {disabledRows.map(([title, description]) => (
-          <div
-            className="profile-menu-row disabled"
-            aria-disabled="true"
-            key={title}
-          >
-            <span><strong>{title}</strong><small>{description}</small></span>
-            <ChevronRight size={18} aria-hidden="true" />
-          </div>
-        ))}
         <Link to="/me/settings" className="profile-menu-row">
-          <span><strong>设置</strong><small>账号、资料、通知与隐私</small></span>
+          <span><strong>设置</strong><small>账号与个人资料</small></span>
           <ChevronRight size={18} aria-hidden="true" />
         </Link>
       </nav>

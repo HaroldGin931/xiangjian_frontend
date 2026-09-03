@@ -101,11 +101,6 @@ export function NotificationsPage() {
 
   return (
     <div className="page notifications-page">
-      <div className="message-tabs filter-buttons" role="group" aria-label="消息分类">
-        <Button label="通知" variant="ghost" size="sm" className="active" aria-pressed="true" />
-        <Button label="私信" variant="ghost" size="sm" isDisabled />
-      </div>
-
       {error ? (
         <div className="inline-error" role="alert">
           <span>{error}</span>

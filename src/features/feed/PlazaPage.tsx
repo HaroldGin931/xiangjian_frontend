@@ -11,7 +11,7 @@ import { PostThreadDialog } from './PostThreadDialog'
 import { postCategory } from './tags'
 import type { PostCategory } from '~/lib/models'
 
-type FeedTab = 'all' | 'activity' | 'product'
+type FeedTab = 'all' | 'activity'
 
 export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
   const [feed, setFeed] = useState(initialFeed)
@@ -117,7 +117,6 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
             [
               ['all', '全部帖子'],
               ['activity', '活动'],
-              ['product', '商品'],
             ] as const
           ).map(([value, label]) => (
             <Button

@@ -108,9 +108,8 @@ export function UserProfilePage({ actor }: { actor: string }) {
               <span className="follows-you">也关注了你</span>
             ) : null}
 
-            <div className="social-profile-actions">
-              <Button label="发私信" variant="secondary" isDisabled width="100%" />
-              {!ownProfile ? (
+            {!ownProfile ? (
+              <div className="social-profile-actions">
                 <Button
                   label={session ? (profile.viewer?.following ? '已关注' : '关注') : '登录后关注'}
                   variant={profile.viewer?.following ? 'secondary' : 'primary'}
@@ -118,8 +117,8 @@ export function UserProfilePage({ actor }: { actor: string }) {
                   isLoading={isFollowing}
                   width="100%"
                 />
-              ) : null}
-            </div>
+              </div>
+            ) : null}
             {followError ? <div className="social-follow-error" role="alert">{followError}</div> : null}
           </section>
 

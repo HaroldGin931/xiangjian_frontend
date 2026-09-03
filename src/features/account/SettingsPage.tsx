@@ -33,22 +33,10 @@ export function SettingsPage() {
           <span><strong>账号与安全</strong><small>手机号、邮箱、密码与注销</small></span>
           <ChevronRight size={18} />
         </Link>
-        <div className="profile-menu-row disabled" aria-disabled="true">
-          <span><strong>通知偏好</strong><small>偏好接口尚未接入</small></span>
-          <ChevronRight size={18} />
-        </div>
         <Link to="/me/settings/profile" className="profile-menu-row">
           <span><strong>个人资料</strong><small>头像、昵称和简介</small></span>
           <ChevronRight size={18} />
         </Link>
-        <div className="profile-menu-row disabled" aria-disabled="true">
-          <span><strong>隐私政策</strong><small>页面尚未接入</small></span>
-          <ChevronRight size={18} />
-        </div>
-        <div className="profile-menu-row disabled" aria-disabled="true">
-          <span><strong>社区公约</strong><small>页面尚未接入</small></span>
-          <ChevronRight size={18} />
-        </div>
       </nav>
       <div className="logout-button">
         <Button label="退出登录" icon={<LogOut size={16} />} variant="ghost" clickAction={logout} />
