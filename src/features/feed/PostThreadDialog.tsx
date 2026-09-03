@@ -14,6 +14,7 @@ export function PostThreadDialog({
   onClose,
   onRepostChange,
   onReplyCreated,
+  onPostDeleted,
 }: {
   uri: string
   kind: PostKind
@@ -21,6 +22,7 @@ export function PostThreadDialog({
   onClose: () => void
   onRepostChange?: (change: RepostChange) => void
   onReplyCreated?: (postUri: string) => void
+  onPostDeleted?: (postUri: string) => void
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
 
@@ -63,6 +65,7 @@ export function PostThreadDialog({
             focusReply={focusReply}
             onRepostChange={onRepostChange}
             onReplyCreated={onReplyCreated}
+            onPostDeleted={onPostDeleted}
           />
         </div>
       </div>

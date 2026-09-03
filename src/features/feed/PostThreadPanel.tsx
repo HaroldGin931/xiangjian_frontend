@@ -32,11 +32,13 @@ export function PostThreadPanel({
   focusReply = false,
   onRepostChange,
   onReplyCreated,
+  onPostDeleted,
 }: {
   uri: string
   focusReply?: boolean
   onRepostChange?: (change: RepostChange) => void
   onReplyCreated?: (postUri: string) => void
+  onPostDeleted?: (postUri: string) => void
 }) {
   const { session, isReady } = useStoredSession()
   const navigate = useNavigate()
@@ -198,6 +200,13 @@ export function PostThreadPanel({
                 post={thread.post}
                 onOpenComments={focusComposer}
                 onRepostChange={onRepostChange}
+                onPostDeleted={(postUri) => {
+                  if (onPostDeleted) {
+                    onPostDeleted(postUri)
+                  } else {
+                    void navigate({ to: '/' })
+                  }
+                }}
               />
             </div>
           </article>

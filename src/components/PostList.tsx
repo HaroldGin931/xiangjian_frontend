@@ -1,8 +1,10 @@
 import { EmptyState } from '@astryxdesign/core/EmptyState'
 import { Link } from '@tanstack/react-router'
 import { Repeat2 } from 'lucide-react'
+import { useState } from 'react'
 
 import { PostActions, type RepostChange } from '~/components/PostActions'
+import { isPostHidden } from '~/features/feed/api'
 import { postDisplayText, postKind, postTags } from '~/features/feed/tags'
 import { authorDisplayName, authorInitial, formatTimestamp } from '~/lib/format'
 import type { PostView } from '~/lib/models'
@@ -11,12 +13,19 @@ export function PostList({
   posts,
   onOpenPost,
   onRepostChange,
+  onPostDeleted,
 }: {
   posts: PostView[]
   onOpenPost?: (post: PostView, focusReply: boolean) => void
   onRepostChange?: (change: RepostChange) => void
+  onPostDeleted?: (uri: string) => void
 }) {
-  if (posts.length === 0) {
+  const [deletedUris, setDeletedUris] = useState(() => new Set<string>())
+  const visiblePosts = posts.filter(
+    (post) => !deletedUris.has(post.uri) && !isPostHidden(post.uri),
+  )
+
+  if (visiblePosts.length === 0) {
     return (
       <div className="empty-panel">
         <EmptyState
@@ -29,7 +38,7 @@ export function PostList({
 
   return (
     <div className="post-list">
-      {posts.map((post) => {
+      {visiblePosts.map((post) => {
         const kind = postKind(post.record.text)
         const tags = postTags(post.record.text)
         return (
@@ -96,6 +105,10 @@ export function PostList({
               post={post}
               onOpenComments={onOpenPost ? () => onOpenPost(post, true) : undefined}
               onRepostChange={onRepostChange}
+              onPostDeleted={(uri) => {
+                setDeletedUris((current) => new Set(current).add(uri))
+                onPostDeleted?.(uri)
+              }}
             />
           </article>
         )

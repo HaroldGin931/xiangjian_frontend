@@ -6,6 +6,9 @@ import { recordKeyFromUri } from '~/lib/pds'
 import {
   clearCachedFeed,
   createdPostView,
+  deleteOwnPostRecord,
+  hideDeletedPost,
+  isPostHidden,
   loadPosts,
   normalizePostFeed,
   normalizePostThread,
@@ -137,6 +140,16 @@ describe('feed data', () => {
     prependCachedPost(created, 'did:alice')
 
     expect(readCachedFeed('did:alice')?.posts).toEqual([created, post])
+  })
+
+  it('keeps a deleted post out of the current client feed while indexing catches up', () => {
+    vi.stubGlobal('window', {})
+    writeCachedFeed({ posts: [post] }, 'did:example')
+
+    hideDeletedPost(post.uri, 'did:example')
+
+    expect(isPostHidden(post.uri)).toBe(true)
+    expect(readCachedFeed('did:example')?.posts).toEqual([])
   })
 
   it('builds the same optimistic view for posts and replies', () => {
@@ -273,5 +286,34 @@ describe('feed data', () => {
       collection: 'app.bsky.feed.like',
       rkey: '3abc',
     })
+  })
+
+  it('deletes only a post from the signed-in repository', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({}), { status: 200 }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(deleteOwnPostRecord({
+      did: post.author.did,
+      accessJwt: 'access-token',
+      uri: post.uri,
+    })).resolves.toEqual({ uri: post.uri })
+
+    const deleteBody = JSON.parse(
+      String(fetchMock.mock.calls[0][1]?.body),
+    ) as Record<string, string>
+    expect(deleteBody).toEqual({
+      repo: post.author.did,
+      collection: 'app.bsky.feed.post',
+      rkey: '1',
+    })
+
+    await expect(deleteOwnPostRecord({
+      did: 'did:someone-else',
+      accessJwt: 'access-token',
+      uri: post.uri,
+    })).rejects.toThrow('只能删除自己的帖子')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })

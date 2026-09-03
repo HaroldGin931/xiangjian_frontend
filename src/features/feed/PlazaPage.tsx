@@ -106,6 +106,13 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
     }))
   }
 
+  const handlePostDeleted = (postUri: string) => {
+    setFeed((current) => ({
+      posts: current.posts.filter((post) => post.uri !== postUri),
+    }))
+    setSelectedPost((current) => current?.uri === postUri ? null : current)
+  }
+
   return (
     <div className="page plaza-page">
       <section className="feed-toolbar" aria-label="帖子分类">
@@ -151,6 +158,7 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
             })
           }
           onRepostChange={handleRepostChange}
+          onPostDeleted={handlePostDeleted}
         />
       </section>
 
@@ -162,6 +170,7 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
           onClose={() => setSelectedPost(null)}
           onRepostChange={handleRepostChange}
           onReplyCreated={handleReplyCreated}
+          onPostDeleted={handlePostDeleted}
         />
       ) : null}
     </div>

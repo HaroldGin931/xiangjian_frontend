@@ -7,6 +7,7 @@ import { createPdsRecord, deletePdsRecord, recordKeyFromUri } from '~/lib/pds'
 import { hasPostTag } from './tags'
 
 let clientFeedCache: { owner: string | null; feed: PostFeed } | null = null
+const clientDeletedPostUris = new Set<string>()
 
 export function readCachedFeed(did?: string) {
   if (typeof window === 'undefined') return null
@@ -29,6 +30,24 @@ export function prependCachedPost(post: PostView, did?: string) {
     owner: did ?? null,
     feed: { posts },
   }
+}
+
+export function hideDeletedPost(uri: string, did?: string) {
+  if (typeof window === 'undefined') return
+  clientDeletedPostUris.add(uri)
+
+  if (clientFeedCache?.owner === (did ?? null)) {
+    clientFeedCache = {
+      owner: did ?? null,
+      feed: {
+        posts: clientFeedCache.feed.posts.filter((post) => post.uri !== uri),
+      },
+    }
+  }
+}
+
+export function isPostHidden(uri: string) {
+  return typeof window !== 'undefined' && clientDeletedPostUris.has(uri)
 }
 
 export function clearCachedFeed(did?: string) {
@@ -262,6 +281,30 @@ export const createTextPost = createServerFn({ method: 'POST' })
     })
     return { uri: body.uri, cid: body.cid, text, createdAt }
   })
+
+type DeletePostInput = {
+  did: string
+  accessJwt: string
+  uri: string
+}
+
+export async function deleteOwnPostRecord(data: DeletePostInput) {
+  const collection = 'app.bsky.feed.post'
+  if (!data.uri.startsWith(`at://${data.did}/${collection}/`)) {
+    throw new Error('只能删除自己的帖子')
+  }
+
+  await deletePdsRecord(data.accessJwt, {
+    repo: data.did,
+    collection,
+    rkey: recordKeyFromUri(data.uri, collection),
+  })
+  return { uri: data.uri }
+}
+
+export const deletePost = createServerFn({ method: 'POST' })
+  .validator((data: DeletePostInput) => data)
+  .handler(({ data }) => deleteOwnPostRecord(data))
 
 type ToggleInteractionInput = {
   did: string

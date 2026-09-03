@@ -4,7 +4,7 @@ export function recordKeyFromUri(uri: string, collection: string) {
   const parts = uri.split('/')
   const collectionIndex = parts.lastIndexOf(collection)
   const recordKey = parts[collectionIndex + 1]
-  if (collectionIndex < 0 || !recordKey) throw new Error('互动记录地址无效')
+  if (collectionIndex < 0 || !recordKey) throw new Error('记录地址无效')
   return recordKey
 }
 

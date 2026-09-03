@@ -1,10 +1,13 @@
 import { Button } from '@astryxdesign/core/Button'
+import { IconButton } from '@astryxdesign/core/IconButton'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Heart, MessageCircle, PackageCheck, Repeat2, Users } from 'lucide-react'
+import { Heart, MessageCircle, PackageCheck, Repeat2, Trash2, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import {
   clearCachedFeed,
+  deletePost,
+  hideDeletedPost,
   toggleLike,
   toggleRepost,
 } from '~/features/feed/api'
@@ -21,10 +24,12 @@ export function PostActions({
   post,
   onOpenComments,
   onRepostChange,
+  onPostDeleted,
 }: {
   post: PostView
   onOpenComments?: () => void
   onRepostChange?: (change: RepostChange) => void
+  onPostDeleted?: (uri: string) => void
 }) {
   const { session } = useStoredSession()
   const navigate = useNavigate()
@@ -32,10 +37,15 @@ export function PostActions({
   const [repostUri, setRepostUri] = useState(post.viewer?.repost)
   const [likeCount, setLikeCount] = useState(post.likeCount ?? 0)
   const [repostCount, setRepostCount] = useState(post.repostCount ?? 0)
-  const [pending, setPending] = useState<'like' | 'repost' | null>(null)
+  const [pending, setPending] = useState<'like' | 'repost' | 'delete' | null>(null)
   const [error, setError] = useState('')
   const kind = postKind(post.record.text)
   const fields = postFieldValues(post.record.text, kind)
+  const canDelete = Boolean(
+    session &&
+    session.pds.did === post.author.did &&
+    !post.record.reply,
+  )
 
   useEffect(() => {
     setLikeUri(post.viewer?.like)
@@ -116,6 +126,29 @@ export function PostActions({
     }
   }
 
+  const handleDelete = async () => {
+    if (!session || !canDelete || pending) return
+    if (!window.confirm('删除后无法恢复，确定删除这条帖子吗？')) return
+
+    setPending('delete')
+    setError('')
+    try {
+      await deletePost({
+        data: {
+          did: session.pds.did,
+          accessJwt: session.pds.access_jwt,
+          uri: post.uri,
+        },
+      })
+      hideDeletedPost(post.uri, session.pds.did)
+      onPostDeleted?.(post.uri)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '删除失败')
+    } finally {
+      setPending(null)
+    }
+  }
+
   return (
     <>
       <div className="post-actions" aria-label="帖子互动">
@@ -176,6 +209,18 @@ export function PostActions({
         >
           {likeCount}
         </Button>
+        {canDelete ? (
+          <IconButton
+            label="删除帖子"
+            variant="ghost"
+            size="sm"
+            icon={<Trash2 size={18} aria-hidden="true" />}
+            className="post-action"
+            clickAction={handleDelete}
+            isLoading={pending === 'delete'}
+            isDisabled={pending !== null}
+          />
+        ) : null}
       </div>
       {error ? <div className="post-action-error" role="status">{error}</div> : null}
     </>
