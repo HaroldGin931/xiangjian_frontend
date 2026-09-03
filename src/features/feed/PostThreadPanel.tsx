@@ -1,7 +1,7 @@
 import { Button } from '@astryxdesign/core/Button'
 import { EmptyState } from '@astryxdesign/core/EmptyState'
 import { TextArea } from '@astryxdesign/core/TextArea'
-import { useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useEffect, useId, useState } from 'react'
 
 import {
@@ -19,14 +19,13 @@ import {
   getPostThread,
 } from './api'
 import {
+  ACTIVITY_PARTICIPATION_TEXT,
   formatPostFieldValue,
   POST_KINDS,
   postDisplayText,
   postFieldValues,
   postKind,
 } from './tags'
-
-const ACTIVITY_REPLY = '参与活动'
 
 export function PostThreadPanel({
   uri,
@@ -50,7 +49,7 @@ export function PostThreadPanel({
   const kind = thread ? postKind(thread.post.record.text) : 'post'
   const fields = thread ? postFieldValues(thread.post.record.text, kind) : {}
   const participants = thread?.replies.filter(
-    (reply) => reply.post.record.text === ACTIVITY_REPLY,
+    (reply) => reply.post.record.text === ACTIVITY_PARTICIPATION_TEXT,
   ) ?? []
   const hasParticipated = Boolean(
     session && participants.some((reply) => reply.post.author.did === session.pds.did),
@@ -143,7 +142,7 @@ export function PostThreadPanel({
 
   const participate = async () => {
     if (!session || !thread || hasParticipated || participationClosed) return
-    await submitComment(ACTIVITY_REPLY, '已参与活动。', '参与失败')
+    await submitComment(ACTIVITY_PARTICIPATION_TEXT, '已参与活动。', '参与失败')
   }
 
   if (isReady && !session) {
@@ -170,7 +169,11 @@ export function PostThreadPanel({
       {thread ? (
         <>
           <article className="post-detail-card">
-            <div className="post-author">
+            <Link
+              to="/profile/$actor"
+              params={{ actor: thread.post.author.did }}
+              className="post-author"
+            >
               <span className="post-avatar" aria-hidden="true">
                 {authorInitial(thread.post.author)}
               </span>
@@ -180,7 +183,7 @@ export function PostThreadPanel({
                 </strong>
                 <div className="post-meta">{thread.post.author.handle}</div>
               </div>
-            </div>
+            </Link>
             <p className="post-detail-copy">
               {postDisplayText(thread.post.record.text)}
             </p>
@@ -233,7 +236,11 @@ export function PostThreadPanel({
                 <div className="reply-list">
                   {thread.replies.map((reply) => (
                     <article className="reply-row" key={reply.post.uri}>
-                      <div className="post-author">
+                      <Link
+                        to="/profile/$actor"
+                        params={{ actor: reply.post.author.did }}
+                        className="post-author"
+                      >
                         <span className="post-avatar" aria-hidden="true">
                           {authorInitial(reply.post.author)}
                         </span>
@@ -248,7 +255,7 @@ export function PostThreadPanel({
                             )}
                           </div>
                         </div>
-                      </div>
+                      </Link>
                       <p>{reply.post.record.text}</p>
                       <PostActions post={reply.post} onOpenComments={focusComposer} />
                     </article>

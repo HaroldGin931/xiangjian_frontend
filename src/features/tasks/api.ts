@@ -8,6 +8,8 @@ type TaskListInput = {
   token?: string
   mine?: TaskMine
   status?: TaskStatus
+  participantDid?: string
+  creatorDid?: string
   limit?: number
 }
 
@@ -20,6 +22,8 @@ export const getTasks = createServerFn({ method: 'POST' })
     const query = new URLSearchParams()
     if (data.mine) query.set('mine', data.mine)
     if (data.status) query.set('status', data.status)
+    if (data.participantDid) query.set('participant_did', data.participantDid)
+    if (data.creatorDid) query.set('creator_did', data.creatorDid)
     if (data.limit) query.set('limit', String(data.limit))
     const suffix = query.size ? `?${query}` : ''
     const body = await requestJson<{ data: RiceTask[] }>(`${BACKEND_BASE}/api/tasks${suffix}`, {

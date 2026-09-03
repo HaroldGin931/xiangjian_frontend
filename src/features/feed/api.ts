@@ -1,7 +1,8 @@
 import { createServerFn } from '@tanstack/react-start'
 
-import { BACKEND_BASE, requestJson, type JsonObject } from '~/lib/http'
+import { BACKEND_BASE, requestJson } from '~/lib/http'
 import type { PostFeed, PostThread, PostView, RiceSession } from '~/lib/models'
+import { createPdsRecord, deletePdsRecord, recordKeyFromUri } from '~/lib/pds'
 
 import { hasPostTag } from './tags'
 
@@ -39,14 +40,6 @@ export function clearCachedFeed(did?: string) {
   }
 }
 
-export function recordKeyFromUri(uri: string, collection: string) {
-  const parts = uri.split('/')
-  const collectionIndex = parts.lastIndexOf(collection)
-  const recordKey = parts[collectionIndex + 1]
-  if (collectionIndex < 0 || !recordKey) throw new Error('互动记录地址无效')
-  return recordKey
-}
-
 export function createdPostView(
   created: { uri: string; cid: string; text: string; createdAt: string },
   session: RiceSession,
@@ -70,40 +63,6 @@ export function createdPostView(
     repostCount: 0,
     likeCount: 0,
   }
-}
-
-async function writePdsRecord(
-  accessJwt: string,
-  body: { repo: string; collection: string; record: JsonObject },
-) {
-  return requestJson<{ uri: string; cid: string }>(
-    `${BACKEND_BASE}/pds/xrpc/com.atproto.repo.createRecord`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessJwt}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    },
-  )
-}
-
-async function deletePdsRecord(
-  accessJwt: string,
-  body: { repo: string; collection: string; rkey: string },
-) {
-  await requestJson(
-    `${BACKEND_BASE}/pds/xrpc/com.atproto.repo.deleteRecord`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessJwt}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    },
-  )
 }
 
 async function hydrateViewerRecords(
@@ -291,7 +250,7 @@ export const createTextPost = createServerFn({ method: 'POST' })
     if (text.length > 300) throw new Error('首版文字帖最多 300 个字符')
 
     const createdAt = new Date().toISOString()
-    const body = await writePdsRecord(data.accessJwt, {
+    const body = await createPdsRecord(data.accessJwt, {
       repo: data.did,
       collection: 'app.bsky.feed.post',
       record: {
@@ -326,7 +285,7 @@ export async function updateInteractionRecord(
   }
 
   const indexedAt = new Date().toISOString()
-  const record = await writePdsRecord(data.accessJwt, {
+  const record = await createPdsRecord(data.accessJwt, {
     repo: data.did,
     collection,
     record: {
@@ -362,7 +321,7 @@ export const createReply = createServerFn({ method: 'POST' })
     if (text.length > 300) throw new Error('评论最多 300 个字符')
 
     const createdAt = new Date().toISOString()
-    const record = await writePdsRecord(data.accessJwt, {
+    const record = await createPdsRecord(data.accessJwt, {
       repo: data.did,
       collection: 'app.bsky.feed.post',
       record: {

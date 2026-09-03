@@ -1,5 +1,7 @@
 export type PostKind = 'post' | 'activity' | 'product'
 
+export const ACTIVITY_PARTICIPATION_TEXT = '参与活动'
+
 type PostField = {
   key: string
   label: string

@@ -1,0 +1,147 @@
+import { Button } from '@astryxdesign/core/Button'
+import { EmptyState } from '@astryxdesign/core/EmptyState'
+import { Link, useNavigate } from '@tanstack/react-router'
+import { ArrowLeft, UserRound } from 'lucide-react'
+import { useEffect, useState } from 'react'
+
+import { authorDisplayName, authorInitial } from '~/lib/format'
+import type { SocialProfile } from '~/lib/models'
+
+import { useStoredSession } from '../session/session'
+import { getSocialProfile, toggleFollow } from './api'
+import { PublicProfileContent } from './PublicProfileContent'
+
+export function UserProfilePage({ actor }: { actor: string }) {
+  const { session, isReady } = useStoredSession()
+  const navigate = useNavigate()
+  const [profile, setProfile] = useState<SocialProfile | null>(null)
+  const [error, setError] = useState('')
+  const [followError, setFollowError] = useState('')
+  const [isFollowing, setFollowing] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    setProfile(null)
+    setError('')
+    void getSocialProfile({
+      data: { actor, accessJwt: session?.pds.access_jwt },
+    })
+      .then((nextProfile) => { if (active) setProfile(nextProfile) })
+      .catch((reason) => {
+        if (active) setError(reason instanceof Error ? reason.message : '用户主页暂时无法显示')
+      })
+    return () => { active = false }
+  }, [actor, session])
+
+  const ownProfile = Boolean(profile && session?.pds.did === profile.did)
+
+  const changeFollow = async () => {
+    if (!profile) return
+    if (!session) {
+      await navigate({ to: '/login' })
+      return
+    }
+
+    const previousUri = profile.viewer?.following
+    setFollowing(true)
+    setFollowError('')
+    try {
+      const { recordUri } = await toggleFollow({
+        data: {
+          did: session.pds.did,
+          accessJwt: session.pds.access_jwt,
+          targetDid: profile.did,
+          ...(previousUri ? { recordUri: previousUri } : {}),
+        },
+      })
+      setProfile((current) => current ? {
+        ...current,
+        followersCount: Math.max(0, current.followersCount + (recordUri ? 1 : -1)),
+        viewer: {
+          ...current.viewer,
+          ...(recordUri ? { following: recordUri } : { following: undefined }),
+        },
+      } : current)
+    } catch (reason) {
+      setFollowError(reason instanceof Error ? reason.message : '关注状态更新失败')
+    } finally {
+      setFollowing(false)
+    }
+  }
+
+  return (
+    <div className="page social-profile-page">
+      <header className="standalone-header social-page-header">
+        <Link to="/" className="back-link" aria-label="返回广场">
+          <ArrowLeft size={18} aria-hidden="true" />
+        </Link>
+        <strong>用户主页</strong>
+      </header>
+
+      {error ? <div className="form-error" role="alert">{error}</div> : null}
+      {profile ? (
+        <>
+          <section className="social-profile-card">
+            <div className="social-profile-avatar" aria-hidden="true">
+              {profile.avatar ? (
+                <img src={profile.avatar} alt="" />
+              ) : (
+                <span>{authorInitial(profile)}</span>
+              )}
+            </div>
+            <h1>{authorDisplayName(profile)}</h1>
+            <p className="social-profile-handle">@{profile.handle}</p>
+            {profile.description ? (
+              <p className="social-profile-description">{profile.description}</p>
+            ) : null}
+            {profile.viewer?.followedBy && !ownProfile ? (
+              <span className="follows-you">也关注了你</span>
+            ) : null}
+
+            <div className="social-profile-actions">
+              <Button label="发私信" variant="secondary" isDisabled width="100%" />
+              {ownProfile ? (
+                <Link to="/me/settings/profile" className="profile-edit-link">编辑资料</Link>
+              ) : (
+                <Button
+                  label={session ? (profile.viewer?.following ? '已关注' : '关注') : '登录后关注'}
+                  variant={profile.viewer?.following ? 'secondary' : 'primary'}
+                  clickAction={changeFollow}
+                  isLoading={isFollowing}
+                  width="100%"
+                />
+              )}
+            </div>
+            {followError ? <div className="social-follow-error" role="alert">{followError}</div> : null}
+          </section>
+
+          <nav className="social-counts" aria-label="关注关系">
+            <Link to="/profile/$actor/following" params={{ actor: profile.did }}>
+              <strong>{profile.followsCount}</strong>
+              <span>关注</span>
+            </Link>
+            <Link to="/profile/$actor/followers" params={{ actor: profile.did }}>
+              <strong>{profile.followersCount}</strong>
+              <span>粉丝</span>
+            </Link>
+            <div>
+              <strong>{profile.postsCount}</strong>
+              <span>帖子</span>
+            </div>
+          </nav>
+
+          <PublicProfileContent actor={profile.did} />
+        </>
+      ) : !error ? (
+        <div className="social-loading">
+          {isReady ? <UserRound size={28} aria-hidden="true" /> : null}
+          <span>正在加载用户主页…</span>
+        </div>
+      ) : (
+        <div className="empty-panel">
+          <EmptyState title="无法显示这个用户" description="请稍后重试或返回广场。" />
+        </div>
+      )}
+    </div>
+  )
+}

@@ -23,12 +23,16 @@ import { Route as MeIndexRouteImport } from './routes/me.index'
 import { Route as MePostsRouteImport } from './routes/me.posts'
 import { Route as MeSettingsRouteImport } from './routes/me.settings'
 import { Route as MeTasksRouteImport } from './routes/me.tasks'
+import { Route as ProfileActorRouteImport } from './routes/profile.$actor'
 import { Route as TasksIndexRouteImport } from './routes/tasks.index'
 import { Route as TasksTaskIdRouteImport } from './routes/tasks.$taskId'
 import { Route as TasksNewRouteImport } from './routes/tasks.new'
 import { Route as MeSettingsIndexRouteImport } from './routes/me.settings.index'
 import { Route as MeSettingsAccountRouteImport } from './routes/me.settings.account'
 import { Route as MeSettingsProfileRouteImport } from './routes/me.settings.profile'
+import { Route as ProfileActorIndexRouteImport } from './routes/profile.$actor.index'
+import { Route as ProfileActorFollowersRouteImport } from './routes/profile.$actor.followers'
+import { Route as ProfileActorFollowingRouteImport } from './routes/profile.$actor.following'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -100,6 +104,11 @@ const MeTasksRoute = MeTasksRouteImport.update({
   path: '/tasks',
   getParentRoute: () => MeRoute,
 } as any)
+const ProfileActorRoute = ProfileActorRouteImport.update({
+  id: '/profile/$actor',
+  path: '/profile/$actor',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TasksIndexRoute = TasksIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -130,6 +139,21 @@ const MeSettingsProfileRoute = MeSettingsProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => MeSettingsRoute,
 } as any)
+const ProfileActorIndexRoute = ProfileActorIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ProfileActorRoute,
+} as any)
+const ProfileActorFollowersRoute = ProfileActorFollowersRouteImport.update({
+  id: '/followers',
+  path: '/followers',
+  getParentRoute: () => ProfileActorRoute,
+} as any)
+const ProfileActorFollowingRoute = ProfileActorFollowingRouteImport.update({
+  id: '/following',
+  path: '/following',
+  getParentRoute: () => ProfileActorRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -145,13 +169,17 @@ export interface FileRoutesByFullPath {
   '/me/posts': typeof MePostsRoute
   '/me/settings': typeof MeSettingsRouteWithChildren
   '/me/tasks': typeof MeTasksRoute
+  '/profile/$actor': typeof ProfileActorRouteWithChildren
   '/tasks/$taskId': typeof TasksTaskIdRoute
   '/tasks/new': typeof TasksNewRoute
   '/me/': typeof MeIndexRoute
   '/tasks/': typeof TasksIndexRoute
   '/me/settings/account': typeof MeSettingsAccountRoute
   '/me/settings/profile': typeof MeSettingsProfileRoute
+  '/profile/$actor/followers': typeof ProfileActorFollowersRoute
+  '/profile/$actor/following': typeof ProfileActorFollowingRoute
   '/me/settings/': typeof MeSettingsIndexRoute
+  '/profile/$actor/': typeof ProfileActorIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -170,7 +198,10 @@ export interface FileRoutesByTo {
   '/tasks': typeof TasksIndexRoute
   '/me/settings/account': typeof MeSettingsAccountRoute
   '/me/settings/profile': typeof MeSettingsProfileRoute
+  '/profile/$actor/followers': typeof ProfileActorFollowersRoute
+  '/profile/$actor/following': typeof ProfileActorFollowingRoute
   '/me/settings': typeof MeSettingsIndexRoute
+  '/profile/$actor': typeof ProfileActorIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -187,13 +218,17 @@ export interface FileRoutesById {
   '/me/posts': typeof MePostsRoute
   '/me/settings': typeof MeSettingsRouteWithChildren
   '/me/tasks': typeof MeTasksRoute
+  '/profile/$actor': typeof ProfileActorRouteWithChildren
   '/tasks/$taskId': typeof TasksTaskIdRoute
   '/tasks/new': typeof TasksNewRoute
   '/me/': typeof MeIndexRoute
   '/tasks/': typeof TasksIndexRoute
   '/me/settings/account': typeof MeSettingsAccountRoute
   '/me/settings/profile': typeof MeSettingsProfileRoute
+  '/profile/$actor/followers': typeof ProfileActorFollowersRoute
+  '/profile/$actor/following': typeof ProfileActorFollowingRoute
   '/me/settings/': typeof MeSettingsIndexRoute
+  '/profile/$actor/': typeof ProfileActorIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -211,13 +246,17 @@ export interface FileRouteTypes {
     | '/me/posts'
     | '/me/settings'
     | '/me/tasks'
+    | '/profile/$actor'
     | '/tasks/$taskId'
     | '/tasks/new'
     | '/me/'
     | '/tasks/'
     | '/me/settings/account'
     | '/me/settings/profile'
+    | '/profile/$actor/followers'
+    | '/profile/$actor/following'
     | '/me/settings/'
+    | '/profile/$actor/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -236,7 +275,10 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/me/settings/account'
     | '/me/settings/profile'
+    | '/profile/$actor/followers'
+    | '/profile/$actor/following'
     | '/me/settings'
+    | '/profile/$actor'
   id:
     | '__root__'
     | '/'
@@ -252,13 +294,17 @@ export interface FileRouteTypes {
     | '/me/posts'
     | '/me/settings'
     | '/me/tasks'
+    | '/profile/$actor'
     | '/tasks/$taskId'
     | '/tasks/new'
     | '/me/'
     | '/tasks/'
     | '/me/settings/account'
     | '/me/settings/profile'
+    | '/profile/$actor/followers'
+    | '/profile/$actor/following'
     | '/me/settings/'
+    | '/profile/$actor/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -272,6 +318,7 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   SearchRoute: typeof SearchRoute
   TasksRoute: typeof TasksRouteWithChildren
+  ProfileActorRoute: typeof ProfileActorRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -374,6 +421,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MeTasksRouteImport
       parentRoute: typeof MeRoute
     }
+    '/profile/$actor': {
+      id: '/profile/$actor'
+      path: '/profile/$actor'
+      fullPath: '/profile/$actor'
+      preLoaderRoute: typeof ProfileActorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tasks/': {
       id: '/tasks/'
       path: '/'
@@ -415,6 +469,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/me/settings/profile'
       preLoaderRoute: typeof MeSettingsProfileRouteImport
       parentRoute: typeof MeSettingsRoute
+    }
+    '/profile/$actor/': {
+      id: '/profile/$actor/'
+      path: '/'
+      fullPath: '/profile/$actor/'
+      preLoaderRoute: typeof ProfileActorIndexRouteImport
+      parentRoute: typeof ProfileActorRoute
+    }
+    '/profile/$actor/followers': {
+      id: '/profile/$actor/followers'
+      path: '/followers'
+      fullPath: '/profile/$actor/followers'
+      preLoaderRoute: typeof ProfileActorFollowersRouteImport
+      parentRoute: typeof ProfileActorRoute
+    }
+    '/profile/$actor/following': {
+      id: '/profile/$actor/following'
+      path: '/following'
+      fullPath: '/profile/$actor/following'
+      preLoaderRoute: typeof ProfileActorFollowingRouteImport
+      parentRoute: typeof ProfileActorRoute
     }
   }
 }
@@ -465,6 +540,22 @@ const TasksRouteChildren: TasksRouteChildren = {
 
 const TasksRouteWithChildren = TasksRoute._addFileChildren(TasksRouteChildren)
 
+interface ProfileActorRouteChildren {
+  ProfileActorFollowersRoute: typeof ProfileActorFollowersRoute
+  ProfileActorFollowingRoute: typeof ProfileActorFollowingRoute
+  ProfileActorIndexRoute: typeof ProfileActorIndexRoute
+}
+
+const ProfileActorRouteChildren: ProfileActorRouteChildren = {
+  ProfileActorFollowersRoute: ProfileActorFollowersRoute,
+  ProfileActorFollowingRoute: ProfileActorFollowingRoute,
+  ProfileActorIndexRoute: ProfileActorIndexRoute,
+}
+
+const ProfileActorRouteWithChildren = ProfileActorRoute._addFileChildren(
+  ProfileActorRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ComposeRoute: ComposeRoute,
@@ -476,6 +567,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   SearchRoute: SearchRoute,
   TasksRoute: TasksRouteWithChildren,
+  ProfileActorRoute: ProfileActorRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

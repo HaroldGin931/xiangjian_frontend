@@ -40,11 +40,18 @@ export function PostList({
             {post.reason ? (
               <div className="post-reason">
                 <Repeat2 size={14} aria-hidden="true" />
-                {authorDisplayName(post.reason.by)} 转发了
+                <Link to="/profile/$actor" params={{ actor: post.reason.by.did }}>
+                  {authorDisplayName(post.reason.by)}
+                </Link>
+                转发了
               </div>
             ) : null}
             <div className="post-heading">
-              <div className="post-author">
+              <Link
+                to="/profile/$actor"
+                params={{ actor: post.author.did }}
+                className="post-author"
+              >
                 <span className="post-avatar" aria-hidden="true">
                   {authorInitial(post.author)}
                 </span>
@@ -55,7 +62,7 @@ export function PostList({
                     {formatTimestamp(post.record.createdAt || post.indexedAt)}
                   </div>
                 </div>
-              </div>
+              </Link>
               {tags.length ? (
                 <div className="post-tags" aria-label="帖子标签">
                   {tags.map((tag) => {

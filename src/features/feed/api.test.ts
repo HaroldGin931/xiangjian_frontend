@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { RiceSession } from '~/lib/models'
+import { recordKeyFromUri } from '~/lib/pds'
 
 import {
   clearCachedFeed,
@@ -10,7 +11,6 @@ import {
   normalizePostThread,
   prependCachedPost,
   readCachedFeed,
-  recordKeyFromUri,
   updateInteractionRecord,
   writeCachedFeed,
 } from './api'

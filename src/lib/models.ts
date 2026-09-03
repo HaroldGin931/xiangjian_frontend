@@ -97,3 +97,24 @@ export type NotificationView = {
   isRead: boolean
   indexedAt: string
 }
+
+export type SocialProfile = {
+  did: string
+  handle: string
+  displayName?: string
+  description?: string
+  avatar?: string
+  followersCount: number
+  followsCount: number
+  postsCount: number
+  viewer?: {
+    following?: string
+    followedBy?: string
+  }
+}
+
+export type SocialConnectionPage = {
+  subject: SocialProfile
+  profiles: SocialProfile[]
+  cursor?: string
+}

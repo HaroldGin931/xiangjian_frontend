@@ -51,6 +51,7 @@ export function ProfilePage() {
   }
 
   const profile = user ?? session?.user
+  const profileActor = profile?.did ?? session?.pds.did
   return (
     <div className="page profile-page">
       <section className="profile-identity">
@@ -64,7 +65,11 @@ export function ProfilePage() {
         <span>{profile?.node_member ? '节点成员' : '社区成员'}</span>
         <div className="profile-actions">
           <Link to="/me/settings/profile">编辑资料</Link>
-          <Button label="查看主页" variant="secondary" isDisabled tooltip="主页接口尚未接入" width="100%" />
+          {profileActor ? (
+            <Link to="/profile/$actor" params={{ actor: profileActor }}>查看主页</Link>
+          ) : (
+            <Button label="查看主页" variant="secondary" isDisabled width="100%" />
+          )}
         </div>
       </section>
 
