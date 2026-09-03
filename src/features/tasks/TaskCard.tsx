@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowRight, UsersRound } from 'lucide-react'
+import { ArrowRight, Sprout, UsersRound } from 'lucide-react'
 
 import { formatTimestamp } from '~/lib/format'
 
@@ -14,7 +14,7 @@ export function TaskCard({ task }: { task: RiceTask }) {
         </div>
         <div>
           <strong>{task.creator.nickname || task.creator.handle}</strong>
-          <span>{formatTimestamp(task.inserted_at)}</span>
+          <span>{formatTimestamp(task.published_at ?? task.inserted_at)}</span>
         </div>
         <span className={`task-status status-${task.status}`}>{taskStatusLabel[task.status]}</span>
       </header>
@@ -22,6 +22,7 @@ export function TaskCard({ task }: { task: RiceTask }) {
       <p>{task.description}</p>
       <footer>
         <span><UsersRound size={14} aria-hidden="true" /> {task.application_count} 人申请</span>
+        <span><Sprout size={14} aria-hidden="true" /> {task.reward_amount} 稻米</span>
         {task.my_application_status ? (
           <b>{taskApplicationStatusLabel[task.my_application_status]}</b>
         ) : null}

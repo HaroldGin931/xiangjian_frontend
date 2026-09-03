@@ -95,7 +95,7 @@ export function TaskDetailPage({ taskId }: { taskId: string }) {
           <div>
             <span className={`task-status status-${task.status}`}>{taskStatusLabel[task.status]}</span>
             <h1>{task.title}</h1>
-            <p>{task.creator.nickname || task.creator.handle} · {formatTimestamp(task.inserted_at)}</p>
+            <p>{task.creator.nickname || task.creator.handle} · {formatTimestamp(task.published_at ?? task.inserted_at)}</p>
           </div>
           <div className="task-owner-mark"><UserRound size={22} /></div>
         </header>
@@ -106,7 +106,18 @@ export function TaskDetailPage({ taskId }: { taskId: string }) {
         <section className="task-facts">
           <div><strong>{task.application_count}</strong><span>申请人数</span></div>
           <div><strong>{task.assignee?.nickname || task.assignee?.handle || '待任命'}</strong><span>承作人</span></div>
+          <div><strong>{task.reward_amount}</strong><span>任务奖励（稻米）</span></div>
         </section>
+
+        {task.reward_status === 'reserved' ? (
+          <div className="task-neutral-note">任务奖励已从发布者可用余额中冻结。</div>
+        ) : null}
+        {task.reward_status === 'settled' ? (
+          <div className="task-success-note"><CheckCircle2 size={18} /> 任务奖励已发放给承作人</div>
+        ) : null}
+        {task.reward_status === 'refunded' ? (
+          <div className="task-neutral-note">任务奖励已退回发布者可用余额。</div>
+        ) : null}
 
         {task.application_deadline ? (
           <div className="task-neutral-note">领取截止：{formatTimestamp(task.application_deadline, true)}</div>

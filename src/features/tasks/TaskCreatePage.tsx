@@ -15,6 +15,7 @@ export function TaskCreatePage() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [applicationDeadline, setApplicationDeadline] = useState('')
+  const [rewardAmount, setRewardAmount] = useState('')
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null)
   const [draftLoading, setDraftLoading] = useState(true)
   const [error, setError] = useState('')
@@ -36,6 +37,7 @@ export function TaskCreatePage() {
         setTitle(draft.title)
         setDescription(draft.description)
         setApplicationDeadline(toLocalDateTime(draft.application_deadline))
+        setRewardAmount(draft.reward_amount ? String(draft.reward_amount) : '')
       })
       .catch((reason) => {
         if (active) setError(reason instanceof Error ? reason.message : '草稿暂时无法加载')
@@ -78,6 +80,7 @@ export function TaskCreatePage() {
     setError('')
     try {
       const deadline = applicationDeadline ? new Date(applicationDeadline).toISOString() : null
+      const reward = Number(rewardAmount || 0)
       let task
 
       if (editingDraftId) {
@@ -88,6 +91,7 @@ export function TaskCreatePage() {
             title,
             description,
             applicationDeadline: deadline,
+            rewardAmount: reward,
           },
         })
         if (status === 'open') {
@@ -101,6 +105,7 @@ export function TaskCreatePage() {
             description,
             status,
             applicationDeadline: deadline ?? undefined,
+            rewardAmount: reward,
           },
         })
       }
@@ -118,7 +123,7 @@ export function TaskCreatePage() {
       <section className="page-intro">
         <div className="eyebrow">发布后直接进入可领取</div>
         <h1>发布任务</h1>
-        <p>这一版只记录任务内容。奖励和节点稻米池暂不接入。</p>
+        <p>发布时冻结任务奖励；完成后发给承作人，取消或失效时自动退回。</p>
       </section>
       <section className="form-card">
         {editingDraftId ? <div className="form-notice">正在编辑已保存的草稿</div> : null}
@@ -148,6 +153,15 @@ export function TaskCreatePage() {
           isOptional
           hasClear
         />
+        <TextInput
+          label="任务奖励（稻米）"
+          description="草稿不冻结，发布时从可用余额中冻结。"
+          value={rewardAmount}
+          onChange={(value) => setRewardAmount(value.replace(/\D/g, '').slice(0, 9))}
+          placeholder="请输入正整数"
+          width="100%"
+          isRequired
+        />
         {error ? <div className="form-error" role="alert">{error}</div> : null}
         <div className="button-row">
           <Button
@@ -162,7 +176,7 @@ export function TaskCreatePage() {
             variant="primary"
             clickAction={() => submit('open')}
             isLoading={submitting === 'open'}
-            isDisabled={!title.trim() || !description.trim() || submitting === 'draft'}
+            isDisabled={!title.trim() || !description.trim() || Number(rewardAmount) <= 0 || submitting === 'draft'}
           />
         </div>
       </section>

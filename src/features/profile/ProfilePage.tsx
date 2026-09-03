@@ -78,12 +78,17 @@ export function ProfilePage() {
       <section className="grain-card">
         <header>
           <span>我的稻米</span>
-          <Button label="查看流水" variant="ghost" size="sm" isDisabled tooltip="稻米结算接口尚未确认">查看流水 →</Button>
+          <Button
+            label="查看流水"
+            variant="ghost"
+            size="sm"
+            clickAction={() => navigate({ to: '/me/grains' })}
+          >查看流水 →</Button>
         </header>
         <strong>{profile?.grain_balance ?? '—'}</strong>
         <div className="grain-metrics">
           <div><b>{profile?.grain_balance ?? '—'}</b><span>可用</span></div>
-          <div className="unavailable"><b>—</b><span>冻结</span></div>
+          <div><b>{profile?.grain_frozen_balance ?? 0}</b><span>冻结</span></div>
           <div className="unavailable"><b>—</b><span>累计获得</span></div>
         </div>
       </section>

@@ -13,6 +13,7 @@ export type RiceUser = {
     url: string
   }
   grain_balance: number
+  grain_frozen_balance: number
   node_member: boolean
   can_publish_tasks: boolean
   email: string | null

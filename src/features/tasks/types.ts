@@ -47,6 +47,8 @@ export type RiceTask = {
   application_deadline: string | null
   appointed_at: string | null
   appointment_reason: string | null
+  reward_amount: number
+  reward_status: 'none' | 'reserved' | 'settled' | 'refunded'
   application_count: number
   my_application_status: TaskApplication['status'] | null
   allowed_actions: Array<
@@ -61,6 +63,7 @@ export type RiceTask = {
   applications: TaskApplication[] | null
   submissions: TaskSubmission[] | null
   events: TaskEvent[] | null
+  published_at: string | null
   inserted_at: string
   updated_at: string
 }

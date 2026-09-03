@@ -20,6 +20,7 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as MeIndexRouteImport } from './routes/me.index'
+import { Route as MeGrainsRouteImport } from './routes/me.grains'
 import { Route as MePostsRouteImport } from './routes/me.posts'
 import { Route as MeSettingsRouteImport } from './routes/me.settings'
 import { Route as MeTasksRouteImport } from './routes/me.tasks'
@@ -87,6 +88,11 @@ const TasksRoute = TasksRouteImport.update({
 const MeIndexRoute = MeIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => MeRoute,
+} as any)
+const MeGrainsRoute = MeGrainsRouteImport.update({
+  id: '/grains',
+  path: '/grains',
   getParentRoute: () => MeRoute,
 } as any)
 const MePostsRoute = MePostsRouteImport.update({
@@ -166,6 +172,7 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
   '/tasks': typeof TasksRouteWithChildren
+  '/me/grains': typeof MeGrainsRoute
   '/me/posts': typeof MePostsRoute
   '/me/settings': typeof MeSettingsRouteWithChildren
   '/me/tasks': typeof MeTasksRoute
@@ -190,6 +197,7 @@ export interface FileRoutesByTo {
   '/post': typeof PostRoute
   '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
+  '/me/grains': typeof MeGrainsRoute
   '/me/posts': typeof MePostsRoute
   '/me/tasks': typeof MeTasksRoute
   '/tasks/$taskId': typeof TasksTaskIdRoute
@@ -215,6 +223,7 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
   '/tasks': typeof TasksRouteWithChildren
+  '/me/grains': typeof MeGrainsRoute
   '/me/posts': typeof MePostsRoute
   '/me/settings': typeof MeSettingsRouteWithChildren
   '/me/tasks': typeof MeTasksRoute
@@ -243,6 +252,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/search'
     | '/tasks'
+    | '/me/grains'
     | '/me/posts'
     | '/me/settings'
     | '/me/tasks'
@@ -267,6 +277,7 @@ export interface FileRouteTypes {
     | '/post'
     | '/register'
     | '/search'
+    | '/me/grains'
     | '/me/posts'
     | '/me/tasks'
     | '/tasks/$taskId'
@@ -291,6 +302,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/search'
     | '/tasks'
+    | '/me/grains'
     | '/me/posts'
     | '/me/settings'
     | '/me/tasks'
@@ -398,6 +410,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/me/'
       preLoaderRoute: typeof MeIndexRouteImport
+      parentRoute: typeof MeRoute
+    }
+    '/me/grains': {
+      id: '/me/grains'
+      path: '/grains'
+      fullPath: '/me/grains'
+      preLoaderRoute: typeof MeGrainsRouteImport
       parentRoute: typeof MeRoute
     }
     '/me/posts': {
@@ -511,6 +530,7 @@ const MeSettingsRouteWithChildren = MeSettingsRoute._addFileChildren(
 )
 
 interface MeRouteChildren {
+  MeGrainsRoute: typeof MeGrainsRoute
   MePostsRoute: typeof MePostsRoute
   MeSettingsRoute: typeof MeSettingsRouteWithChildren
   MeTasksRoute: typeof MeTasksRoute
@@ -518,6 +538,7 @@ interface MeRouteChildren {
 }
 
 const MeRouteChildren: MeRouteChildren = {
+  MeGrainsRoute: MeGrainsRoute,
   MePostsRoute: MePostsRoute,
   MeSettingsRoute: MeSettingsRouteWithChildren,
   MeTasksRoute: MeTasksRoute,

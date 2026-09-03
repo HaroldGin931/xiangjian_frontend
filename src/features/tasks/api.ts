@@ -67,6 +67,7 @@ export const createTask = createServerFn({ method: 'POST' })
     description: string
     status: 'draft' | 'open'
     applicationDeadline?: string
+    rewardAmount: number
   }) => data)
   .handler(async ({ data }) => {
     const body = await requestJson<{ data: RiceTask }>(`${BACKEND_BASE}/api/tasks`, {
@@ -77,6 +78,7 @@ export const createTask = createServerFn({ method: 'POST' })
         description: data.description,
         status: data.status,
         application_deadline: data.applicationDeadline,
+        reward_amount: data.rewardAmount,
       }),
     })
     return body.data
@@ -89,6 +91,7 @@ export const updateTaskDraft = createServerFn({ method: 'POST' })
     title: string
     description: string
     applicationDeadline: string | null
+    rewardAmount: number
   }) => data)
   .handler(async ({ data }) => {
     const body = await requestJson<{ data: RiceTask }>(`${BACKEND_BASE}/api/tasks/${data.taskId}`, {
@@ -98,6 +101,7 @@ export const updateTaskDraft = createServerFn({ method: 'POST' })
         title: data.title,
         description: data.description,
         application_deadline: data.applicationDeadline,
+        reward_amount: data.rewardAmount,
       }),
     })
     return body.data
