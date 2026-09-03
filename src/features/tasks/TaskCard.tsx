@@ -1,32 +1,32 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowRight, Sprout, UsersRound } from 'lucide-react'
+import { Sprout, UsersRound } from 'lucide-react'
 
-import { formatTimestamp } from '~/lib/format'
+import { ContentCardHeader } from '~/components/ContentCardHeader'
+import { authorInitial, formatTimestamp } from '~/lib/format'
 
-import { taskApplicationStatusLabel, taskStatusLabel, type RiceTask } from './types'
+import { taskStatusLabel, type RiceTask } from './types'
 
 export function TaskCard({ task }: { task: RiceTask }) {
   return (
-    <Link to="/tasks/$taskId" params={{ taskId: task.id }} className="task-card">
-      <header>
-        <div className="task-owner-mark" aria-hidden="true">
-          {(task.creator.nickname || task.creator.handle).slice(0, 1).toUpperCase()}
-        </div>
-        <div>
-          <strong>{task.creator.nickname || task.creator.handle}</strong>
-          <span>{formatTimestamp(task.published_at ?? task.inserted_at)}</span>
-        </div>
-        <span className={`task-status status-${task.status}`}>{taskStatusLabel[task.status]}</span>
-      </header>
+    <Link to="/tasks/$taskId" params={{ taskId: task.id }} className="content-card task-card">
+      <ContentCardHeader
+        initial={authorInitial({
+          handle: task.creator.handle,
+          displayName: task.creator.nickname ?? undefined,
+        })}
+        name={task.creator.nickname || task.creator.handle}
+        timestamp={formatTimestamp(task.published_at ?? task.inserted_at)}
+        aside={(
+          <span className={`task-status status-${task.status}`}>
+            {taskStatusLabel[task.status]}
+          </span>
+        )}
+      />
       <h2>{task.title}</h2>
       <p>{task.description}</p>
-      <footer>
+      <footer className="content-card-actions task-card-actions">
         <span><UsersRound size={14} aria-hidden="true" /> {task.application_count} 人申请</span>
         <span><Sprout size={14} aria-hidden="true" /> {task.reward_amount} 稻米</span>
-        {task.my_application_status ? (
-          <b>{taskApplicationStatusLabel[task.my_application_status]}</b>
-        ) : null}
-        <ArrowRight size={16} aria-hidden="true" />
       </footer>
     </Link>
   )

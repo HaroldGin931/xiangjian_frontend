@@ -1,5 +1,4 @@
 import { Button } from '@astryxdesign/core/Button'
-import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/SegmentedControl'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
@@ -81,22 +80,22 @@ export function MyTasksPage() {
     <div className="page my-tasks-page">
       <Link to="/me" className="back-link"><ArrowLeft size={16} /> 我的</Link>
       <h1>我的任务</h1>
-      <div className="task-filters">
-        <SegmentedControl
-          label="我的任务分类"
-          value={mine}
-          onChange={(value) => {
-            setTasks([])
-            setNextCursor(null)
-            setMine(value as TaskMine)
-          }}
-          size="sm"
-          layout="fill"
-        >
-          {tabs.map((tab) => (
-            <SegmentedControlItem value={tab.value} label={tab.label} key={tab.value} />
-          ))}
-        </SegmentedControl>
+      <div className="filter-buttons" role="group" aria-label="我的任务分类">
+        {tabs.map((tab) => (
+          <Button
+            label={tab.label}
+            variant="ghost"
+            size="sm"
+            className={mine === tab.value ? 'active' : undefined}
+            aria-pressed={mine === tab.value}
+            onClick={() => {
+              setTasks([])
+              setNextCursor(null)
+              setMine(tab.value)
+            }}
+            key={tab.value}
+          />
+        ))}
       </div>
       {error ? <div className="inline-error" role="alert">{error}</div> : null}
       {loading && tasks.length === 0 ? <div className="loading-line">正在加载任务…</div> : null}

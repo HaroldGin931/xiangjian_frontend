@@ -3,9 +3,10 @@ import { Link } from '@tanstack/react-router'
 import { Repeat2 } from 'lucide-react'
 import { useState } from 'react'
 
+import { ContentCardHeader } from '~/components/ContentCardHeader'
 import { PostActions, type RepostChange } from '~/components/PostActions'
 import { isPostHidden } from '~/features/feed/api'
-import { postDisplayText, postKind, postTags } from '~/features/feed/tags'
+import { postDisplayText, postKind } from '~/features/feed/tags'
 import { authorDisplayName, authorInitial, formatTimestamp } from '~/lib/format'
 import type { PostView } from '~/lib/models'
 
@@ -40,10 +41,9 @@ export function PostList({
     <div className="post-list">
       {visiblePosts.map((post) => {
         const kind = postKind(post.record.text)
-        const tags = postTags(post.record.text)
         return (
           <article
-            className={`post-row ${kind === 'post' ? '' : `${kind}-post`}`}
+            className={`content-card post-row ${kind === 'post' ? '' : `${kind}-post`}`}
             key={post.reason?.uri ?? post.uri}
           >
             {post.reason ? (
@@ -55,39 +55,12 @@ export function PostList({
                 转发了
               </div>
             ) : null}
-            <div className="post-heading">
-              <Link
-                to="/profile/$actor"
-                params={{ actor: post.author.did }}
-                className="post-author"
-              >
-                <span className="post-avatar" aria-hidden="true">
-                  {authorInitial(post.author)}
-                </span>
-                <div>
-                  <strong>{authorDisplayName(post.author)}</strong>
-                  <div className="post-meta">
-                    {post.author.handle} ·{' '}
-                    {formatTimestamp(post.record.createdAt || post.indexedAt)}
-                  </div>
-                </div>
-              </Link>
-              {tags.length ? (
-                <div className="post-tags" aria-label="帖子标签">
-                  {tags.map((tag) => {
-                    const tagKind = postKind(tag)
-                    return (
-                      <span
-                        className={`post-tag ${tagKind === 'post' ? '' : `${tagKind}-tag`}`}
-                        key={tag}
-                      >
-                        {tag}
-                      </span>
-                    )
-                  })}
-                </div>
-              ) : null}
-            </div>
+            <ContentCardHeader
+              initial={authorInitial(post.author)}
+              name={authorDisplayName(post.author)}
+              timestamp={formatTimestamp(post.record.createdAt || post.indexedAt)}
+              profileActor={post.author.did}
+            />
             {onOpenPost ? (
               <button
                 type="button"

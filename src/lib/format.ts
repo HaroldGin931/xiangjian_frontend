@@ -21,6 +21,12 @@ export function formatTimestamp(value: string, includeYear = false) {
   return (includeYear ? longTimestamp : shortTimestamp).format(new Date(value))
 }
 
+export function localDateTimeValue(value: Date | string = new Date()) {
+  const date = typeof value === 'string' ? new Date(value) : value
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+  return local.toISOString().slice(0, 16)
+}
+
 type AuthorLabel = { handle: string; displayName?: string }
 
 export function authorDisplayName(author: AuthorLabel) {

@@ -116,7 +116,7 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
   return (
     <div className="page plaza-page">
       <section className="feed-toolbar" aria-label="帖子分类">
-        <div className="feed-tabs" role="group" aria-label="帖子分类">
+        <div className="feed-tabs filter-buttons" role="group" aria-label="帖子分类">
           {(
             [
               ['all', '全部帖子'],

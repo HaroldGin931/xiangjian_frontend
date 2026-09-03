@@ -1,9 +1,10 @@
 import { Button } from '@astryxdesign/core/Button'
 import { EmptyState } from '@astryxdesign/core/EmptyState'
 import { TextArea } from '@astryxdesign/core/TextArea'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useId, useState } from 'react'
 
+import { ContentCardHeader } from '~/components/ContentCardHeader'
 import {
   PostActions,
   type RepostChange,
@@ -170,31 +171,19 @@ export function PostThreadPanel({
       {error ? <div className="form-error">{error}</div> : null}
       {thread ? (
         <>
-          <article className="post-detail-card">
-            <Link
-              to="/profile/$actor"
-              params={{ actor: thread.post.author.did }}
-              className="post-author"
-            >
-              <span className="post-avatar" aria-hidden="true">
-                {authorInitial(thread.post.author)}
-              </span>
-              <div>
-                <strong>
-                  {authorDisplayName(thread.post.author)}
-                </strong>
-                <div className="post-meta">{thread.post.author.handle}</div>
-              </div>
-            </Link>
-            <p className="post-detail-copy">
-              {postDisplayText(thread.post.record.text)}
-            </p>
-            <time className="post-detail-time">
-              {formatTimestamp(
+          <article className="content-card post-detail-card">
+            <ContentCardHeader
+              initial={authorInitial(thread.post.author)}
+              name={authorDisplayName(thread.post.author)}
+              timestamp={formatTimestamp(
                 thread.post.record.createdAt || thread.post.indexedAt,
                 true,
               )}
-            </time>
+              profileActor={thread.post.author.did}
+            />
+            <p className="post-detail-copy">
+              {postDisplayText(thread.post.record.text)}
+            </p>
             <div className="detail-actions">
               <PostActions
                 post={thread.post}
@@ -245,26 +234,15 @@ export function PostThreadPanel({
                 <div className="reply-list">
                   {thread.replies.map((reply) => (
                     <article className="reply-row" key={reply.post.uri}>
-                      <Link
-                        to="/profile/$actor"
-                        params={{ actor: reply.post.author.did }}
-                        className="post-author"
-                      >
-                        <span className="post-avatar" aria-hidden="true">
-                          {authorInitial(reply.post.author)}
-                        </span>
-                        <div>
-                          <strong>
-                            {authorDisplayName(reply.post.author)}
-                          </strong>
-                          <div className="post-meta">
-                            {formatTimestamp(
-                              reply.post.record.createdAt || reply.post.indexedAt,
-                              true,
-                            )}
-                          </div>
-                        </div>
-                      </Link>
+                      <ContentCardHeader
+                        initial={authorInitial(reply.post.author)}
+                        name={authorDisplayName(reply.post.author)}
+                        timestamp={formatTimestamp(
+                          reply.post.record.createdAt || reply.post.indexedAt,
+                          true,
+                        )}
+                        profileActor={reply.post.author.did}
+                      />
                       <p>{reply.post.record.text}</p>
                       <PostActions post={reply.post} onOpenComments={focusComposer} />
                     </article>

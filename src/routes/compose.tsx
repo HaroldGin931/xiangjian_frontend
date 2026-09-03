@@ -1,7 +1,6 @@
 import { Button } from '@astryxdesign/core/Button'
 import { DateTimeInput, type ISODateTimeString } from '@astryxdesign/core/DateTimeInput'
 import { NumberInput } from '@astryxdesign/core/NumberInput'
-import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/SegmentedControl'
 import { Selector } from '@astryxdesign/core/Selector'
 import { TextArea } from '@astryxdesign/core/TextArea'
 import { TextInput } from '@astryxdesign/core/TextInput'
@@ -19,21 +18,40 @@ import {
 } from '~/features/feed/api'
 import { POST_KINDS, type PostKind, withPostKind } from '~/features/feed/tags'
 import { useStoredSession } from '~/features/session/session'
+import { TaskCreatePage } from '~/features/tasks/TaskCreatePage'
+import { localDateTimeValue } from '~/lib/format'
 
-export const Route = createFileRoute('/compose')({ component: ComposePage })
+export const Route = createFileRoute('/compose')({
+  validateSearch: (search: Record<string, unknown>) => ({
+    kind: search.kind === 'task' ? 'task' as const : undefined,
+  }),
+  component: ComposePage,
+})
+
+type ComposeKind = PostKind | 'task'
+
+const composeKinds: Array<{ value: ComposeKind; label: string }> = [
+  { value: 'post', label: '帖子' },
+  { value: 'activity', label: '活动' },
+  { value: 'product', label: '商品' },
+  { value: 'task', label: '任务' },
+]
 
 function ComposePage() {
+  const { kind: requestedKind } = Route.useSearch()
   const { session, isReady } = useStoredSession()
   const navigate = useNavigate()
-  const [kind, setKind] = useState<PostKind>('post')
+  const [kind, setKind] = useState<ComposeKind>(requestedKind ?? 'post')
   const [text, setText] = useState('')
   const [fields, setFields] = useState<Record<string, string>>({})
   const [notice, setNotice] = useState('')
   const [isPublishing, setPublishing] = useState(false)
-  const kindDetails = POST_KINDS[kind]
-  const publishText = withPostKind(text, kind, fields)
+  const postKind = kind === 'task' ? null : kind
+  const kindDetails = postKind ? POST_KINDS[postKind] : null
+  const publishText = postKind ? withPostKind(text, postKind, fields) : ''
   const publishLength = text.trim() ? publishText.length : 0
-  const fieldsComplete = kindDetails.fields.every((field) => fields[field.key]?.trim())
+  const minDateTime = localDateTimeValue()
+  const deadlineIsPast = Boolean(fields.deadline && fields.deadline < minDateTime)
   const setField = (key: string, value: string) => {
     setFields((current) => ({ ...current, [key]: value }))
   }
@@ -43,7 +61,7 @@ function ComposePage() {
   }, [isReady, navigate, session])
 
   const submit = async () => {
-    if (!session || !text.trim() || !fieldsComplete || publishLength > 300) return
+    if (!session || !kindDetails || !text.trim() || deadlineIsPast || publishLength > 300) return
     setPublishing(true)
     setNotice('')
     try {
@@ -77,33 +95,33 @@ function ComposePage() {
   return (
     <div className="page compose-page">
       <header className="compose-header">
-        <Link to="/" className="back-link"><X size={18} aria-hidden="true" /> 取消</Link>
-        <SegmentedControl
-          label="发布类型"
-          value={kind}
-          onChange={(value) => setKind(value as PostKind)}
-          size="sm"
-        >
-          <SegmentedControlItem value="post" label="帖子" />
-          <SegmentedControlItem value="activity" label="活动" />
-          <SegmentedControlItem value="product" label="商品" />
-        </SegmentedControl>
-        <Button
-          label="发布任务"
-          variant="ghost"
-          size="sm"
-          isDisabled
-          tooltip="请从任务页面发布任务"
-        />
+        <Link to={requestedKind === 'task' ? '/tasks' : '/'} className="back-link">
+          <X size={18} aria-hidden="true" /> 取消
+        </Link>
+        <div className="compose-type-tabs filter-buttons" role="group" aria-label="发布类型">
+          {composeKinds.map((item) => (
+            <Button
+              label={item.label}
+              variant="ghost"
+              size="sm"
+              className={kind === item.value ? 'active' : undefined}
+              aria-pressed={kind === item.value}
+              onClick={() => setKind(item.value)}
+              key={item.value}
+            />
+          ))}
+        </div>
       </header>
 
+      {kind === 'task' ? <TaskCreatePage embedded /> : kindDetails && postKind ? (
+        <>
       <div className="compose-editor">
         <TextArea
           label="说点什么"
           isLabelHidden
           value={text}
           onChange={setText}
-          rows={11}
+          rows={5}
           placeholder={kindDetails.placeholder}
           width="100%"
           size="lg"
@@ -125,7 +143,7 @@ function ComposePage() {
           aria-label={`${kindDetails.tag} 补充信息`}
         >
           <header>
-            <strong>{kind === 'activity' ? '活动信息' : '商品信息'}</strong>
+            <strong>{postKind === 'activity' ? '活动信息' : '商品信息'}</strong>
             <span>随帖子公开</span>
           </header>
           {kindDetails.fields.map((field) => (
@@ -138,7 +156,7 @@ function ComposePage() {
                 onChange={(value) => setField(field.key, value)}
                 placeholder="选择状态"
                 width="100%"
-                isRequired
+                isOptional
               />
             ) : field.type === 'datetime-local' ? (
               <DateTimeInput
@@ -149,8 +167,10 @@ function ComposePage() {
                 onChange={(value) => setField(field.key, value ?? '')}
                 hourFormat="24h"
                 timeOptionInterval={15}
+                min={minDateTime as ISODateTimeString}
                 width="100%"
-                isRequired
+                isOptional
+                hasClear
               />
             ) : field.type === 'number' ? (
               <NumberInput
@@ -162,7 +182,7 @@ function ComposePage() {
                 min={0}
                 step={0.01}
                 width="100%"
-                isRequired
+                isOptional
                 hasClear
               />
             ) : (
@@ -173,7 +193,7 @@ function ComposePage() {
                 onChange={(value) => setField(field.key, value)}
                 placeholder={field.placeholder}
                 width="100%"
-                isRequired
+                isOptional
               />
             )
           ))}
@@ -197,8 +217,10 @@ function ComposePage() {
         width="100%"
         clickAction={submit}
         isLoading={isPublishing}
-        isDisabled={!text.trim() || !fieldsComplete || publishLength > 300}
+        isDisabled={!text.trim() || deadlineIsPast || publishLength > 300}
       />
+        </>
+      ) : null}
     </div>
   )
 }

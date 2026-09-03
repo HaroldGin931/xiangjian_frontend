@@ -13,12 +13,11 @@ import type { PostView } from '~/lib/models'
 import { useStoredSession } from '../session/session'
 import { getActivityParticipations, type ActivityParticipation } from './api'
 
-type ProfileTab = 'participated_tasks' | 'created_tasks' | 'activities' | 'posts'
+type ProfileTab = 'tasks' | 'activities' | 'posts'
 
 const tabs: Array<{ value: ProfileTab; label: string }> = [
-  { value: 'participated_tasks', label: '参与的任务' },
-  { value: 'created_tasks', label: '发布的任务' },
-  { value: 'activities', label: '参与的活动' },
+  { value: 'tasks', label: '任务' },
+  { value: 'activities', label: '活动' },
   { value: 'posts', label: '帖子' },
 ]
 
@@ -27,7 +26,7 @@ export function PublicProfileContent({ actor }: { actor: string }) {
 
   return (
     <>
-      <div className="social-profile-tabs" role="group" aria-label="用户公开内容">
+      <div className="social-profile-tabs filter-buttons" role="group" aria-label="用户公开内容">
         {tabs.map((tab) => (
           <Button
             label={tab.label}
@@ -43,12 +42,7 @@ export function PublicProfileContent({ actor }: { actor: string }) {
 
       {activeTab === 'posts' ? <PublicPosts actor={actor} /> : null}
       {activeTab === 'activities' ? <PublicActivities actor={actor} /> : null}
-      {activeTab === 'participated_tasks' ? (
-        <PublicTasks actor={actor} relation="participant" />
-      ) : null}
-      {activeTab === 'created_tasks' ? (
-        <PublicTasks actor={actor} relation="creator" />
-      ) : null}
+      {activeTab === 'tasks' ? <PublicTasks actor={actor} /> : null}
     </>
   )
 }
@@ -82,13 +76,7 @@ function PublicPosts({ actor }: { actor: string }) {
   return <PostList posts={posts} />
 }
 
-function PublicTasks({
-  actor,
-  relation,
-}: {
-  actor: string
-  relation: 'participant' | 'creator'
-}) {
+function PublicTasks({ actor }: { actor: string }) {
   const { session } = useStoredSession()
   const [tasks, setTasks] = useState<RiceTask[] | null>(null)
   const [error, setError] = useState('')
@@ -97,25 +85,27 @@ function PublicTasks({
     let active = true
     setTasks(null)
     setError('')
-    void getTasks({
-      data: {
-        token: session?.token,
-        ...(relation === 'participant' ? { participantDid: actor } : { creatorDid: actor }),
-      },
-    })
-      .then((items) => { if (active) setTasks(items) })
+    void Promise.all([
+      getTasks({ data: { token: session?.token, participantDid: actor } }),
+      getTasks({ data: { token: session?.token, creatorDid: actor } }),
+    ])
+      .then(([participated, created]) => {
+        if (!active) return
+        const unique = new Map([...participated, ...created].map((task) => [task.id, task]))
+        setTasks([...unique.values()].sort((a, b) => b.inserted_at.localeCompare(a.inserted_at)))
+      })
       .catch((reason) => {
         if (active) setError(reason instanceof Error ? reason.message : '任务记录暂时无法显示')
       })
     return () => { active = false }
-  }, [actor, relation, session])
+  }, [actor, session])
 
   if (error || !tasks || tasks.length === 0) {
     return (
       <ProfileContentState
         error={error}
         items={tasks}
-        empty={relation === 'participant' ? '还没有参与任务' : '还没有发布任务'}
+        empty="还没有任务记录"
       />
     )
   }

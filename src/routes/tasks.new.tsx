@@ -1,5 +1,7 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
-import { TaskCreatePage } from '~/features/tasks/TaskCreatePage'
-
-export const Route = createFileRoute('/tasks/new')({ component: TaskCreatePage })
+export const Route = createFileRoute('/tasks/new')({
+  beforeLoad: () => {
+    throw redirect({ to: '/compose', search: { kind: 'task' } })
+  },
+})

@@ -73,7 +73,6 @@ export function postDisplayText(text: string) {
   return text
     .split('\n')
     .filter((line) => !fields.some((field) => line.startsWith(`${field.label}：`)))
-    .filter((line) => !/^\s*(?:#[\p{L}\p{N}_-]+\s*)+$/u.test(line))
     .join('\n')
     .trim()
 }

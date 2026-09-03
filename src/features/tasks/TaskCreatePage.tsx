@@ -6,10 +6,12 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
+import { localDateTimeValue } from '~/lib/format'
+
 import { useStoredSession } from '../session/session'
 import { createTask, getTasks, publishTask, updateTaskDraft } from './api'
 
-export function TaskCreatePage() {
+export function TaskCreatePage({ embedded = false }: { embedded?: boolean }) {
   const { session, isReady } = useStoredSession()
   const navigate = useNavigate()
   const [title, setTitle] = useState('')
@@ -37,7 +39,7 @@ export function TaskCreatePage() {
         setTitle(draft.title)
         setDescription(draft.description)
         setApplicationDeadline(toLocalDateTime(draft.application_deadline))
-        setRewardAmount(draft.reward_amount ? String(draft.reward_amount) : '')
+        setRewardAmount(String(draft.reward_amount))
       })
       .catch((reason) => {
         if (active) setError(reason instanceof Error ? reason.message : '草稿暂时无法加载')
@@ -60,13 +62,16 @@ export function TaskCreatePage() {
   }
 
   if (!session.user.can_publish_tasks) {
-    return (
+    const unavailable = (
+      <section className="task-empty-state">
+        <strong>当前账号没有任务发布权限</strong>
+        <p>任务发布者需要由管理员明确授权；普通用户仍可申请领取任务。</p>
+      </section>
+    )
+    return embedded ? unavailable : (
       <div className="page narrow-page task-form-page">
         <Link to="/tasks" className="back-link"><ArrowLeft size={16} /> 返回任务</Link>
-        <section className="task-empty-state">
-          <strong>当前账号没有任务发布权限</strong>
-          <p>任务发布者需要由管理员明确授权；普通用户仍可申请领取任务。</p>
-        </section>
+        {unavailable}
       </div>
     )
   }
@@ -76,6 +81,10 @@ export function TaskCreatePage() {
   }
 
   const submit = async (status: 'draft' | 'open') => {
+    if (applicationDeadline && applicationDeadline < localDateTimeValue()) {
+      setError('截止日期不能早于当前时间')
+      return
+    }
     setSubmitting(status)
     setError('')
     try {
@@ -117,6 +126,69 @@ export function TaskCreatePage() {
     }
   }
 
+  const form = (
+    <section className={`form-card ${embedded ? 'task-compose-form' : ''}`}>
+      {editingDraftId ? <div className="form-notice">正在编辑已保存的草稿</div> : null}
+      <TextInput
+        label="任务标题"
+        value={title}
+        onChange={(value) => setTitle(value.slice(0, 128))}
+        width="100%"
+        isRequired
+      />
+      <TextArea
+        label="任务说明与预期成果"
+        value={description}
+        onChange={setDescription}
+        maxLength={4000}
+        rows={4}
+        width="100%"
+        isRequired
+      />
+      <DateTimeInput
+        label="截止日期"
+        timeLabel="截止时间"
+        description="可选，只能选择当前时间之后"
+        value={applicationDeadline ? applicationDeadline as ISODateTimeString : undefined}
+        onChange={(value) => setApplicationDeadline(value ?? '')}
+        hourFormat="24h"
+        timeOptionInterval={15}
+        min={localDateTimeValue() as ISODateTimeString}
+        width="100%"
+        isOptional
+        hasClear
+      />
+      <TextInput
+        label="任务奖励（稻米）"
+        description="0 稻米不冻结；大于 0 时，发布后从可用余额中冻结。"
+        value={rewardAmount}
+        onChange={(value) => setRewardAmount(value.replace(/\D/g, '').slice(0, 9))}
+        placeholder="请输入 0 或正整数"
+        width="100%"
+        isRequired
+      />
+      {error ? <div className="form-error" role="alert">{error}</div> : null}
+      <div className="button-row">
+        <Button
+          label={editingDraftId ? '更新草稿' : '存为草稿'}
+          variant="secondary"
+          clickAction={() => submit('draft')}
+          isLoading={submitting === 'draft'}
+          isDisabled={!title.trim() || !description.trim() || Boolean(applicationDeadline && applicationDeadline < localDateTimeValue()) || submitting === 'open'}
+        />
+        <Button
+          label="发布任务"
+          variant="primary"
+          clickAction={() => submit('open')}
+          isLoading={submitting === 'open'}
+          isDisabled={!title.trim() || !description.trim() || rewardAmount === '' || Boolean(applicationDeadline && applicationDeadline < localDateTimeValue()) || submitting === 'draft'}
+        />
+      </div>
+    </section>
+  )
+
+  if (embedded) return form
+
   return (
     <div className="page narrow-page task-form-page">
       <Link to="/tasks" className="back-link"><ArrowLeft size={16} /> 取消</Link>
@@ -125,70 +197,13 @@ export function TaskCreatePage() {
         <h1>发布任务</h1>
         <p>发布时冻结任务奖励；完成后发给承作人，取消或失效时自动退回。</p>
       </section>
-      <section className="form-card">
-        {editingDraftId ? <div className="form-notice">正在编辑已保存的草稿</div> : null}
-        <TextInput
-          label="任务标题"
-          value={title}
-          onChange={(value) => setTitle(value.slice(0, 128))}
-          width="100%"
-          isRequired
-        />
-        <TextArea
-          label="任务说明与预期成果"
-          value={description}
-          onChange={setDescription}
-          maxLength={4000}
-          rows={8}
-          width="100%"
-          isRequired
-        />
-        <DateTimeInput
-          label="领取截止"
-          value={applicationDeadline ? applicationDeadline as ISODateTimeString : undefined}
-          onChange={(value) => setApplicationDeadline(value ?? '')}
-          hourFormat="24h"
-          timeOptionInterval={15}
-          width="100%"
-          isOptional
-          hasClear
-        />
-        <TextInput
-          label="任务奖励（稻米）"
-          description="草稿不冻结，发布时从可用余额中冻结。"
-          value={rewardAmount}
-          onChange={(value) => setRewardAmount(value.replace(/\D/g, '').slice(0, 9))}
-          placeholder="请输入正整数"
-          width="100%"
-          isRequired
-        />
-        {error ? <div className="form-error" role="alert">{error}</div> : null}
-        <div className="button-row">
-          <Button
-            label={editingDraftId ? '更新草稿' : '存为草稿'}
-            variant="secondary"
-            clickAction={() => submit('draft')}
-            isLoading={submitting === 'draft'}
-            isDisabled={!title.trim() || !description.trim() || submitting === 'open'}
-          />
-          <Button
-            label="发布任务"
-            variant="primary"
-            clickAction={() => submit('open')}
-            isLoading={submitting === 'open'}
-            isDisabled={!title.trim() || !description.trim() || Number(rewardAmount) <= 0 || submitting === 'draft'}
-          />
-        </div>
-      </section>
+      {form}
     </div>
   )
 }
 
 function toLocalDateTime(value: string | null) {
-  if (!value) return ''
-  const date = new Date(value)
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
-  return local.toISOString().slice(0, 16)
+  return value ? localDateTimeValue(value) : ''
 }
 
 function LoginRequired() {

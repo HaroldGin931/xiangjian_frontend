@@ -75,7 +75,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           )}
           {pathname === '/' ? (
             <div className="topbar-actions">
-              <Link className="header-publish" to="/compose">
+              <Link className="header-publish" to="/compose" search={{ kind: undefined }}>
                 <Plus size={18} aria-hidden="true" />
                 发布
               </Link>
@@ -84,20 +84,25 @@ export function AppShell({ children }: { children: ReactNode }) {
               </Link>
             </div>
           ) : pathname === '/tasks' ? (
-            session?.user.can_publish_tasks ? (
-              <Link to="/tasks/new" className="header-publish">
-                <Plus size={18} aria-hidden="true" /> 发布任务
+            <div className="topbar-actions">
+              {session?.user.can_publish_tasks ? (
+                <Link to="/compose" search={{ kind: 'task' }} className="header-publish">
+                  <Plus size={18} aria-hidden="true" /> 发布
+                </Link>
+              ) : (
+                <Button
+                  label="暂无发布权限"
+                  icon={<Plus size={18} aria-hidden="true" />}
+                  variant="primary"
+                  size="sm"
+                  isDisabled
+                  tooltip="任务发布者需要管理员授权"
+                />
+              )}
+              <Link to="/search" className="header-search" aria-label="搜索">
+                <Search size={22} aria-hidden="true" />
               </Link>
-            ) : (
-              <Button
-                label="暂无发布权限"
-                icon={<Plus size={18} aria-hidden="true" />}
-                variant="primary"
-                size="sm"
-                isDisabled
-                tooltip="任务发布者需要管理员授权"
-              />
-            )
+            </div>
           ) : null}
         </div>
       </header> : null}

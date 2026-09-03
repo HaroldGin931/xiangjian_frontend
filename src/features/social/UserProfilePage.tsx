@@ -1,7 +1,7 @@
 import { Button } from '@astryxdesign/core/Button'
 import { EmptyState } from '@astryxdesign/core/EmptyState'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, UserRound } from 'lucide-react'
+import { ArrowLeft, Pencil, UserRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { authorDisplayName, authorInitial } from '~/lib/format'
@@ -82,6 +82,16 @@ export function UserProfilePage({ actor }: { actor: string }) {
       {profile ? (
         <>
           <section className="social-profile-card">
+            {ownProfile ? (
+              <Link
+                to="/me/settings/profile"
+                className="profile-edit-link"
+                aria-label="编辑资料"
+                title="编辑资料"
+              >
+                <Pencil size={20} aria-hidden="true" />
+              </Link>
+            ) : null}
             <div className="social-profile-avatar" aria-hidden="true">
               {profile.avatar ? (
                 <img src={profile.avatar} alt="" />
@@ -100,9 +110,7 @@ export function UserProfilePage({ actor }: { actor: string }) {
 
             <div className="social-profile-actions">
               <Button label="发私信" variant="secondary" isDisabled width="100%" />
-              {ownProfile ? (
-                <Link to="/me/settings/profile" className="profile-edit-link">编辑资料</Link>
-              ) : (
+              {!ownProfile ? (
                 <Button
                   label={session ? (profile.viewer?.following ? '已关注' : '关注') : '登录后关注'}
                   variant={profile.viewer?.following ? 'secondary' : 'primary'}
@@ -110,7 +118,7 @@ export function UserProfilePage({ actor }: { actor: string }) {
                   isLoading={isFollowing}
                   width="100%"
                 />
-              )}
+              ) : null}
             </div>
             {followError ? <div className="social-follow-error" role="alert">{followError}</div> : null}
           </section>
@@ -124,10 +132,6 @@ export function UserProfilePage({ actor }: { actor: string }) {
               <strong>{profile.followersCount}</strong>
               <span>粉丝</span>
             </Link>
-            <div>
-              <strong>{profile.postsCount}</strong>
-              <span>帖子</span>
-            </div>
           </nav>
 
           <PublicProfileContent actor={profile.did} />

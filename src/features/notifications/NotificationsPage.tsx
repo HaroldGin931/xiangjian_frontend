@@ -1,5 +1,4 @@
 import { Button } from '@astryxdesign/core/Button'
-import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/SegmentedControl'
 import { Link } from '@tanstack/react-router'
 import { Bell } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -102,11 +101,9 @@ export function NotificationsPage() {
 
   return (
     <div className="page notifications-page">
-      <div className="message-tabs">
-        <SegmentedControl label="消息分类" value="notifications" onChange={() => undefined} size="sm">
-          <SegmentedControlItem value="notifications" label="通知" />
-          <SegmentedControlItem value="direct-messages" label="私信" isDisabled />
-        </SegmentedControl>
+      <div className="message-tabs filter-buttons" role="group" aria-label="消息分类">
+        <Button label="通知" variant="ghost" size="sm" className="active" aria-pressed="true" />
+        <Button label="私信" variant="ghost" size="sm" isDisabled />
       </div>
 
       {error ? (

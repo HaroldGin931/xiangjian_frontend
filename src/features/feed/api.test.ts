@@ -65,7 +65,7 @@ describe('feed data', () => {
       location: '漈下村村委',
       conditions: '自带水杯',
     })
-    expect(postDisplayText(text)).toBe('古村开放日')
+    expect(postDisplayText(text)).toBe('古村开放日\n#活动')
 
     const product = withPostKind('秋收新米', 'product', {
       price: '88',
@@ -77,7 +77,7 @@ describe('feed data', () => {
       availability: '可提供',
       fulfillment: '村口自提',
     })
-    expect(postDisplayText(product)).toBe('秋收新米')
+    expect(postDisplayText(product)).toBe('秋收新米\n#商品')
   })
 
   it('filters direct posts and repost events by the original post tag', async () => {

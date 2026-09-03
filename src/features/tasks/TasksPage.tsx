@@ -1,7 +1,5 @@
 import { Button } from '@astryxdesign/core/Button'
-import { TextInput } from '@astryxdesign/core/TextInput'
 import { Link } from '@tanstack/react-router'
-import { Search } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { useStoredSession } from '../session/session'
@@ -22,18 +20,11 @@ export function TasksPage() {
   const { session } = useStoredSession()
   const [tasks, setTasks] = useState<RiceTask[]>([])
   const [status, setStatus] = useState<TaskListStatus | undefined>()
-  const [query, setQuery] = useState('')
-  const [debouncedQuery, setDebouncedQuery] = useState('')
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState('')
   const requestVersion = useRef(0)
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setDebouncedQuery(query), 250)
-    return () => window.clearTimeout(timer)
-  }, [query])
 
   useEffect(() => {
     let active = true
@@ -42,7 +33,7 @@ export function TasksPage() {
     setNextCursor(null)
     setError('')
     void getTaskPage({
-      data: { token: session?.token, status, q: debouncedQuery, limit: 12 },
+      data: { token: session?.token, status, limit: 12 },
     })
       .then((page) => {
         if (!active || version !== requestVersion.current) return
@@ -58,7 +49,7 @@ export function TasksPage() {
     return () => {
       active = false
     }
-  }, [debouncedQuery, session?.token, status])
+  }, [session?.token, status])
 
   const loadMore = async () => {
     if (!nextCursor || loadingMore) return
@@ -70,7 +61,6 @@ export function TasksPage() {
         data: {
           token: session?.token,
           status,
-          q: debouncedQuery,
           limit: 12,
           before: nextCursor,
         },
@@ -94,20 +84,7 @@ export function TasksPage() {
         {session ? <Link to="/me/tasks">我的任务</Link> : <Link to="/login">登录后参与</Link>}
       </section>
 
-      <div className="task-search">
-        <TextInput
-          label="搜索任务"
-          isLabelHidden
-          value={query}
-          onChange={setQuery}
-          startIcon={<Search size={16} aria-hidden="true" />}
-          placeholder="搜索任务标题或说明…"
-          hasClear
-          width="100%"
-        />
-      </div>
-
-      <div className="task-filters" role="group" aria-label="任务筛选">
+      <div className="task-filters filter-buttons" role="group" aria-label="任务筛选">
         {filters.map((filter) => (
           <Button
             label={filter.label}
@@ -130,8 +107,8 @@ export function TasksPage() {
       ) : null}
       {!loading && !error && !tasks.length ? (
         <section className="task-empty-state" aria-live="polite">
-          <strong>{query ? '没有符合条件的任务' : '暂时没有任务'}</strong>
-          <p>{query ? '换一个关键词试试。' : '这里会显示 Rice 中真实发布的任务。'}</p>
+          <strong>暂时没有任务</strong>
+          <p>这里会显示 Rice 中真实发布的任务。</p>
         </section>
       ) : null}
       {nextCursor ? (

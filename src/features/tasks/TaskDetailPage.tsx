@@ -120,7 +120,7 @@ export function TaskDetailPage({ taskId }: { taskId: string }) {
         ) : null}
 
         {task.application_deadline ? (
-          <div className="task-neutral-note">领取截止：{formatTimestamp(task.application_deadline, true)}</div>
+          <div className="task-neutral-note">截止日期：{formatTimestamp(task.application_deadline, true)}</div>
         ) : null}
         {task.assignee && task.appointed_at ? (
           <section className="task-appointment-record">
@@ -138,7 +138,7 @@ export function TaskDetailPage({ taskId }: { taskId: string }) {
         ) : null}
         {task.status === 'draft' ? <div className="task-neutral-note">草稿仅你可见，发布后才进入任务列表。</div> : null}
         {task.status === 'cancelled' ? <div className="task-neutral-note">该任务已由发布者取消。</div> : null}
-        {task.status === 'expired' ? <div className="task-neutral-note">领取截止前无人获任命，任务已失效。</div> : null}
+        {task.status === 'expired' ? <div className="task-neutral-note">截止日期前无人获任命，任务已失效。</div> : null}
         {latestRejected && task.status === 'in_progress' ? <ChangesRequested submission={latestRejected} /> : null}
         {error ? <div className="inline-error" role="alert">{error}</div> : null}
 

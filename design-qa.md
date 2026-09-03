@@ -119,6 +119,113 @@ Separate detail crops were not required: the normalized `390 × 844` side-by-sid
 
 final result: passed
 
+## Elder-readable typography QA · 2026-09-04
+
+### Source and scope
+
+- User-reported references: `qa/elder-type-20260904/source-compose-tabs.png`,
+  `qa/elder-type-20260904/source-notification-tabs.png`, and
+  `qa/elder-type-20260904/source-notifications-list.png`.
+- Internal baseline: the existing Task page, captured before this pass as
+  `qa/elder-type-20260904/05-reference-tasks.png`.
+- Scope stayed visual: shared type scale, text contrast, control sizing, and spacing. No route,
+  component API, data flow, or business behavior changed.
+
+### Findings and fixes
+
+1. P1: secondary copy across Plaza, Notifications, and Profile remained `13–14 px`, while the
+   Task title was the only clearly enlarged element. The shared scale is now `16 / 17 / 18 / 20 /
+   26 px` for caption through section heading, with a `20 px` Plaza post body.
+2. P1: Astryx segmented controls retained their smaller internal type, so Compose and Notification
+   tabs did not match the surrounding UI. Existing radio controls now share an `18 px` label,
+   `48 px` minimum height, and consistent horizontal padding.
+3. P1: Notification reason, title, body, and time competed at nearly the same small scale. Rows now
+   use a `16 px` reason/time floor, `18 px` supporting text, `20 px` title, and more vertical room.
+4. P2: Profile identity, rice summary, and menu descriptions were visually weaker than Task cards.
+   They now use the same shared tokens, taller rows, and larger readable hit targets without adding
+   a separate accessibility mode or duplicate component set.
+5. P2: Task card titles inherited a near-black library color in one state. Their color is now
+   explicitly the existing Xiangjian deep-green text token.
+
+### Required surfaces and final captures
+
+- Plaza post hierarchy: `qa/elder-type-20260904/11-after-plaza.png` — passed.
+- Notification tabs and rows: `qa/elder-type-20260904/12-after-notifications.png` — passed.
+- Compose tabs and controls: `qa/elder-type-20260904/13-after-compose.png` — passed.
+- Profile identity, rice card, and menu: `qa/elder-type-20260904/14-after-profile.png` — passed.
+- Task page regression reference: `qa/elder-type-20260904/15-after-tasks.png` — passed.
+
+All final captures were inspected at `393 × 852` in the Codex in-app browser. Compose Activity mode,
+Notification state, and the Profile → public profile navigation remained operable. Browser logs
+contained no application warning or error after the final container rebuild.
+
+### Compact mobile follow-up
+
+1. P1: Plaza post actions could wrap the icon and count into two rows after the readable type-scale
+   increase. The existing action buttons now share a fixed `44 px` inline row and never wrap.
+2. P1: Activity and product tags were rendered as separate header chips and could become taller than
+   the avatar. The separate tag UI was deleted; tags now remain part of the post body.
+3. P1: Task, Compose, Notification, Search, and public-profile content filters mixed standalone
+   buttons with Astryx segmented controls. Content filters now reuse the existing Button component
+   and one `.filter-buttons` contract: separate pills, green selected state, no grey container.
+4. P2: the public profile gave Follow/Follower counts a full-width statistics panel and exposed two
+   Task filters plus a duplicate Posts count. Follow/Follower are now compact links, while public
+   content is expressed as exactly three filters: Task, Activity, and Posts. Task merges the user's
+   created and participated records and removes duplicates.
+5. P2: the own-profile Edit Profile action occupied half of the bottom action row. It is now a
+   conventional pencil button at the top-right of the profile card.
+6. P2: the mobile bottom navigation touched both viewport edges and ended in square corners. It now
+   uses a `10 px` inset, `22 px` rounded shell, safe-area-aware bottom spacing, and the same centered
+   desktop width as before.
+7. P2: Task cards repeated application outcome text in the footer even though the task state was
+   already visible at the top-right. The duplicate footer status was removed; the detailed outcome
+   remains available inside the task. The trailing arrow was also removed because the whole card is
+   already a link.
+8. P2: the public-profile header retained a square, divider-only shell while adjacent mobile
+   sections used cards. It now shares the same full border and `18 px` corner radius.
+9. P1: Task search duplicated the Plaza search entry with a page-specific input. The inline input
+   was removed; Task now uses the same top-right search button as Plaza. The global search page
+   queries the existing post and Rice task APIs and exposes exactly All, Posts, and Tasks filters.
+10. P2: removing the inline Task search left the status filters flush against the hero, while Search
+    still forced posts into a square edge-to-edge list. Task filters regained shared vertical spacing;
+    Search now keeps the same rounded post and task cards used on their source pages.
+11. P1: Post and Task cards maintained separate author markup, avatar shapes, metadata placement,
+    surfaces, and action-row spacing. Both now reuse one content-card surface and author header:
+    circular avatar, nickname-only first line, timestamp second line, and optional Task status at the
+    right. Search renders those same source components instead of a third result-card variant.
+12. P1: Plaza and Task exposed separate publishing flows. Both top actions now say “发布” and enter
+    the same `/compose` page with exactly Post, Activity, Product, and Task choices. Plaza defaults to
+    Post; Task defaults to Task; the old `/tasks/new` address redirects to the unified Task state.
+13. P1: the first embedded Task form inherited a `488 px` minimum-content row and expanded the
+    `393 px` document to `517 px`. Its grid and all input fields now shrink inside the `369 px` safe
+    content area; measured document width is again exactly `393 px`.
+14. P2: Activity and Task deadlines were visually large and allowed past dates. Their existing
+    DateTimeInput now keeps date and time in one row, marks all supplementary Activity fields and the
+    Task deadline optional, and disables dates before the current local time.
+15. P2: the embedded Task form repeated a “Task information” heading and rendered field labels like
+    helper copy. The redundant heading was removed; every field label now uses the shared `18 px`
+    body token, while the date constraint remains secondary copy. The mobile bottom navigation also
+    uses an `18 px` inset so it is visibly narrower than the content cards.
+
+Final mobile captures at `393 × 852`:
+
+- `qa/elder-type-20260904/60-final-plaza-mobile.png`
+- `qa/elder-type-20260904/61-final-task-mobile.png`
+- `qa/elder-type-20260904/62-final-task-compose-mobile.png`
+- `qa/elder-type-20260904/63-final-search-mobile.png`
+- `qa/elder-type-20260904/64-final-profile-mobile.png`
+- `qa/elder-type-20260904/65-final-activity-compose-mobile.png`
+
+### Implementation boundary
+
+- Existing page JSX and one stylesheet changed; one shared card-author component replaced the two
+  divergent versions. No dependency, feature flag, or mock data was added.
+- Registration verification keeps Astryx SegmentedControl because it is a form choice, not a content
+  filter; it is intentionally outside the shared filter-button contract.
+- The local QA captures remain under the repository's ignored `qa/` workspace.
+
+final result: passed
+
 ## Task V1 and Rice account integration QA · 2026-09-01
 
 ### Source and scope

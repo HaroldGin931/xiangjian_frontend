@@ -151,7 +151,7 @@ export function PostActions({
 
   return (
     <>
-      <div className="post-actions" aria-label="帖子互动">
+      <div className="content-card-actions post-actions" aria-label="帖子互动">
         {kind === 'activity' ? (
           <span className="post-action special-post-state" aria-label={`${post.replyCount ?? 0} 人参与`}>
             <Users size={18} aria-hidden="true" /> 参与 {post.replyCount ?? 0}
