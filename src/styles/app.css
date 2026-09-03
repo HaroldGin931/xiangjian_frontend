@@ -188,10 +188,6 @@ input:-webkit-autofill:focus {
 .task-filters { margin-bottom: 10px; display: flex; gap: 6px; overflow-x: auto; }
 .task-filters button { min-height: 32px; padding: 0 12px; border: 1px solid var(--xj-line); border-radius: 999px; flex: 0 0 auto; background: var(--xj-surface); color: var(--xj-muted); font-size: 10px; }
 .task-filters button.active { border-color: var(--xj-accent); background: var(--xj-accent); color: #fff; opacity: 1; }
-.task-summary { margin-bottom: 10px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
-.task-summary article { min-height: 72px; padding: 12px; border: 1px solid var(--xj-line); border-radius: 13px; display: flex; flex-direction: column; justify-content: space-between; background: var(--xj-surface); }
-.task-summary strong { font-size: 20px; }
-.task-summary span { color: var(--xj-muted); font-size: 9px; }
 .task-empty-state { min-height: 160px; padding: 28px 18px; border: 1px dashed var(--xj-line-strong); border-radius: 15px; display: grid; place-content: center; text-align: center; background: rgba(255,255,255,.35); }
 .task-empty-state strong { font-size: 14px; }
 .task-empty-state p { margin: 7px 0 0; color: var(--xj-muted); font-size: 11px; }
@@ -216,6 +212,7 @@ input:-webkit-autofill:focus {
 .task-card footer b { margin-left: auto; color: var(--xj-accent); }
 .task-card footer svg:last-child { margin-left: auto; }
 .task-card footer b + svg { margin-left: 0; }
+.task-load-more { padding: 16px 0 4px; display: flex; justify-content: center; }
 .my-tasks-page h1, .settings-page h1, .profile-edit-page h1, .account-security-page h1 { margin: 0 0 16px; font-size: 24px; }
 .my-tasks-page .task-empty-state { margin-top: 12px; }
 .task-form-page, .task-detail-page { padding: 14px 12px 72px; }
@@ -224,7 +221,7 @@ input:-webkit-autofill:focus {
 .task-detail-heading h1 { margin: 10px 0 5px; font-size: 22px; line-height: 1.35; }
 .task-detail-heading p { margin: 0; color: var(--xj-muted); font-size: 10px; }
 .task-description { margin-top: 20px; padding: 16px 0; border-top: 1px solid var(--xj-line); border-bottom: 1px solid var(--xj-line); }
-.task-description h2, .task-action-section h2, .task-history h2 { margin: 0 0 8px; font-size: 13px; }
+.task-description h2, .task-action-section h2, .task-history h2, .task-event-history h2 { margin: 0 0 8px; font-size: 13px; }
 .task-description p, .submission-copy { margin: 0; color: var(--xj-text-soft); font-size: 12px; line-height: 1.75; white-space: pre-wrap; }
 .task-facts { margin: 12px 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .task-facts div { min-height: 60px; padding: 10px; border-radius: 11px; display: grid; place-content: center; gap: 3px; background: var(--xj-surface-tint); text-align: center; }
@@ -252,6 +249,14 @@ input:-webkit-autofill:focus {
 .task-history time { color: var(--xj-muted); font-size: 8px; }
 .task-history p { margin: 7px 0; font-size: 11px; line-height: 1.6; }
 .task-history blockquote { margin: 8px 0 0; padding: 9px 11px; border-left: 3px solid #d49b70; background: #fff4ec; color: #874e29; font-size: 10px; }
+.task-event-history { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--xj-line); }
+.task-event-history ol { margin: 0; padding: 0; list-style: none; }
+.task-event-history li { position: relative; padding: 5px 0 14px 18px; border-left: 1px solid var(--xj-line-strong); display: grid; gap: 4px; }
+.task-event-history li:last-child { padding-bottom: 0; border-left-color: transparent; }
+.task-event-history li::before { position: absolute; top: 8px; left: -4px; width: 7px; height: 7px; border-radius: 50%; background: var(--xj-accent); content: ''; }
+.task-event-history strong { font-size: 10px; }
+.task-event-history span, .task-event-history time { color: var(--xj-muted); font-size: 9px; }
+.task-event-history blockquote { margin: 2px 0 0; color: var(--xj-text-soft); font-size: 10px; }
 
 /* Profile */
 .profile-page { max-width: 760px; margin-inline: auto; display: flex; flex-direction: column; gap: 10px; }
@@ -471,8 +476,6 @@ input:-webkit-autofill:focus {
   .task-hero { min-height: 250px; padding: 34px; }
   .task-hero h1 { font-size: 42px; }
   .task-hero p { font-size: 13px; }
-  .task-summary article { min-height: 96px; padding: 18px; }
-  .task-summary strong { font-size: 28px; }
   .task-empty-state { min-height: 210px; }
   .profile-identity { padding: 30px 22px; border: 1px solid var(--xj-line); border-radius: 18px; background: var(--xj-surface); }
   .profile-avatar { width: 72px; height: 72px; }

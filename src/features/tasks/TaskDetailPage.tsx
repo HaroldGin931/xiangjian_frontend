@@ -16,7 +16,12 @@ import {
   requestTaskChanges,
   submitTaskResult,
 } from './api'
-import { taskStatusLabel, type RiceTask, type TaskSubmission } from './types'
+import {
+  taskEventLabel,
+  taskStatusLabel,
+  type RiceTask,
+  type TaskSubmission,
+} from './types'
 
 export function TaskDetailPage({ taskId }: { taskId: string }) {
   const { session, isReady } = useStoredSession()
@@ -171,6 +176,12 @@ export function TaskDetailPage({ taskId }: { taskId: string }) {
         {task.my_application_status === 'not_selected' ? (
           <div className="task-neutral-note">本次申请未入选。</div>
         ) : null}
+        {task.my_application_status === 'cancelled' ? (
+          <div className="task-neutral-note">你申请过该任务；任务现已取消。</div>
+        ) : null}
+        {task.my_application_status === 'expired' ? (
+          <div className="task-neutral-note">你申请过该任务；任务现已失效。</div>
+        ) : null}
 
         {actions.has('appoint') && token ? (
           <section className="task-action-section">
@@ -258,8 +269,8 @@ export function TaskDetailPage({ taskId }: { taskId: string }) {
             <h2>承作人提交</h2>
             <p className="submission-copy">{pendingSubmission.body}</p>
             <TextArea
-              label="驳回留言"
-              description="驳回时必填"
+              label="不认可理由"
+              description="不认可结果时必填"
               value={reviewReason}
               onChange={setReviewReason}
               maxLength={512}
@@ -268,7 +279,7 @@ export function TaskDetailPage({ taskId }: { taskId: string }) {
             />
             <div className="button-row">
               <Button
-                label="驳回并留言"
+                label="不认可结果"
                 variant="destructive"
                 isDisabled={!reviewReason.trim() || busy}
                 clickAction={() => run(() => requestTaskChanges({
@@ -276,7 +287,7 @@ export function TaskDetailPage({ taskId }: { taskId: string }) {
                 }))}
               />
               <Button
-                label="审核通过"
+                label="认可结果"
                 variant="primary"
                 isDisabled={busy}
                 clickAction={() => run(() => approveTaskResult({
@@ -299,6 +310,25 @@ export function TaskDetailPage({ taskId }: { taskId: string }) {
             ))}
           </section>
         ) : null}
+
+        {task.events?.length ? (
+          <section className="task-event-history">
+            <h2>任务进展</h2>
+            <ol>
+              {task.events.map((event) => (
+                <li key={event.id}>
+                  <strong>{taskEventLabel(event)}</strong>
+                  <span>
+                    {event.actor?.nickname || event.actor?.handle || '系统'}
+                    {' · '}
+                    <time>{formatTimestamp(event.inserted_at, true)}</time>
+                  </span>
+                  {event.detail ? <blockquote>{event.detail}</blockquote> : null}
+                </li>
+              ))}
+            </ol>
+          </section>
+        ) : null}
       </article>
     </div>
   )
@@ -308,13 +338,13 @@ function ChangesRequested({ submission }: { submission: TaskSubmission }) {
   return (
     <div className="task-warning-note">
       <CircleAlert size={18} />
-      <div><strong>审核未通过，可修改后重新提交</strong><p>{submission.review_reason}</p></div>
+      <div><strong>结果未被认可，可修改后重新提交</strong><p>{submission.review_reason}</p></div>
     </div>
   )
 }
 
 function submissionStatus(submission: TaskSubmission) {
   if (submission.status === 'approved') return '结果已认可'
-  if (submission.status === 'changes_requested') return '审核未通过'
-  return '等待审核'
+  if (submission.status === 'changes_requested') return '结果未被认可'
+  return '等待验收'
 }

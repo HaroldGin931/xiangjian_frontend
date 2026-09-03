@@ -2,35 +2,54 @@ import { createServerFn } from '@tanstack/react-start'
 
 import { BACKEND_BASE, requestJson } from '~/lib/http'
 
-import type { RiceTask, TaskMine, TaskStatus } from './types'
+import type { RiceTask, TaskListStatus, TaskMine } from './types'
 
-type TaskListInput = {
+export type TaskListInput = {
   token?: string
   mine?: TaskMine
-  status?: TaskStatus
+  status?: TaskListStatus
   participantDid?: string
   creatorDid?: string
+  q?: string
   limit?: number
+  before?: string
+}
+
+export type TaskPage = {
+  data: RiceTask[]
+  meta: { next_cursor: string | null }
 }
 
 const authHeaders = (token?: string) =>
   token ? { Authorization: `Bearer ${token}` } : undefined
 
+export function buildTaskListQuery(data: TaskListInput) {
+  const query = new URLSearchParams()
+  if (data.mine) query.set('mine', data.mine)
+  if (data.status) query.set('status', data.status)
+  if (data.participantDid) query.set('participant_did', data.participantDid)
+  if (data.creatorDid) query.set('creator_did', data.creatorDid)
+  if (data.q?.trim()) query.set('q', data.q.trim())
+  if (data.limit) query.set('limit', String(data.limit))
+  if (data.before) query.set('before', data.before)
+  return query.toString()
+}
+
+async function fetchTaskPage(data: TaskListInput) {
+  const query = buildTaskListQuery(data)
+  const suffix = query ? `?${query}` : ''
+  return requestJson<TaskPage>(`${BACKEND_BASE}/api/tasks${suffix}`, {
+    headers: authHeaders(data.token),
+  })
+}
+
 export const getTasks = createServerFn({ method: 'POST' })
   .validator((data: TaskListInput) => data)
-  .handler(async ({ data }) => {
-    const query = new URLSearchParams()
-    if (data.mine) query.set('mine', data.mine)
-    if (data.status) query.set('status', data.status)
-    if (data.participantDid) query.set('participant_did', data.participantDid)
-    if (data.creatorDid) query.set('creator_did', data.creatorDid)
-    if (data.limit) query.set('limit', String(data.limit))
-    const suffix = query.size ? `?${query}` : ''
-    const body = await requestJson<{ data: RiceTask[] }>(`${BACKEND_BASE}/api/tasks${suffix}`, {
-      headers: authHeaders(data.token),
-    })
-    return body.data
-  })
+  .handler(async ({ data }) => (await fetchTaskPage(data)).data)
+
+export const getTaskPage = createServerFn({ method: 'POST' })
+  .validator((data: TaskListInput) => data)
+  .handler(async ({ data }) => fetchTaskPage(data))
 
 export const getTask = createServerFn({ method: 'POST' })
   .validator((data: { id: string; token?: string }) => data)

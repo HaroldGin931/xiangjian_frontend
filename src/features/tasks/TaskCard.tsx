@@ -3,7 +3,7 @@ import { ArrowRight, UsersRound } from 'lucide-react'
 
 import { formatTimestamp } from '~/lib/format'
 
-import { taskStatusLabel, type RiceTask } from './types'
+import { taskApplicationStatusLabel, taskStatusLabel, type RiceTask } from './types'
 
 export function TaskCard({ task }: { task: RiceTask }) {
   return (
@@ -22,7 +22,9 @@ export function TaskCard({ task }: { task: RiceTask }) {
       <p>{task.description}</p>
       <footer>
         <span><UsersRound size={14} aria-hidden="true" /> {task.application_count} 人申请</span>
-        {task.my_application_status === 'pending' ? <b>已申请</b> : null}
+        {task.my_application_status ? (
+          <b>{taskApplicationStatusLabel[task.my_application_status]}</b>
+        ) : null}
         <ArrowRight size={16} aria-hidden="true" />
       </footer>
     </Link>

@@ -1,0 +1,21 @@
+import { describe, expect, it } from 'vitest'
+
+import { buildTaskListQuery } from './api'
+
+describe('task list query', () => {
+  it('passes filtering, search and cursor pagination to Rice', () => {
+    const query = new URLSearchParams(buildTaskListQuery({
+      status: 'closed',
+      q: '  古村门楼  ',
+      before: '3muk26isicv2p',
+      limit: 12,
+    }))
+
+    expect(Object.fromEntries(query)).toEqual({
+      status: 'closed',
+      q: '古村门楼',
+      before: '3muk26isicv2p',
+      limit: '12',
+    })
+  })
+})

@@ -1,34 +1,42 @@
+import { Button } from '@astryxdesign/core/Button'
 import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/SegmentedControl'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { useStoredSession } from '../session/session'
-import { getTasks } from './api'
+import { getTaskPage } from './api'
 import { TaskCard } from './TaskCard'
 import type { RiceTask, TaskMine } from './types'
 
 const tabs: Array<{ value: TaskMine; label: string }> = [
   { value: 'assigned', label: '我承作的' },
   { value: 'created', label: '我发布的' },
-  { value: 'applied', label: '我申请中' },
+  { value: 'applied', label: '我的申请' },
 ]
 
 export function MyTasksPage() {
   const { session } = useStoredSession()
   const [mine, setMine] = useState<TaskMine>('assigned')
   const [tasks, setTasks] = useState<RiceTask[]>([])
+  const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState('')
+  const requestVersion = useRef(0)
 
   useEffect(() => {
     if (!session) return
     let active = true
+    const version = ++requestVersion.current
     setLoading(true)
+    setNextCursor(null)
     setError('')
-    void getTasks({ data: { token: session.token, mine } })
-      .then((result) => {
-        if (active) setTasks(result)
+    void getTaskPage({ data: { token: session.token, mine, limit: 12 } })
+      .then((page) => {
+        if (!active || version !== requestVersion.current) return
+        setTasks(page.data)
+        setNextCursor(page.meta.next_cursor)
       })
       .catch((reason) => {
         if (active) setError(reason instanceof Error ? reason.message : '任务暂时无法加载')
@@ -40,6 +48,25 @@ export function MyTasksPage() {
       active = false
     }
   }, [mine, session])
+
+  const loadMore = async () => {
+    if (!session || !nextCursor || loadingMore) return
+    const version = requestVersion.current
+    setLoadingMore(true)
+    setError('')
+    try {
+      const page = await getTaskPage({
+        data: { token: session.token, mine, limit: 12, before: nextCursor },
+      })
+      if (version !== requestVersion.current) return
+      setTasks((current) => [...current, ...page.data])
+      setNextCursor(page.meta.next_cursor)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : '更多任务暂时无法加载')
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   if (!session) {
     return (
@@ -58,19 +85,23 @@ export function MyTasksPage() {
         <SegmentedControl
           label="我的任务分类"
           value={mine}
-          onChange={(value) => setMine(value as TaskMine)}
+          onChange={(value) => {
+            setTasks([])
+            setNextCursor(null)
+            setMine(value as TaskMine)
+          }}
           size="sm"
           layout="fill"
         >
-        {tabs.map((tab) => (
-          <SegmentedControlItem value={tab.value} label={tab.label} key={tab.value} />
-        ))}
+          {tabs.map((tab) => (
+            <SegmentedControlItem value={tab.value} label={tab.label} key={tab.value} />
+          ))}
         </SegmentedControl>
       </div>
       {error ? <div className="inline-error" role="alert">{error}</div> : null}
-      {loading ? <div className="loading-line">正在加载任务…</div> : null}
-      {!loading && tasks.length ? (
-        <section className="task-list">
+      {loading && tasks.length === 0 ? <div className="loading-line">正在加载任务…</div> : null}
+      {tasks.length ? (
+        <section className="task-list" aria-busy={loading}>
           {tasks.map((task) => <TaskCard task={task} key={task.id} />)}
         </section>
       ) : null}
@@ -79,6 +110,16 @@ export function MyTasksPage() {
           <strong>这里还没有任务</strong>
           <p>{mine === 'assigned' ? '完成后的任务也会一直保留在这里。' : '产生记录后会显示在这里。'}</p>
         </section>
+      ) : null}
+      {nextCursor ? (
+        <div className="task-load-more">
+          <Button
+            label={loadingMore ? '正在加载…' : '加载更多'}
+            variant="secondary"
+            isDisabled={loadingMore}
+            clickAction={loadMore}
+          />
+        </div>
       ) : null}
     </div>
   )

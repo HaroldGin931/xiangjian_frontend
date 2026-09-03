@@ -28,6 +28,7 @@ const reasonCopy: Record<string, { label: string; action: string }> = {
   'task-assignee_appointed': { label: '任务', action: '任命你承做任务' },
   'task-application_not_selected': { label: '任务', action: '为任务任命了其他承做人' },
   'task-task_cancelled': { label: '任务', action: '取消了你申请的任务' },
+  'task-task_expired': { label: '任务', action: '你申请的任务已失效' },
   'task-result_submitted': { label: '任务', action: '提交了任务结果' },
   'task-result_approved': { label: '任务', action: '认可了你的任务结果' },
   'task-changes_requested': { label: '任务', action: '请你继续完善任务结果' },
