@@ -1,3 +1,5 @@
+import { Button } from '@astryxdesign/core/Button'
+import { TextInput } from '@astryxdesign/core/TextInput'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, KeyRound } from 'lucide-react'
 import { useState } from 'react'
@@ -57,14 +59,26 @@ export function ForgotPasswordPage() {
           onError={setError}
           onSent={() => setNotice('验证码已发送，请检查短信或邮箱。')}
         />
-        <label className="field-label">
-          <span>新密码</span>
-          <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} autoComplete="new-password" />
-          <small>至少 8 位</small>
-        </label>
+        <TextInput
+          label="新密码"
+          type="password"
+          value={password}
+          onChange={setPassword}
+          description="至少 8 位"
+          width="100%"
+          isDisabled={busy}
+        />
         {notice ? <div className="form-notice">{notice}</div> : null}
         {error ? <div className="form-error" role="alert">{error}</div> : null}
-        <button type="button" className="primary-button" disabled={!contact.trim() || !code.trim() || password.length < 8 || busy} onClick={submit}>重置密码</button>
+        <Button
+          label="重置密码"
+          variant="primary"
+          size="lg"
+          width="100%"
+          clickAction={submit}
+          isLoading={busy}
+          isDisabled={!contact.trim() || !code.trim() || password.length < 8}
+        />
       </section>
     </div>
   )

@@ -1,3 +1,5 @@
+import { Button } from '@astryxdesign/core/Button'
+import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/SegmentedControl'
 import { Link } from '@tanstack/react-router'
 import { Bell } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -66,23 +68,17 @@ export function NotificationsPage() {
 
   return (
     <div className="page notifications-page">
-      <div className="message-tabs" role="tablist" aria-label="消息分类">
-        <button type="button" className="active" role="tab" aria-selected="true">通知</button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected="false"
-          aria-label="私信，当前版本不提供"
-          disabled
-        >
-          私信
-        </button>
+      <div className="message-tabs">
+        <SegmentedControl label="消息分类" value="notifications" onChange={() => undefined} size="sm">
+          <SegmentedControlItem value="notifications" label="通知" />
+          <SegmentedControlItem value="direct-messages" label="私信" isDisabled />
+        </SegmentedControl>
       </div>
 
       {error ? (
         <div className="inline-error" role="alert">
           <span>{error}</span>
-          <button type="button" onClick={() => setReloadKey((value) => value + 1)}>重试</button>
+          <Button label="重试" variant="ghost" size="sm" onClick={() => setReloadKey((value) => value + 1)} />
         </div>
       ) : null}
 

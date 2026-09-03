@@ -1,4 +1,10 @@
 import { Button } from '@astryxdesign/core/Button'
+import { DateTimeInput, type ISODateTimeString } from '@astryxdesign/core/DateTimeInput'
+import { NumberInput } from '@astryxdesign/core/NumberInput'
+import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/SegmentedControl'
+import { Selector } from '@astryxdesign/core/Selector'
+import { TextArea } from '@astryxdesign/core/TextArea'
+import { TextInput } from '@astryxdesign/core/TextInput'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { Image, Link2, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -72,23 +78,37 @@ function ComposePage() {
     <div className="page compose-page">
       <header className="compose-header">
         <Link to="/" className="back-link"><X size={18} aria-hidden="true" /> 取消</Link>
-        <button type="button" className={kind === 'post' ? 'active' : ''} onClick={() => setKind('post')}>帖子</button>
-        <button type="button" className={kind === 'activity' ? 'active' : ''} onClick={() => setKind('activity')}>活动 Tag</button>
-        <button type="button" className={kind === 'product' ? 'active' : ''} onClick={() => setKind('product')}>商品 Tag</button>
-        <button type="button" disabled>发布任务 →</button>
+        <SegmentedControl
+          label="发布类型"
+          value={kind}
+          onChange={(value) => setKind(value as PostKind)}
+          size="sm"
+        >
+          <SegmentedControlItem value="post" label="帖子" />
+          <SegmentedControlItem value="activity" label="活动" />
+          <SegmentedControlItem value="product" label="商品" />
+        </SegmentedControl>
+        <Button
+          label="发布任务"
+          variant="ghost"
+          size="sm"
+          isDisabled
+          tooltip="请从任务页面发布任务"
+        />
       </header>
 
       <div className="compose-editor">
-        <label className="sr-only" htmlFor="compose-post-text">说点什么</label>
-        <textarea
-          id="compose-post-text"
-          aria-describedby="compose-character-count"
-          aria-invalid={publishLength > 300 || undefined}
+        <TextArea
+          label="说点什么"
+          isLabelHidden
           value={text}
-          onChange={(event) => setText(event.currentTarget.value)}
-          rows={9}
+          onChange={setText}
+          rows={11}
           placeholder={kindDetails.placeholder}
-          autoFocus
+          width="100%"
+          size="lg"
+          hasAutoFocus
+          status={publishLength > 300 ? { type: 'error', message: '内容和附加信息合计不能超过 300 字。' } : undefined}
         />
         <span
           id="compose-character-count"
@@ -109,39 +129,61 @@ function ComposePage() {
             <span>随帖子公开</span>
           </header>
           {kindDetails.fields.map((field) => (
-            <label key={field.key}>
-              <span>{field.label}</span>
-              {field.type === 'select' ? (
-                <select
-                  value={fields[field.key] ?? ''}
-                  onChange={(event) => setField(field.key, event.currentTarget.value)}
-                  required
-                >
-                  <option value="">选择状态</option>
-                  {field.options.map((option) => (
-                    <option value={option} key={option}>{option}</option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  type={field.type}
-                  inputMode={field.type === 'number' ? 'decimal' : undefined}
-                  min={field.type === 'number' ? '0' : undefined}
-                  value={fields[field.key] ?? ''}
-                  placeholder={field.placeholder}
-                  onInput={(event) => setField(field.key, event.currentTarget.value)}
-                  required
-                />
-              )}
-            </label>
+            field.type === 'select' ? (
+              <Selector
+                key={field.key}
+                label={field.label}
+                options={[...field.options]}
+                value={fields[field.key] ?? ''}
+                onChange={(value) => setField(field.key, value)}
+                placeholder="选择状态"
+                width="100%"
+                isRequired
+              />
+            ) : field.type === 'datetime-local' ? (
+              <DateTimeInput
+                key={field.key}
+                label={field.label}
+                timeLabel="时间"
+                value={fields[field.key] ? fields[field.key] as ISODateTimeString : undefined}
+                onChange={(value) => setField(field.key, value ?? '')}
+                hourFormat="24h"
+                timeOptionInterval={15}
+                width="100%"
+                isRequired
+              />
+            ) : field.type === 'number' ? (
+              <NumberInput
+                key={field.key}
+                label={field.label}
+                value={fields[field.key] ? Number(fields[field.key]) : null}
+                onChange={(value) => setField(field.key, value === null ? '' : String(value))}
+                placeholder={field.placeholder}
+                min={0}
+                step={0.01}
+                width="100%"
+                isRequired
+                hasClear
+              />
+            ) : (
+              <TextInput
+                key={field.key}
+                label={field.label}
+                value={fields[field.key] ?? ''}
+                onChange={(value) => setField(field.key, value)}
+                placeholder={field.placeholder}
+                width="100%"
+                isRequired
+              />
+            )
           ))}
         </section>
       ) : null}
 
       <div className="compose-tools" aria-label="更多发布能力">
-        <button type="button" disabled><Image size={18} aria-hidden="true" /> 图片</button>
-        <button type="button" disabled># 话题</button>
-        <button type="button" disabled><Link2 size={18} aria-hidden="true" /> 关联</button>
+        <Button label="图片" icon={<Image size={18} aria-hidden="true" />} variant="secondary" size="sm" isDisabled tooltip="图片发布接口尚未接入" />
+        <Button label="话题" icon={<span>#</span>} variant="secondary" size="sm" isDisabled tooltip="话题选择尚未接入" />
+        <Button label="关联" icon={<Link2 size={18} aria-hidden="true" />} variant="secondary" size="sm" isDisabled tooltip="关联内容尚未接入" />
       </div>
 
       <div className="publish-target">

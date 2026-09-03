@@ -1,3 +1,4 @@
+import { Button } from '@astryxdesign/core/Button'
 import { useEffect, useState } from 'react'
 
 import type { RepostChange } from '~/components/PostActions'
@@ -108,7 +109,7 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
   return (
     <div className="page plaza-page">
       <section className="feed-toolbar" aria-label="帖子分类">
-        <div className="feed-tabs" role="tablist">
+        <div className="feed-tabs" role="group" aria-label="帖子分类">
           {(
             [
               ['all', '全部帖子'],
@@ -116,16 +117,15 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
               ['product', '商品'],
             ] as const
           ).map(([value, label]) => (
-            <button
-              type="button"
-              role="tab"
-              aria-selected={activeTab === value}
-              className={activeTab === value ? 'active' : ''}
+            <Button
+              label={label}
+              variant="ghost"
+              size="sm"
+              className={activeTab === value ? 'active' : undefined}
+              aria-pressed={activeTab === value}
               onClick={() => setActiveTab(value)}
               key={value}
-            >
-              {label}
-            </button>
+            />
           ))}
         </div>
         <span className="feed-progress" aria-live="polite">
@@ -136,9 +136,7 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
       {error ? (
         <div className="inline-error" role="alert">
           <span>{error}</span>
-          <button type="button" onClick={() => setReloadKey((value) => value + 1)}>
-            重试
-          </button>
+          <Button label="重试" variant="ghost" size="sm" onClick={() => setReloadKey((value) => value + 1)} />
         </div>
       ) : null}
 

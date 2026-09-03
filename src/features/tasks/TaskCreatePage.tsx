@@ -1,3 +1,7 @@
+import { Button } from '@astryxdesign/core/Button'
+import { DateTimeInput, type ISODateTimeString } from '@astryxdesign/core/DateTimeInput'
+import { TextArea } from '@astryxdesign/core/TextArea'
+import { TextInput } from '@astryxdesign/core/TextInput'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -118,45 +122,48 @@ export function TaskCreatePage() {
       </section>
       <section className="form-card">
         {editingDraftId ? <div className="form-notice">正在编辑已保存的草稿</div> : null}
-        <label className="field-label">
-          <span>任务标题</span>
-          <input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={128} />
-        </label>
-        <label className="field-label">
-          <span>任务说明与预期成果</span>
-          <textarea
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            maxLength={4000}
-            rows={8}
-          />
-        </label>
-        <label className="field-label">
-          <span>领取截止（可选）</span>
-          <input
-            type="datetime-local"
-            value={applicationDeadline}
-            onChange={(event) => setApplicationDeadline(event.target.value)}
-          />
-        </label>
+        <TextInput
+          label="任务标题"
+          value={title}
+          onChange={(value) => setTitle(value.slice(0, 128))}
+          width="100%"
+          isRequired
+        />
+        <TextArea
+          label="任务说明与预期成果"
+          value={description}
+          onChange={setDescription}
+          maxLength={4000}
+          rows={8}
+          width="100%"
+          isRequired
+        />
+        <DateTimeInput
+          label="领取截止"
+          value={applicationDeadline ? applicationDeadline as ISODateTimeString : undefined}
+          onChange={(value) => setApplicationDeadline(value ?? '')}
+          hourFormat="24h"
+          timeOptionInterval={15}
+          width="100%"
+          isOptional
+          hasClear
+        />
         {error ? <div className="form-error" role="alert">{error}</div> : null}
         <div className="button-row">
-          <button
-            type="button"
-            className="secondary-button"
-            disabled={!title.trim() || !description.trim() || submitting !== null}
-            onClick={() => submit('draft')}
-          >
-            {submitting === 'draft' ? '正在保存…' : editingDraftId ? '更新草稿' : '存为草稿'}
-          </button>
-          <button
-            type="button"
-            className="primary-button"
-            disabled={!title.trim() || !description.trim() || submitting !== null}
-            onClick={() => submit('open')}
-          >
-            {submitting === 'open' ? '正在发布…' : '发布任务'}
-          </button>
+          <Button
+            label={editingDraftId ? '更新草稿' : '存为草稿'}
+            variant="secondary"
+            clickAction={() => submit('draft')}
+            isLoading={submitting === 'draft'}
+            isDisabled={!title.trim() || !description.trim() || submitting === 'open'}
+          />
+          <Button
+            label="发布任务"
+            variant="primary"
+            clickAction={() => submit('open')}
+            isLoading={submitting === 'open'}
+            isDisabled={!title.trim() || !description.trim() || submitting === 'draft'}
+          />
         </div>
       </section>
     </div>

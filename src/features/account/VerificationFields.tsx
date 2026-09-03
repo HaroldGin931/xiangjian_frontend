@@ -1,3 +1,7 @@
+import { Button } from '@astryxdesign/core/Button'
+import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/SegmentedControl'
+import { TextInput } from '@astryxdesign/core/TextInput'
+
 import type { VerificationChannel, VerificationPurpose } from './api'
 import { sendVerificationCode } from './api'
 
@@ -35,26 +39,39 @@ export function VerificationFields(props: Props) {
 
   return (
     <>
-      <div className="segmented-control" aria-label="验证方式">
-        <button type="button" className={props.channel === 'sms' ? 'active' : ''} onClick={() => props.setChannel('sms')}>手机号</button>
-        <button type="button" className={props.channel === 'email' ? 'active' : ''} onClick={() => props.setChannel('email')}>邮箱</button>
-      </div>
-      <label className="field-label">
-        <span>{props.channel === 'sms' ? '手机号' : '邮箱'}</span>
-        <input
-          type={props.channel === 'sms' ? 'tel' : 'email'}
-          value={props.contact}
-          onChange={(event) => props.setContact(event.target.value)}
-          autoComplete={props.channel === 'sms' ? 'tel' : 'email'}
+      <SegmentedControl
+        label="验证方式"
+        value={props.channel}
+        onChange={(value) => props.setChannel(value as VerificationChannel)}
+        layout="fill"
+      >
+        <SegmentedControlItem value="sms" label="手机号" />
+        <SegmentedControlItem value="email" label="邮箱" />
+      </SegmentedControl>
+      <TextInput
+        label={props.channel === 'sms' ? '手机号' : '邮箱'}
+        type={props.channel === 'email' ? 'email' : 'text'}
+        value={props.contact}
+        onChange={props.setContact}
+        width="100%"
+        isDisabled={props.disabled}
+      />
+      <div className="code-row">
+        <TextInput
+          label="验证码"
+          value={props.code}
+          onChange={props.setCode}
+          width="100%"
+          isDisabled={props.disabled}
         />
-      </label>
-      <label className="field-label code-field">
-        <span>验证码</span>
-        <div>
-          <input value={props.code} onChange={(event) => props.setCode(event.target.value)} inputMode="numeric" />
-          <button type="button" className="secondary-button" disabled={!props.contact.trim() || props.disabled} onClick={send}>获取验证码</button>
-        </div>
-      </label>
+        <Button
+          label="获取验证码"
+          variant="secondary"
+          size="lg"
+          clickAction={send}
+          isDisabled={!props.contact.trim() || props.disabled}
+        />
+      </div>
     </>
   )
 }

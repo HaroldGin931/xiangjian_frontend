@@ -1,3 +1,4 @@
+import { Button } from '@astryxdesign/core/Button'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { Heart, MessageCircle, PackageCheck, Repeat2, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -127,15 +128,16 @@ export function PostActions({
             <PackageCheck size={18} aria-hidden="true" /> {fields.availability || '状态待确认'}
           </span>
         ) : onOpenComments ? (
-          <button
-            type="button"
+          <Button
+            label={`${post.replyCount ?? 0} 条评论`}
+            variant="ghost"
+            size="sm"
+            icon={<MessageCircle size={18} aria-hidden="true" />}
             className="post-action"
-            aria-label={`${post.replyCount ?? 0} 条评论`}
             onClick={onOpenComments}
           >
-            <MessageCircle size={18} aria-hidden="true" />
             {post.replyCount ?? 0}
-          </button>
+          </Button>
         ) : (
           <Link
             to="/post"
@@ -149,29 +151,31 @@ export function PostActions({
           </Link>
         )}
         {kind === 'post' ? (
-          <button
-            type="button"
+          <Button
+            label={repostUri ? '取消转发' : '转发'}
+            variant="ghost"
+            size="sm"
+            icon={<Repeat2 size={18} aria-hidden="true" />}
             className={`post-action ${repostUri ? 'active' : ''}`}
-            onClick={handleRepost}
-            disabled={pending !== null}
-            aria-label={repostUri ? '取消转发' : '转发'}
+            clickAction={handleRepost}
+            isDisabled={pending !== null}
             aria-pressed={Boolean(repostUri)}
           >
-            <Repeat2 size={18} aria-hidden="true" />
             {repostCount}
-          </button>
+          </Button>
         ) : null}
-        <button
-          type="button"
+        <Button
+          label={likeUri ? '取消点赞' : '点赞'}
+          variant="ghost"
+          size="sm"
+          icon={<Heart size={18} fill={likeUri ? 'currentColor' : 'none'} aria-hidden="true" />}
           className={`post-action ${likeUri ? 'active' : ''}`}
-          onClick={handleLike}
-          disabled={pending !== null}
-          aria-label={likeUri ? '取消点赞' : '点赞'}
+          clickAction={handleLike}
+          isDisabled={pending !== null}
           aria-pressed={Boolean(likeUri)}
         >
-          <Heart size={18} fill={likeUri ? 'currentColor' : 'none'} aria-hidden="true" />
           {likeCount}
-        </button>
+        </Button>
       </div>
       {error ? <div className="post-action-error" role="status">{error}</div> : null}
     </>

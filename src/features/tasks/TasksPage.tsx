@@ -1,3 +1,5 @@
+import { Button } from '@astryxdesign/core/Button'
+import { TextInput } from '@astryxdesign/core/TextInput'
 import { Link } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -58,29 +60,32 @@ export function TasksPage() {
         {session ? <Link to="/me/tasks">我的任务</Link> : <Link to="/login">登录后参与</Link>}
       </section>
 
-      <label className="task-search">
-        <Search size={16} aria-hidden="true" />
-        <span className="sr-only">搜索任务</span>
-        <input
+      <div className="task-search">
+        <TextInput
+          label="搜索任务"
+          isLabelHidden
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          aria-label="搜索任务"
+          onChange={setQuery}
+          startIcon={<Search size={16} aria-hidden="true" />}
           placeholder="搜索任务标题或说明…"
+          hasClear
+          width="100%"
         />
-      </label>
+      </div>
 
-      <div className="task-filters" aria-label="任务筛选">
+      <div className="task-filters" role="group" aria-label="任务筛选">
         {filters.map((filter) => (
-          <button
-            type="button"
-            disabled={filter.disabled}
-            className={status === filter.status && !filter.disabled ? 'active' : ''}
-            aria-label={filter.disabled ? `${filter.label}，社区关系尚未接入` : filter.label}
+          <Button
+            label={filter.label}
+            variant="ghost"
+            size="sm"
+            className={!filter.disabled && status === filter.status ? 'active' : undefined}
+            aria-pressed={!filter.disabled && status === filter.status}
+            isDisabled={filter.disabled}
+            tooltip={filter.disabled ? '社区能力尚未接入' : undefined}
             onClick={() => setStatus(filter.status)}
             key={filter.label}
-          >
-            {filter.label}
-          </button>
+          />
         ))}
       </div>
 

@@ -1,3 +1,6 @@
+import { IconButton } from '@astryxdesign/core/IconButton'
+import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/SegmentedControl'
+import { TextInput } from '@astryxdesign/core/TextInput'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { ArrowLeft, Search } from 'lucide-react'
 import { useState } from 'react'
@@ -44,35 +47,37 @@ function SearchPage() {
         <Link to="/" className="back-link" aria-label="返回广场">
           <ArrowLeft size={18} aria-hidden="true" />
         </Link>
-        <label className="global-search-field">
-          <span className="sr-only">全局搜索</span>
-          <input
-            aria-label="全局搜索"
+        <div className="global-search-field">
+          <TextInput
+            label="全局搜索"
+            isLabelHidden
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') void search()
-            }}
+            onChange={setQuery}
+            onEnter={search}
             placeholder="搜索"
-            autoFocus
+            hasAutoFocus
+            hasClear
+            width="100%"
           />
-          <button
-            type="button"
-            aria-label="提交搜索"
-            onClick={search}
-            disabled={!query.trim() || isLoading}
-          >
-            <Search size={17} aria-hidden="true" />
-          </button>
-        </label>
+          <IconButton
+            label="提交搜索"
+            icon={<Search size={17} aria-hidden="true" />}
+            variant="primary"
+            clickAction={search}
+            isLoading={isLoading}
+            isDisabled={!query.trim()}
+          />
+        </div>
       </header>
 
-      <div className="global-search-tabs" role="tablist" aria-label="搜索范围">
-        <button type="button" className="active" role="tab" aria-selected="true">全部</button>
-        <button type="button" role="tab" aria-selected="false" disabled>任务</button>
-        <button type="button" role="tab" aria-selected="false">帖子</button>
-        <button type="button" role="tab" aria-selected="false" disabled>人</button>
-        <button type="button" role="tab" aria-selected="false" disabled>社区</button>
+      <div className="global-search-tabs">
+        <SegmentedControl label="搜索范围" value="post" onChange={() => undefined} size="sm">
+          <SegmentedControlItem value="all" label="全部" isDisabled />
+          <SegmentedControlItem value="task" label="任务" isDisabled />
+          <SegmentedControlItem value="post" label="帖子" />
+          <SegmentedControlItem value="person" label="人" isDisabled />
+          <SegmentedControlItem value="community" label="社区" isDisabled />
+        </SegmentedControl>
       </div>
 
       {error ? <div className="form-error">{error}</div> : null}

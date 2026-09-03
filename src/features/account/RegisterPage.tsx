@@ -1,3 +1,5 @@
+import { Button } from '@astryxdesign/core/Button'
+import { TextInput } from '@astryxdesign/core/TextInput'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, UserPlus } from 'lucide-react'
 import { useState } from 'react'
@@ -81,21 +83,43 @@ export function RegisterPage() {
               onSent={() => setNotice('验证码已发送，请检查短信或邮箱。')}
             />
             {notice ? <div className="form-notice">{notice}</div> : null}
-            <button type="button" className="primary-button" disabled={!contact.trim() || !code.trim() || busy} onClick={verify}>下一步</button>
+            <Button
+              label="下一步"
+              variant="primary"
+              size="lg"
+              width="100%"
+              clickAction={verify}
+              isLoading={busy}
+              isDisabled={!contact.trim() || !code.trim()}
+            />
           </>
         ) : (
           <>
-            <label className="field-label">
-              <span>Handle</span>
-              <input value={handle} onChange={(event) => setHandle(event.target.value)} placeholder="mo-name.local.xjdao.xyz" autoCapitalize="none" />
-            </label>
-            <label className="field-label">
-              <span>密码</span>
-              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} autoComplete="new-password" />
-              <small>至少 8 位。密码由 PDS 管理，Rice 不保存密码。</small>
-            </label>
-            <button type="button" className="primary-button" disabled={!handle.trim() || password.length < 8 || busy} onClick={register}>完成注册</button>
-            <button type="button" className="text-button" onClick={() => setTicket('')}>返回修改联系方式</button>
+            <TextInput
+              label="Handle"
+              value={handle}
+              onChange={setHandle}
+              placeholder="mo-name.local.xjdao.xyz"
+              width="100%"
+            />
+            <TextInput
+              label="密码"
+              type="password"
+              value={password}
+              onChange={setPassword}
+              description="至少 8 位。密码由 PDS 管理，Rice 不保存密码。"
+              width="100%"
+            />
+            <Button
+              label="完成注册"
+              variant="primary"
+              size="lg"
+              width="100%"
+              clickAction={register}
+              isLoading={busy}
+              isDisabled={!handle.trim() || password.length < 8}
+            />
+            <Button label="返回修改联系方式" variant="ghost" onClick={() => setTicket('')} />
           </>
         )}
         {error ? <div className="form-error" role="alert">{error}</div> : null}

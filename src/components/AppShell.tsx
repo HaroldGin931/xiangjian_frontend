@@ -1,3 +1,4 @@
+import { Button } from '@astryxdesign/core/Button'
 import { Link, useRouterState } from '@tanstack/react-router'
 import { Plus, Search } from 'lucide-react'
 import type { ReactNode } from 'react'
@@ -47,9 +48,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <Plus size={18} aria-hidden="true" /> 发布任务
               </Link>
             ) : (
-              <button type="button" className="header-publish disabled-control" disabled>
-                <Plus size={18} aria-hidden="true" /> 暂无发布权限
-              </button>
+              <Button
+                label="暂无发布权限"
+                icon={<Plus size={18} aria-hidden="true" />}
+                variant="primary"
+                size="sm"
+                isDisabled
+                tooltip="任务发布者需要管理员授权"
+              />
             )
           ) : null}
         </div>

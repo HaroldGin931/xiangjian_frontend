@@ -1,3 +1,5 @@
+import { Button } from '@astryxdesign/core/Button'
+import { TextArea } from '@astryxdesign/core/TextArea'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft, CheckCircle2, CircleAlert, UserRound } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -137,23 +139,26 @@ export function TaskDetailPage({ taskId }: { taskId: string }) {
         {actions.has('apply') && token ? (
           <section className="task-action-section">
             {!applyOpen ? (
-              <button type="button" className="primary-button" onClick={() => setApplyOpen(true)}>
-                申请领取
-              </button>
+              <Button label="申请领取" variant="primary" onClick={() => setApplyOpen(true)} />
             ) : (
               <>
-                <label className="field-label">
-                  <span>申请理由（选填）</span>
-                  <textarea value={reason} onChange={(event) => setReason(event.target.value)} maxLength={512} rows={5} />
-                </label>
+                <TextArea
+                  label="申请理由"
+                  value={reason}
+                  onChange={setReason}
+                  maxLength={512}
+                  rows={5}
+                  width="100%"
+                  isOptional
+                />
                 <div className="button-row">
-                  <button type="button" className="secondary-button" onClick={() => setApplyOpen(false)}>取消</button>
-                  <button
-                    type="button"
-                    className="primary-button"
-                    disabled={busy}
-                    onClick={() => run(() => applyForTask({ data: { token, taskId, reason } }))}
-                  >提交申请</button>
+                  <Button label="取消" variant="secondary" onClick={() => setApplyOpen(false)} />
+                  <Button
+                    label="提交申请"
+                    variant="primary"
+                    isDisabled={busy}
+                    clickAction={() => run(() => applyForTask({ data: { token, taskId, reason } }))}
+                  />
                 </div>
               </>
             )}
@@ -170,25 +175,25 @@ export function TaskDetailPage({ taskId }: { taskId: string }) {
         {actions.has('appoint') && token ? (
           <section className="task-action-section">
             <h2>申请人</h2>
-            <label className="field-label">
-              <span>任命理由（选填）</span>
-              <textarea
-                value={appointmentReason}
-                onChange={(event) => setAppointmentReason(event.target.value)}
-                maxLength={512}
-                rows={3}
-              />
-            </label>
+            <TextArea
+              label="任命理由"
+              value={appointmentReason}
+              onChange={setAppointmentReason}
+              maxLength={512}
+              rows={3}
+              width="100%"
+              isOptional
+            />
             <div className="applicant-list">
               {(task.applications ?? []).filter((item) => item.status === 'pending').map((application) => (
                 <article key={application.id}>
                   <strong>{application.user.nickname || application.user.handle}</strong>
                   <p>{application.reason || '没有填写申请理由'}</p>
-                  <button
-                    type="button"
-                    className="primary-button"
-                    disabled={busy}
-                    onClick={() => run(() => appointTaskApplication({
+                  <Button
+                    label="确认任命"
+                    variant="primary"
+                    isDisabled={busy}
+                    clickAction={() => run(() => appointTaskApplication({
                       data: {
                         token,
                         taskId,
@@ -196,7 +201,7 @@ export function TaskDetailPage({ taskId }: { taskId: string }) {
                         appointmentReason,
                       },
                     }))}
-                  >确认任命</button>
+                  />
                 </article>
               ))}
             </div>
@@ -206,9 +211,7 @@ export function TaskDetailPage({ taskId }: { taskId: string }) {
         {actions.has('cancel') && token ? (
           <section className="task-action-section">
             {!cancelOpen ? (
-              <button type="button" className="danger-button" onClick={() => setCancelOpen(true)}>
-                取消任务
-              </button>
+              <Button label="取消任务" variant="destructive" onClick={() => setCancelOpen(true)} />
             ) : (
               <>
                 <div className="task-warning-note">
@@ -216,13 +219,13 @@ export function TaskDetailPage({ taskId }: { taskId: string }) {
                   <div><strong>确认取消这个任务？</strong><p>取消后任务保留记录，但不能再申请或任命。</p></div>
                 </div>
                 <div className="button-row">
-                  <button type="button" className="secondary-button" onClick={() => setCancelOpen(false)}>保留任务</button>
-                  <button
-                    type="button"
-                    className="danger-button"
-                    disabled={busy}
-                    onClick={() => run(() => cancelTask({ data: { token, taskId } }))}
-                  >确认取消</button>
+                  <Button label="保留任务" variant="secondary" onClick={() => setCancelOpen(false)} />
+                  <Button
+                    label="确认取消"
+                    variant="destructive"
+                    isDisabled={busy}
+                    clickAction={() => run(() => cancelTask({ data: { token, taskId } }))}
+                  />
                 </div>
               </>
             )}
@@ -232,16 +235,21 @@ export function TaskDetailPage({ taskId }: { taskId: string }) {
         {actions.has('submit_result') && token ? (
           <section className="task-action-section">
             <h2>{latestRejected ? '修改并重新提交' : '提交完成'}</h2>
-            <label className="field-label">
-              <span>完成说明</span>
-              <textarea value={result} onChange={(event) => setResult(event.target.value)} maxLength={4000} rows={7} />
-            </label>
-            <button
-              type="button"
-              className="primary-button"
-              disabled={!result.trim() || busy}
-              onClick={() => run(() => submitTaskResult({ data: { token, taskId, body: result } }))}
-            >提交结果</button>
+            <TextArea
+              label="完成说明"
+              value={result}
+              onChange={setResult}
+              maxLength={4000}
+              rows={7}
+              width="100%"
+              isRequired
+            />
+            <Button
+              label="提交结果"
+              variant="primary"
+              isDisabled={!result.trim() || busy}
+              clickAction={() => run(() => submitTaskResult({ data: { token, taskId, body: result } }))}
+            />
           </section>
         ) : null}
 
@@ -249,32 +257,32 @@ export function TaskDetailPage({ taskId }: { taskId: string }) {
           <section className="task-action-section review-section">
             <h2>承作人提交</h2>
             <p className="submission-copy">{pendingSubmission.body}</p>
-            <label className="field-label">
-              <span>驳回留言（驳回时必填）</span>
-              <textarea
-                value={reviewReason}
-                onChange={(event) => setReviewReason(event.target.value)}
-                maxLength={512}
-                rows={4}
-              />
-            </label>
+            <TextArea
+              label="驳回留言"
+              description="驳回时必填"
+              value={reviewReason}
+              onChange={setReviewReason}
+              maxLength={512}
+              rows={4}
+              width="100%"
+            />
             <div className="button-row">
-              <button
-                type="button"
-                className="danger-button"
-                disabled={!reviewReason.trim() || busy}
-                onClick={() => run(() => requestTaskChanges({
+              <Button
+                label="驳回并留言"
+                variant="destructive"
+                isDisabled={!reviewReason.trim() || busy}
+                clickAction={() => run(() => requestTaskChanges({
                   data: { token, taskId, submissionId: pendingSubmission.id, reason: reviewReason },
                 }))}
-              >驳回并留言</button>
-              <button
-                type="button"
-                className="primary-button"
-                disabled={busy}
-                onClick={() => run(() => approveTaskResult({
+              />
+              <Button
+                label="审核通过"
+                variant="primary"
+                isDisabled={busy}
+                clickAction={() => run(() => approveTaskResult({
                   data: { token, taskId, submissionId: pendingSubmission.id },
                 }))}
-              >审核通过</button>
+              />
             </div>
           </section>
         ) : null}

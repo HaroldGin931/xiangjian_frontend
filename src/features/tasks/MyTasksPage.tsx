@@ -1,3 +1,4 @@
+import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/SegmentedControl'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -53,17 +54,18 @@ export function MyTasksPage() {
     <div className="page my-tasks-page">
       <Link to="/me" className="back-link"><ArrowLeft size={16} /> 我的</Link>
       <h1>我的任务</h1>
-      <div className="task-filters" aria-label="我的任务分类">
+      <div className="task-filters">
+        <SegmentedControl
+          label="我的任务分类"
+          value={mine}
+          onChange={(value) => setMine(value as TaskMine)}
+          size="sm"
+          layout="fill"
+        >
         {tabs.map((tab) => (
-          <button
-            type="button"
-            className={mine === tab.value ? 'active' : ''}
-            onClick={() => setMine(tab.value)}
-            key={tab.value}
-          >
-            {tab.label}
-          </button>
+          <SegmentedControlItem value={tab.value} label={tab.label} key={tab.value} />
         ))}
+        </SegmentedControl>
       </div>
       {error ? <div className="inline-error" role="alert">{error}</div> : null}
       {loading ? <div className="loading-line">正在加载任务…</div> : null}

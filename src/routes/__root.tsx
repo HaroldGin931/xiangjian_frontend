@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
 
+import zhCN from '@astryxdesign/core/locales/zh-CN.json'
+import { InternationalizationProvider } from '@astryxdesign/core/i18n'
 import { Theme } from '@astryxdesign/core/theme'
 import { neutralTheme } from '@astryxdesign/theme-neutral/built'
 import {
@@ -33,11 +35,13 @@ function RootComponent() {
   return (
     <RootDocument>
       <Theme theme={neutralTheme} mode="light">
-        <SessionProvider>
-          <AppShell>
-            <Outlet />
-          </AppShell>
-        </SessionProvider>
+        <InternationalizationProvider locale="zh-CN" messages={{ 'zh-CN': zhCN }}>
+          <SessionProvider>
+            <AppShell>
+              <Outlet />
+            </AppShell>
+          </SessionProvider>
+        </InternationalizationProvider>
       </Theme>
     </RootDocument>
   )

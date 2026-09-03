@@ -1,3 +1,4 @@
+import { Button } from '@astryxdesign/core/Button'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { ChevronRight, LogOut, UserRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -63,14 +64,17 @@ export function ProfilePage() {
         <span>{profile?.node_member ? '节点成员' : '社区成员'}</span>
         <div className="profile-actions">
           <Link to="/me/settings/profile">编辑资料</Link>
-          <button type="button" disabled aria-label="查看主页，接口尚未接入">查看主页</button>
+          <Button label="查看主页" variant="secondary" isDisabled tooltip="主页接口尚未接入" width="100%" />
         </div>
       </section>
 
       {error ? <div className="inline-error" role="alert">{error}</div> : null}
 
       <section className="grain-card">
-        <header><span>我的稻米</span><button type="button" disabled>查看流水 →</button></header>
+        <header>
+          <span>我的稻米</span>
+          <Button label="查看流水" variant="ghost" size="sm" isDisabled tooltip="稻米结算接口尚未确认">查看流水 →</Button>
+        </header>
         <strong>{profile?.grain_balance ?? '—'}</strong>
         <div className="grain-metrics">
           <div><b>{profile?.grain_balance ?? '—'}</b><span>可用</span></div>
@@ -89,16 +93,14 @@ export function ProfilePage() {
           <ChevronRight size={18} aria-hidden="true" />
         </Link>
         {disabledRows.map(([title, description]) => (
-          <button
-            type="button"
+          <div
             className="profile-menu-row disabled"
-            disabled
-            aria-label={`${title}，接口尚未接入`}
+            aria-disabled="true"
             key={title}
           >
             <span><strong>{title}</strong><small>{description}</small></span>
             <ChevronRight size={18} aria-hidden="true" />
-          </button>
+          </div>
         ))}
         <Link to="/me/settings" className="profile-menu-row">
           <span><strong>设置</strong><small>账号、资料、通知与隐私</small></span>
@@ -106,9 +108,9 @@ export function ProfilePage() {
         </Link>
       </nav>
 
-      <button type="button" className="logout-button" onClick={handleLogout}>
-        <LogOut size={16} aria-hidden="true" /> 退出登录
-      </button>
+      <div className="logout-button">
+        <Button label="退出登录" icon={<LogOut size={16} aria-hidden="true" />} variant="ghost" clickAction={handleLogout} />
+      </div>
     </div>
   )
 }

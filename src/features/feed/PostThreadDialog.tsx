@@ -1,3 +1,4 @@
+import { IconButton } from '@astryxdesign/core/IconButton'
 import { X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 
@@ -49,9 +50,12 @@ export function PostThreadDialog({
           <strong id="post-dialog-title">
             {kind === 'activity' ? '活动' : kind === 'product' ? '商品' : '帖子'}
           </strong>
-          <button type="button" aria-label="关闭详情" onClick={onClose}>
-            <X size={20} aria-hidden="true" />
-          </button>
+          <IconButton
+            label="关闭详情"
+            icon={<X size={20} aria-hidden="true" />}
+            variant="ghost"
+            onClick={onClose}
+          />
         </header>
         <div className="post-dialog-scroll">
           <PostThreadPanel

@@ -1,3 +1,6 @@
+import { Button } from '@astryxdesign/core/Button'
+import { Selector } from '@astryxdesign/core/Selector'
+import { TextInput } from '@astryxdesign/core/TextInput'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, CircleAlert } from 'lucide-react'
 import { useState } from 'react'
@@ -122,11 +125,11 @@ export function AccountSecurityPage() {
         </div>
         <div className="account-summary-row">
           <span><small>手机号</small><strong>{maskedPhone(session.user.phone)}</strong></span>
-          <button type="button" className="text-button" onClick={() => setEditing('sms')}>更换</button>
+          <Button label="更换手机号" variant="ghost" size="sm" onClick={() => setEditing('sms')}>更换</Button>
         </div>
         <div className="account-summary-row">
           <span><small>邮箱</small><strong>{maskedEmail(session.user.email)}</strong></span>
-          <button type="button" className="text-button" onClick={() => setEditing('email')}>更换</button>
+          <Button label="更换邮箱" variant="ghost" size="sm" onClick={() => setEditing('email')}>更换</Button>
         </div>
         <div className="account-summary-row">
           <span><small>DID 标识</small><strong>{session.user.did}</strong></span>
@@ -140,11 +143,14 @@ export function AccountSecurityPage() {
       {editing === 'sms' ? (
         <section className="form-card compact-form-card">
           <h2>更换手机号</h2>
-          <label className="field-label"><span>新手机号</span><input type="tel" value={phone} onChange={(event) => setPhone(event.target.value)} /></label>
-          <label className="field-label code-field"><span>验证码</span><div><input value={phoneCode} onChange={(event) => setPhoneCode(event.target.value)} /><button type="button" className="secondary-button" onClick={() => sendContactCode('sms', phone)}>获取验证码</button></div></label>
+          <TextInput label="新手机号" value={phone} onChange={setPhone} width="100%" />
+          <div className="code-row">
+            <TextInput label="验证码" value={phoneCode} onChange={setPhoneCode} width="100%" />
+            <Button label="获取验证码" variant="secondary" size="lg" clickAction={() => sendContactCode('sms', phone)} />
+          </div>
           <div className="button-row">
-            <button type="button" className="secondary-button" onClick={() => setEditing(null)}>取消</button>
-            <button type="button" className="primary-button" disabled={!phone.trim() || !phoneCode.trim() || busy} onClick={() => changeContact('sms')}>确认更换</button>
+            <Button label="取消" variant="secondary" onClick={() => setEditing(null)} />
+            <Button label="确认更换" variant="primary" clickAction={() => changeContact('sms')} isLoading={busy} isDisabled={!phone.trim() || !phoneCode.trim()} />
           </div>
         </section>
       ) : null}
@@ -152,11 +158,14 @@ export function AccountSecurityPage() {
       {editing === 'email' ? (
         <section className="form-card compact-form-card">
           <h2>更换邮箱</h2>
-          <label className="field-label"><span>新邮箱</span><input type="email" value={email} onChange={(event) => setEmail(event.target.value)} /></label>
-          <label className="field-label code-field"><span>验证码</span><div><input value={emailCode} onChange={(event) => setEmailCode(event.target.value)} /><button type="button" className="secondary-button" onClick={() => sendContactCode('email', email)}>获取验证码</button></div></label>
+          <TextInput label="新邮箱" type="email" value={email} onChange={setEmail} width="100%" />
+          <div className="code-row">
+            <TextInput label="验证码" value={emailCode} onChange={setEmailCode} width="100%" />
+            <Button label="获取验证码" variant="secondary" size="lg" clickAction={() => sendContactCode('email', email)} />
+          </div>
           <div className="button-row">
-            <button type="button" className="secondary-button" onClick={() => setEditing(null)}>取消</button>
-            <button type="button" className="primary-button" disabled={!email.trim() || !emailCode.trim() || busy} onClick={() => changeContact('email')}>确认更换</button>
+            <Button label="取消" variant="secondary" onClick={() => setEditing(null)} />
+            <Button label="确认更换" variant="primary" clickAction={() => changeContact('email')} isLoading={busy} isDisabled={!email.trim() || !emailCode.trim()} />
           </div>
         </section>
       ) : null}
@@ -165,17 +174,26 @@ export function AccountSecurityPage() {
       {error ? <div className="form-error" role="alert">{error}</div> : null}
 
       <section className="danger-zone">
-        <button type="button" className="danger-link" onClick={() => setDeleteOpen((value) => !value)}>注销账号</button>
+        <Button label="注销账号" variant="destructive" size="sm" onClick={() => setDeleteOpen((value) => !value)} />
         <p>永久删除账号与个人资料。操作需要验证码确认。</p>
         {deleteOpen ? (
           <div className="delete-account-form">
             <div className="task-warning-note"><CircleAlert size={18} /><span>注销后当前 Rice token 会立即失效。</span></div>
-            <select value={deleteChannel} onChange={(event) => setDeleteChannel(event.target.value as VerificationChannel)}>
-              <option value="sms" disabled={!session.user.phone}>手机号</option>
-              <option value="email" disabled={!session.user.email}>邮箱</option>
-            </select>
-            <div className="code-inline"><input value={deleteCode} onChange={(event) => setDeleteCode(event.target.value)} placeholder="验证码" /><button type="button" className="secondary-button" onClick={sendDeleteCode}>获取验证码</button></div>
-            <button type="button" className="danger-button" disabled={!deleteCode.trim() || busy} onClick={removeAccount}>确认注销账号</button>
+            <Selector
+              label="验证方式"
+              options={[
+                { value: 'sms', label: '手机号', disabled: !session.user.phone },
+                { value: 'email', label: '邮箱', disabled: !session.user.email },
+              ]}
+              value={deleteChannel}
+              onChange={(value) => setDeleteChannel(value as VerificationChannel)}
+              width="100%"
+            />
+            <div className="code-row">
+              <TextInput label="验证码" value={deleteCode} onChange={setDeleteCode} width="100%" />
+              <Button label="获取验证码" variant="secondary" size="lg" clickAction={sendDeleteCode} />
+            </div>
+            <Button label="确认注销账号" variant="destructive" clickAction={removeAccount} isLoading={busy} isDisabled={!deleteCode.trim()} />
           </div>
         ) : null}
       </section>
