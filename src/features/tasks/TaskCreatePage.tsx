@@ -25,7 +25,7 @@ export function TaskCreatePage({ embedded = false }: { embedded?: boolean }) {
 
   useEffect(() => {
     if (!isReady) return
-    if (!session?.user.can_publish_tasks) {
+    if (!session) {
       setDraftLoading(false)
       return
     }
@@ -51,7 +51,7 @@ export function TaskCreatePage({ embedded = false }: { embedded?: boolean }) {
     return () => {
       active = false
     }
-  }, [isReady, session?.token, session?.user.can_publish_tasks])
+  }, [isReady, session?.token])
 
   if (!isReady) {
     return <div className="page loading-line">正在恢复登录状态…</div>
@@ -59,21 +59,6 @@ export function TaskCreatePage({ embedded = false }: { embedded?: boolean }) {
 
   if (!session) {
     return <LoginRequired />
-  }
-
-  if (!session.user.can_publish_tasks) {
-    const unavailable = (
-      <section className="task-empty-state">
-        <strong>当前账号没有任务发布权限</strong>
-        <p>任务发布者需要由管理员明确授权；普通用户仍可申请领取任务。</p>
-      </section>
-    )
-    return embedded ? unavailable : (
-      <div className="page narrow-page task-form-page">
-        <Link to="/tasks" className="back-link"><ArrowLeft size={16} /> 返回任务</Link>
-        {unavailable}
-      </div>
-    )
   }
 
   if (draftLoading) {

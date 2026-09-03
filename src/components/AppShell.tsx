@@ -1,4 +1,3 @@
-import { Button } from '@astryxdesign/core/Button'
 import { Link, useRouterState } from '@tanstack/react-router'
 import { Plus, Search } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
@@ -85,20 +84,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           ) : pathname === '/tasks' ? (
             <div className="topbar-actions">
-              {session?.user.can_publish_tasks ? (
-                <Link to="/compose" search={{ kind: 'task' }} className="header-publish">
-                  <Plus size={18} aria-hidden="true" /> 发布
-                </Link>
-              ) : (
-                <Button
-                  label="暂无发布权限"
-                  icon={<Plus size={18} aria-hidden="true" />}
-                  variant="primary"
-                  size="sm"
-                  isDisabled
-                  tooltip="任务发布者需要管理员授权"
-                />
-              )}
+              <Link to="/compose" search={{ kind: 'task' }} className="header-publish">
+                <Plus size={18} aria-hidden="true" /> 发布
+              </Link>
               <Link to="/search" className="header-search" aria-label="搜索">
                 <Search size={22} aria-hidden="true" />
               </Link>
