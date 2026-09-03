@@ -9,6 +9,7 @@ import {
   deleteOwnPostRecord,
   hideDeletedPost,
   isPostHidden,
+  loadPostPage,
   loadPosts,
   normalizePostFeed,
   normalizePostThread,
@@ -174,6 +175,29 @@ describe('feed data', () => {
     })
     expect(normalizePostFeed({ posts: [post] })).toEqual({
       posts: [post],
+    })
+  })
+
+  it('preserves the post search cursor and requested page size', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ posts: [post], cursor: 'next-post-page' }), {
+        status: 200,
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const page = await loadPostPage({
+      query: '古村',
+      cursor: 'current-post-page',
+      limit: 10,
+    })
+
+    expect(page).toEqual({ posts: [post], cursor: 'next-post-page' })
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+      q: '古村',
+      limit: 10,
+      sort: 'latest',
+      cursor: 'current-post-page',
     })
   })
 

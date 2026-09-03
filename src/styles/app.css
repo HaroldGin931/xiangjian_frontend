@@ -368,8 +368,8 @@ input:-webkit-autofill:focus {
 .global-search-tabs { padding: 2px 12px 11px; display: flex; gap: 6px; overflow-x: auto; }
 .search-page, .compose-page, .post-page { max-width: 760px; margin: 0 auto; }
 .search-hint { margin: 28px 16px; color: var(--xj-muted); font-size: var(--xj-font-body); }
-.result-heading { padding: 10px 12px 4px; color: var(--xj-muted); font-size: var(--xj-font-small); font-weight: 650; }
 .search-results .post-list, .search-task-list { padding: 12px; gap: 9px; }
+.search-load-marker { height: 1px; }
 .post-page { padding: 12px; }
 .post-dialog {
   width: min(680px, calc(100% - 24px));

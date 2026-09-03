@@ -11,6 +11,7 @@ export type TaskListInput = {
   participantDid?: string
   creatorDid?: string
   q?: string
+  sort?: 'published'
   limit?: number
   before?: string
 }
@@ -30,12 +31,13 @@ export function buildTaskListQuery(data: TaskListInput) {
   if (data.participantDid) query.set('participant_did', data.participantDid)
   if (data.creatorDid) query.set('creator_did', data.creatorDid)
   if (data.q?.trim()) query.set('q', data.q.trim())
+  if (data.sort) query.set('sort', data.sort)
   if (data.limit) query.set('limit', String(data.limit))
   if (data.before) query.set('before', data.before)
   return query.toString()
 }
 
-async function fetchTaskPage(data: TaskListInput) {
+export async function fetchTaskPage(data: TaskListInput) {
   const query = buildTaskListQuery(data)
   const suffix = query ? `?${query}` : ''
   return requestJson<TaskPage>(`${BACKEND_BASE}/api/tasks${suffix}`, {

@@ -205,18 +205,25 @@ export type GetPostsInput = {
   query?: string
   repo?: string
   tag?: string
+  cursor?: string
+  limit?: number
   accessJwt?: string
   did?: string
 }
 
-export async function loadPosts(data: GetPostsInput) {
+export async function loadPostPage(data: GetPostsInput) {
   const query = data.query?.trim()
   const endpoint = query ? '/post/api/posts/search' : '/post/api/posts/list'
   const requestBody = query
-    ? { q: query, limit: 25, sort: 'latest' }
+    ? {
+        q: query,
+        limit: data.limit ?? 25,
+        sort: 'latest',
+        ...(data.cursor ? { cursor: data.cursor } : {}),
+      }
     : {
         page: 1,
-        per_page: 20,
+        per_page: data.limit ?? 20,
         ...(data.repo ? { repo: data.repo } : {}),
         ...(data.tag ? { tag: data.tag } : {}),
       }
@@ -233,12 +240,27 @@ export async function loadPosts(data: GetPostsInput) {
   const posts = mergeFeedPosts(feed.posts, timelineReposts).filter(
     (post) => !data.tag || hasPostTag(post.record.text, data.tag),
   )
-  return { posts: await hydrateViewerRecords(posts, data.did, data.accessJwt) }
+  const body = payload as { cursor?: unknown }
+  return {
+    posts: await hydrateViewerRecords(posts, data.did, data.accessJwt),
+    cursor: query && typeof body.cursor === 'string' && body.cursor
+      ? body.cursor
+      : null,
+  }
+}
+
+export async function loadPosts(data: GetPostsInput) {
+  const { posts } = await loadPostPage(data)
+  return { posts }
 }
 
 export const getPosts = createServerFn({ method: 'POST' })
   .validator((data: GetPostsInput) => data)
   .handler(({ data }) => loadPosts(data))
+
+export const getPostPage = createServerFn({ method: 'POST' })
+  .validator((data: GetPostsInput) => data)
+  .handler(({ data }) => loadPostPage(data))
 
 export const getPostThread = createServerFn({ method: 'POST' })
   .validator((data: { uri: string; accessJwt: string; did: string }) => data)

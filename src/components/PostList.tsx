@@ -39,53 +39,71 @@ export function PostList({
 
   return (
     <div className="post-list">
-      {visiblePosts.map((post) => {
-        const kind = postKind(post.record.text)
-        return (
-          <article
-            className={`content-card post-row ${kind === 'post' ? '' : `${kind}-post`}`}
-            key={post.reason?.uri ?? post.uri}
-          >
-            {post.reason ? (
-              <div className="post-reason">
-                <Repeat2 size={14} aria-hidden="true" />
-                <Link to="/profile/$actor" params={{ actor: post.reason.by.did }}>
-                  {authorDisplayName(post.reason.by)}
-                </Link>
-                转发了
-              </div>
-            ) : null}
-            <ContentCardHeader
-              initial={authorInitial(post.author)}
-              name={authorDisplayName(post.author)}
-              timestamp={formatTimestamp(post.record.createdAt || post.indexedAt)}
-              profileActor={post.author.did}
-            />
-            {onOpenPost ? (
-              <button
-                type="button"
-                className="post-copy-link post-copy-button"
-                onClick={() => onOpenPost(post, false)}
-              >
-                <p className="post-copy">{postDisplayText(post.record.text)}</p>
-              </button>
-            ) : (
-              <Link to="/post" search={{ uri: post.uri }} className="post-copy-link">
-                <p className="post-copy">{postDisplayText(post.record.text)}</p>
-              </Link>
-            )}
-            <PostActions
-              post={post}
-              onOpenComments={onOpenPost ? () => onOpenPost(post, true) : undefined}
-              onRepostChange={onRepostChange}
-              onPostDeleted={(uri) => {
-                setDeletedUris((current) => new Set(current).add(uri))
-                onPostDeleted?.(uri)
-              }}
-            />
-          </article>
-        )
-      })}
+      {visiblePosts.map((post) => (
+        <PostCard
+          post={post}
+          onOpenPost={onOpenPost}
+          onRepostChange={onRepostChange}
+          onPostDeleted={(uri) => {
+            setDeletedUris((current) => new Set(current).add(uri))
+            onPostDeleted?.(uri)
+          }}
+          key={post.reason?.uri ?? post.uri}
+        />
+      ))}
     </div>
+  )
+}
+
+export function PostCard({
+  post,
+  onOpenPost,
+  onRepostChange,
+  onPostDeleted,
+}: {
+  post: PostView
+  onOpenPost?: (post: PostView, focusReply: boolean) => void
+  onRepostChange?: (change: RepostChange) => void
+  onPostDeleted?: (uri: string) => void
+}) {
+  const kind = postKind(post.record.text)
+
+  return (
+    <article className={`content-card post-row ${kind === 'post' ? '' : `${kind}-post`}`}>
+      {post.reason ? (
+        <div className="post-reason">
+          <Repeat2 size={14} aria-hidden="true" />
+          <Link to="/profile/$actor" params={{ actor: post.reason.by.did }}>
+            {authorDisplayName(post.reason.by)}
+          </Link>
+          转发了
+        </div>
+      ) : null}
+      <ContentCardHeader
+        initial={authorInitial(post.author)}
+        name={authorDisplayName(post.author)}
+        timestamp={formatTimestamp(post.record.createdAt || post.indexedAt)}
+        profileActor={post.author.did}
+      />
+      {onOpenPost ? (
+        <button
+          type="button"
+          className="post-copy-link post-copy-button"
+          onClick={() => onOpenPost(post, false)}
+        >
+          <p className="post-copy">{postDisplayText(post.record.text)}</p>
+        </button>
+      ) : (
+        <Link to="/post" search={{ uri: post.uri }} className="post-copy-link">
+          <p className="post-copy">{postDisplayText(post.record.text)}</p>
+        </Link>
+      )}
+      <PostActions
+        post={post}
+        onOpenComments={onOpenPost ? () => onOpenPost(post, true) : undefined}
+        onRepostChange={onRepostChange}
+        onPostDeleted={onPostDeleted}
+      />
+    </article>
   )
 }

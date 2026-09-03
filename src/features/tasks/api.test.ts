@@ -7,6 +7,7 @@ describe('task list query', () => {
     const query = new URLSearchParams(buildTaskListQuery({
       status: 'closed',
       q: '  古村门楼  ',
+      sort: 'published',
       before: '3muk26isicv2p',
       limit: 12,
     }))
@@ -14,6 +15,7 @@ describe('task list query', () => {
     expect(Object.fromEntries(query)).toEqual({
       status: 'closed',
       q: '古村门楼',
+      sort: 'published',
       before: '3muk26isicv2p',
       limit: '12',
     })
