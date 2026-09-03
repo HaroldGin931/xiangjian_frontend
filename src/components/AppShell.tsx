@@ -1,12 +1,18 @@
 import { Button } from '@astryxdesign/core/Button'
 import { Link, useRouterState } from '@tanstack/react-router'
 import { Plus, Search } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
+import {
+  getNotifications,
+  getTaskNotifications,
+  NOTIFICATIONS_READ_EVENT,
+} from '~/features/notifications/api'
 import { useStoredSession } from '~/features/session/session'
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { session } = useStoredSession()
+  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false)
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const isStandalone =
     ['/login', '/register', '/forgot-password', '/post', '/search', '/compose'].includes(pathname) ||
@@ -21,6 +27,40 @@ export function AppShell({ children }: { children: ReactNode }) {
         : pathname.startsWith('/me')
           ? '我的'
           : null
+
+  useEffect(() => {
+    if (!session || pathname.startsWith('/notifications')) {
+      setHasUnreadNotifications(false)
+      return
+    }
+
+    let active = true
+    const refresh = async () => {
+      const results = await Promise.allSettled([
+        getNotifications({ data: session.pds.access_jwt }),
+        getTaskNotifications({ data: session.token }),
+      ])
+      if (!active) return
+
+      const hasUnread = results.some(
+        (result) =>
+          result.status === 'fulfilled' && result.value.some((item) => !item.isRead),
+      )
+      if (hasUnread || results.every((result) => result.status === 'fulfilled')) {
+        setHasUnreadNotifications(hasUnread)
+      }
+    }
+    const clear = () => setHasUnreadNotifications(false)
+
+    void refresh()
+    const timer = window.setInterval(refresh, 60_000)
+    window.addEventListener(NOTIFICATIONS_READ_EVENT, clear)
+    return () => {
+      active = false
+      window.clearInterval(timer)
+      window.removeEventListener(NOTIFICATIONS_READ_EVENT, clear)
+    }
+  }, [pathname, session])
 
   return (
     <div className={`app-shell ${isStandalone ? 'standalone-shell' : ''}`}>
@@ -79,8 +119,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           to="/notifications"
           className="bottom-link"
           activeProps={{ className: 'bottom-link active' }}
+          aria-label={hasUnreadNotifications ? '消息，有新通知' : '消息'}
         >
-          消息
+          <span className="bottom-link-label">
+            消息
+            {hasUnreadNotifications ? <i className="notification-dot" aria-hidden="true" /> : null}
+          </span>
         </Link>
         <Link
           to="/me"

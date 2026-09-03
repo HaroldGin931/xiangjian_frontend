@@ -12,6 +12,7 @@ describe('notification data', () => {
       record: { text: '一条通知内容' },
       isRead: false,
       indexedAt: '2026-09-01T00:00:00.000Z',
+      taskId: 'task-1',
     }
 
     expect(
@@ -27,6 +28,7 @@ describe('notification data', () => {
         text: '一条通知内容',
         isRead: notification.isRead,
         indexedAt: notification.indexedAt,
+        taskId: notification.taskId,
       },
     ])
   })

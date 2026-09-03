@@ -107,6 +107,8 @@ input:-webkit-autofill:focus {
 }
 .bottom-link { min-height: 48px; border-radius: 10px; display: grid; place-items: center; color: var(--xj-muted); font-size: 12px; }
 .bottom-link.active { color: var(--xj-accent); font-weight: 760; }
+.bottom-link-label { display: inline-flex; align-items: center; gap: 5px; }
+.notification-dot { width: 7px; height: 7px; border-radius: 50%; background: #bc3d35; }
 
 /* Plaza */
 .feed-toolbar { min-height: 42px; margin: 0 0 10px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -330,6 +332,9 @@ input:-webkit-autofill:focus {
 .notification-reason { min-width: 34px; padding: 4px 6px; border-radius: 6px; background: #edf1e6; color: #557044; font-size: 8px; text-align: center; }
 .reason-like, .reason-repost { background: #f4e8ef; color: #87586e; }
 .reason-reply, .reason-mention { background: #edf1e6; color: #557044; }
+.notification-reason[class*="reason-task-"] { background: #e5efe7; color: #1f6449; }
+.notification-body a { color: inherit; text-decoration: none; }
+.notification-body a:hover { text-decoration: underline; }
 .notification-body strong { display: block; font-size: 11px; line-height: 1.55; }
 .notification-body p { margin: 5px 0 0; color: var(--xj-text-soft); font-size: 10px; line-height: 1.55; white-space: pre-wrap; }
 .notification-body time { display: block; margin-top: 5px; color: var(--xj-muted); font-size: 8px; }

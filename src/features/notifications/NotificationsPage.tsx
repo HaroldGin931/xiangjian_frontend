@@ -8,7 +8,13 @@ import { authorDisplayName, formatTimestamp } from '~/lib/format'
 import type { NotificationView } from '~/lib/models'
 
 import { useStoredSession } from '../session/session'
-import { getNotifications } from './api'
+import {
+  getNotifications,
+  getTaskNotifications,
+  markNotificationsRead,
+  markTaskNotificationsRead,
+  NOTIFICATIONS_READ_EVENT,
+} from './api'
 
 const reasonCopy: Record<string, { label: string; action: string }> = {
   like: { label: '点赞', action: '赞了你的帖子' },
@@ -18,6 +24,13 @@ const reasonCopy: Record<string, { label: string; action: string }> = {
   reply: { label: '评论', action: '回复了你的帖子' },
   quote: { label: '引用', action: '引用了你的帖子' },
   'subscribed-post': { label: '帖子', action: '发布了新帖子' },
+  'task-application_created': { label: '任务', action: '申请领取你的任务' },
+  'task-assignee_appointed': { label: '任务', action: '任命你承做任务' },
+  'task-application_not_selected': { label: '任务', action: '为任务任命了其他承做人' },
+  'task-task_cancelled': { label: '任务', action: '取消了你申请的任务' },
+  'task-result_submitted': { label: '任务', action: '提交了任务结果' },
+  'task-result_approved': { label: '任务', action: '认可了你的任务结果' },
+  'task-changes_requested': { label: '任务', action: '请你继续完善任务结果' },
 }
 
 function notificationTitle(notification: NotificationView) {
@@ -31,29 +44,49 @@ export function NotificationsPage() {
   const [error, setError] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
   const accessJwt = session?.pds.access_jwt
+  const riceToken = session?.token
 
   useEffect(() => {
-    if (!isReady || !accessJwt) {
+    if (!isReady || !accessJwt || !riceToken) {
       setLoading(false)
       return
     }
     let active = true
     setLoading(true)
     setError('')
-    void getNotifications({ data: accessJwt })
-      .then((nextNotifications) => {
-        if (active) setNotifications(nextNotifications)
-      })
-      .catch((reason) => {
-        if (active) {
-          setError(reason instanceof Error ? reason.message : '通知暂时无法加载')
+    void Promise.allSettled([
+      getNotifications({ data: accessJwt }),
+      getTaskNotifications({ data: riceToken }),
+    ])
+      .then(([social, tasks]) => {
+        if (!active) return
+
+        const nextNotifications = [social, tasks]
+          .flatMap((result) => result.status === 'fulfilled' ? result.value : [])
+          .sort((a, b) => b.indexedAt.localeCompare(a.indexedAt))
+        setNotifications(nextNotifications)
+
+        const failures = [social, tasks].filter((result) => result.status === 'rejected')
+        if (failures.length > 0) setError('部分通知暂时无法加载，请稍后重试。')
+
+        const markRead = []
+        if (social.status === 'fulfilled' && social.value.some((item) => !item.isRead)) {
+          markRead.push(markNotificationsRead({ data: accessJwt }))
+        }
+        if (tasks.status === 'fulfilled' && tasks.value.some((item) => !item.isRead)) {
+          markRead.push(markTaskNotificationsRead({ data: riceToken }))
+        }
+        if (markRead.length > 0) {
+          void Promise.allSettled(markRead).then(() => {
+            window.dispatchEvent(new Event(NOTIFICATIONS_READ_EVENT))
+          })
         }
       })
       .finally(() => {
         if (active) setLoading(false)
       })
     return () => { active = false }
-  }, [accessJwt, isReady, reloadKey])
+  }, [accessJwt, isReady, reloadKey, riceToken])
 
   if (isReady && !session) {
     return (
@@ -99,7 +132,13 @@ export function NotificationsPage() {
                 {reasonCopy[notification.reason]?.label || '互动'}
               </span>
               <div className="notification-body">
-                <strong>{notificationTitle(notification)}</strong>
+                <strong>
+                  {notification.taskId ? (
+                    <Link to="/tasks/$taskId" params={{ taskId: notification.taskId }}>
+                      {notificationTitle(notification)}
+                    </Link>
+                  ) : notificationTitle(notification)}
+                </strong>
                 {notification.text ? <p>{notification.text}</p> : null}
                 <time>{formatTimestamp(notification.indexedAt)}</time>
               </div>

@@ -96,6 +96,7 @@ export type NotificationView = {
   text: string
   isRead: boolean
   indexedAt: string
+  taskId?: string
 }
 
 export type SocialProfile = {
