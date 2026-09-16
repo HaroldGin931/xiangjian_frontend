@@ -15,7 +15,12 @@ const errorMessages: Record<string, string> = {
 }
 
 export async function readJson(response: Response) {
-  const body = (await response.json().catch(() => ({}))) as JsonObject
+  if (response.status === 204) return {}
+  const parsed = await response.json().catch(() => null)
+  if (response.ok && (parsed === null || typeof parsed !== 'object')) {
+    throw new Error('服务返回的数据不完整，请稍后重试。')
+  }
+  const body = (parsed && typeof parsed === 'object' ? parsed : {}) as JsonObject
   if (response.ok) return body
 
   const errors = body.errors as JsonObject | undefined

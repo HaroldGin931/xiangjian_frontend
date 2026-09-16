@@ -61,6 +61,7 @@ export type RiceTask = {
     | 'publish'
     | 'apply'
     | 'appoint'
+    | 'reject_application'
     | 'cancel'
     | 'submit_result'
     | 'approve_result'
@@ -109,6 +110,9 @@ export type TaskGroup = 'pending' | 'applying' | 'in_progress' | 'under_review' 
 export function myTaskGroup(task: RiceTask, isPublisher: boolean): TaskGroup {
   if (task.status === 'draft') return 'draft'
   if (['completed', 'cancelled', 'expired'].includes(task.status) || (!isPublisher && task.my_application_status === 'not_selected')) return 'ended'
-  if (task.status === 'open') return isPublisher ? task.application_count === 0 ? 'open' : 'pending' : 'applying'
+  if (task.status === 'open') {
+    if (!isPublisher) return 'applying'
+    return task.allowed_actions.some((action) => action === 'appoint' || action === 'reject_application') ? 'pending' : 'open'
+  }
   return task.status === 'under_review' ? 'under_review' : 'in_progress'
 }

@@ -7,9 +7,10 @@ import {
   type ReactNode,
 } from 'react'
 
-import type { RiceSession } from '~/lib/models'
+import type { RiceSession, RiceUser } from '~/lib/models'
 
 import { getCurrentUser, refreshPdsSession } from './api'
+import { hasSessionCredentials, isPdsSession, isRiceSession, isSessionUser, type SessionCredentials } from './session-data'
 
 const STORAGE_KEY = 'xiangjian-rice-session'
 const CHANGE_EVENT = 'xiangjian-session-change'
@@ -21,28 +22,55 @@ type PdsRefresh = (input: {
 type SessionState = {
   session: RiceSession | null
   isReady: boolean
+  recoveryError: string
   saveSession: (session: RiceSession | null) => void
 }
 
 const SessionContext = createContext<SessionState | null>(null)
 
-export function readStoredSession(): RiceSession | null {
+function readStoredValue(): unknown {
   if (typeof window === 'undefined') return null
 
   try {
     const value = window.localStorage.getItem(STORAGE_KEY)
-    return value ? (JSON.parse(value) as RiceSession) : null
+    return value ? JSON.parse(value) : null
   } catch {
     return null
   }
 }
 
+export function readStoredSession(): RiceSession | null {
+  const value = readStoredValue()
+  return isRiceSession(value) ? value : null
+}
+
+function readStoredCredentials(): SessionCredentials | null {
+  const value = readStoredValue()
+  return hasSessionCredentials(value) ? value : null
+}
+
 export function writeStoredSession(session: RiceSession | null) {
+  if (session !== null && !isRiceSession(session)) throw new Error('登录信息不完整，请重新登录。')
   if (typeof window === 'undefined') return
 
   if (session) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session))
   else window.localStorage.removeItem(STORAGE_KEY)
   window.dispatchEvent(new Event(CHANGE_EVENT))
+}
+
+// Repair an incomplete cache using its existing credentials, never a different account's profile.
+export async function refreshStoredUser(
+  stored: SessionCredentials,
+  loadUser: (input: { data: string }) => Promise<RiceUser> = getCurrentUser,
+  isCurrent: () => boolean = () => true,
+) {
+  const user = await loadUser({ data: stored.token })
+  if (!isSessionUser(user) || user.did !== stored.pds.did) throw new Error('用户资料返回异常，请稍后重试。')
+  const latest = readStoredCredentials()
+  if (!isCurrent() || latest?.token !== stored.token || latest.pds.did !== stored.pds.did) return readStoredSession()
+  const updated = { ...latest, user }
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+  return updated
 }
 
 export function tokenExpiresSoon(
@@ -65,12 +93,14 @@ export function refreshStoredSession(
   stored: RiceSession,
   refresh: PdsRefresh = refreshPdsSession,
 ) {
+  if (!isRiceSession(stored)) return Promise.reject(new Error('登录信息不完整，请重新登录。'))
   const key = stored.pds.refresh_jwt
   const pending = pendingRefreshes.get(key)
   if (pending) return pending
 
   const request = refresh({ data: stored.pds })
     .then((pds) => {
+      if (!isPdsSession(pds) || pds.did !== stored.pds.did) throw new Error('登录状态刷新失败，请重新登录。')
       const latest = readStoredSession()
       const refreshed = { ...stored, pds }
       if (
@@ -92,6 +122,7 @@ export function refreshStoredSession(
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<RiceSession | null>(null)
   const [isReady, setIsReady] = useState(false)
+  const [recoveryError, setRecoveryError] = useState('')
 
   useEffect(() => {
     let active = true
@@ -100,7 +131,30 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     const sync = async () => {
       const currentRevision = ++revision
-      const stored = readStoredSession()
+      let stored = readStoredSession()
+      setRecoveryError('')
+      let repaired = false
+      if (!stored) {
+        setSession(null)
+        const credentials = readStoredCredentials()
+        if (!credentials) {
+          setIsReady(true)
+          if (readStoredValue() !== null) setRecoveryError('登录信息不完整，请重新登录。')
+          return
+        }
+        setIsReady(false)
+        try {
+          stored = await refreshStoredUser(credentials, getCurrentUser, () => active && currentRevision === revision)
+          repaired = true
+        } catch {
+          if (active && currentRevision === revision) {
+            setRecoveryError('登录状态暂时无法恢复，请刷新页面重试，或重新登录。')
+            setIsReady(true)
+          }
+          return
+        }
+        if (!active || currentRevision !== revision) return
+      }
       const needsRefresh = stored && tokenExpiresSoon(stored.pds.access_jwt)
       setSession(stored)
       setIsReady(!needsRefresh || stored?.user.id === restoredAccount)
@@ -118,13 +172,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       if (!active || currentRevision !== revision) return
       restoredAccount = current.user.id
       setIsReady(true)
+      if (repaired) {
+        setSession(current)
+        return
+      }
       try {
-        const user = await getCurrentUser({ data: current.token })
+        const updated = await refreshStoredUser(current, getCurrentUser, () => active && currentRevision === revision)
         if (!active || currentRevision !== revision) return
-        const latest = readStoredSession()
-        if (latest?.token !== current.token || latest.pds.did !== current.pds.did) return
-        const updated = { ...latest, user }
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
         setSession(updated)
       } catch {
         // 保留现有会话，让具体页面显示 Rice 或 PDS 返回的错误。
@@ -146,7 +200,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [])
 
   return (
-    <SessionContext.Provider value={{ session, isReady, saveSession }}>
+    <SessionContext.Provider value={{ session, isReady, recoveryError, saveSession }}>
       {children}
     </SessionContext.Provider>
   )

@@ -1,18 +1,19 @@
 import { Button } from '@astryxdesign/core/Button'
 import { IconButton } from '@astryxdesign/core/IconButton'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import { Heart, MessageCircle, PackageCheck, Repeat2, Trash2, Users } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import {
   clearCachedFeed,
   deletePost,
   hideDeletedPost,
+  ownedInteractionUri,
   toggleLike,
   toggleRepost,
 } from '~/features/feed/api'
 import { postCategory, postFieldValues } from '~/features/feed/tags'
-import type { PostView } from '~/lib/models'
+import type { PostView, RiceSession } from '~/lib/models'
 import { useStoredSession } from '~/features/session/session'
 
 export type RepostChange = {
@@ -20,21 +21,23 @@ export type RepostChange = {
   reason?: NonNullable<PostView['reason']>
 }
 
-export function PostActions({
-  post,
-  onOpenComments,
-  onRepostChange,
-  onPostDeleted,
-}: {
+type PostActionsProps = {
   post: PostView
   onOpenComments?: () => void
   onRepostChange?: (change: RepostChange) => void
   onPostDeleted?: (uri: string) => void
-}) {
+}
+
+export function PostActions(props: PostActionsProps) {
   const { session } = useStoredSession()
-  const navigate = useNavigate()
-  const [likeUri, setLikeUri] = useState(post.viewer?.like)
-  const [repostUri, setRepostUri] = useState(post.viewer?.repost)
+  return session ? <SessionPostActions key={`${props.post.uri}:${session.pds.did}`} {...props} session={session} /> : null
+}
+
+function SessionPostActions({ post, onOpenComments, onRepostChange, onPostDeleted, session }: PostActionsProps & { session: RiceSession }) {
+  const [likeUri, setLikeUri] = useState(() => ownedInteractionUri(post.viewer?.like, session.pds.did, 'app.bsky.feed.like'))
+  const [repostUri, setRepostUri] = useState(() => ownedInteractionUri(post.viewer?.repost, session.pds.did, 'app.bsky.feed.repost'))
+  const mounted = useRef(true)
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   const [likeCount, setLikeCount] = useState(post.likeCount ?? 0)
   const [repostCount, setRepostCount] = useState(post.repostCount ?? 0)
   const [pending, setPending] = useState<'like' | 'repost' | 'delete' | null>(null)
@@ -48,21 +51,15 @@ export function PostActions({
   )
 
   useEffect(() => {
-    setLikeUri(post.viewer?.like)
-    setRepostUri(post.viewer?.repost)
+    setLikeUri(ownedInteractionUri(post.viewer?.like, session.pds.did, 'app.bsky.feed.like'))
+    setRepostUri(ownedInteractionUri(post.viewer?.repost, session.pds.did, 'app.bsky.feed.repost'))
     setLikeCount(post.likeCount ?? 0)
     setRepostCount(post.repostCount ?? 0)
-  }, [post])
-
-  const requireSession = async () => {
-    if (session) return session
-    await navigate({ to: '/login' })
-    return null
-  }
+  }, [post, session.pds.did])
 
   const handleLike = async () => {
-    const activeSession = await requireSession()
-    if (!activeSession || pending) return
+    const activeSession = session
+    if (pending) return
     setPending('like')
     setError('')
     try {
@@ -75,19 +72,20 @@ export function PostActions({
           recordUri: likeUri,
         },
       })
+      if (!mounted.current) return
       clearCachedFeed(activeSession.pds.did)
       setLikeCount((count) => Math.max(0, count + (likeUri ? -1 : 1)))
       setLikeUri(result.recordUri ?? undefined)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '点赞失败')
+      if (mounted.current) setError(reason instanceof Error ? reason.message : '点赞失败')
     } finally {
-      setPending(null)
+      if (mounted.current) setPending(null)
     }
   }
 
   const handleRepost = async () => {
-    const activeSession = await requireSession()
-    if (!activeSession || pending) return
+    const activeSession = session
+    if (pending) return
     setPending('repost')
     setError('')
     try {
@@ -100,6 +98,7 @@ export function PostActions({
           recordUri: repostUri,
         },
       })
+      if (!mounted.current) return
       clearCachedFeed(activeSession.pds.did)
       setRepostCount((count) => Math.max(0, count + (repostUri ? -1 : 1)))
       const nextUri = result.recordUri ?? undefined
@@ -120,9 +119,9 @@ export function PostActions({
           : undefined,
       })
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '转发失败')
+      if (mounted.current) setError(reason instanceof Error ? reason.message : '转发失败')
     } finally {
-      setPending(null)
+      if (mounted.current) setPending(null)
     }
   }
 
@@ -140,16 +139,15 @@ export function PostActions({
           uri: post.uri,
         },
       })
+      if (!mounted.current) return
       hideDeletedPost(post.uri, session.pds.did)
       onPostDeleted?.(post.uri)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '删除失败')
+      if (mounted.current) setError(reason instanceof Error ? reason.message : '删除失败')
     } finally {
-      setPending(null)
+      if (mounted.current) setPending(null)
     }
   }
-
-  if (!session) return null
 
   return (
     <>

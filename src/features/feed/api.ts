@@ -94,26 +94,48 @@ export function createdPostView(
   }
 }
 
+type InteractionCollection = 'app.bsky.feed.like' | 'app.bsky.feed.repost'
+
+export function ownedInteractionUri(uri: string | undefined, did: string, collection: InteractionCollection) {
+  const prefix = `at://${did}/${collection}/`
+  if (typeof uri !== 'string' || !uri.startsWith(prefix)) return undefined
+  const key = uri.slice(prefix.length)
+  return /^[a-zA-Z0-9._~:-]+$/.test(key) && key !== '.' && key !== '..' ? uri : undefined
+}
+
 async function hydrateViewerRecords(
   posts: PostView[],
   did?: string,
   accessJwt?: string,
 ) {
-  if (!did || !accessJwt || posts.length === 0) return posts
+  // Post Cache is shared. Its viewer belongs to whoever populated it, not this reader.
+  const publicPosts = posts.map(({ viewer: _viewer, ...post }) => post)
+  if (!did || !accessJwt || posts.length === 0) return publicPosts
 
-  const list = async (collection: 'app.bsky.feed.like' | 'app.bsky.feed.repost') => {
-    const params = new URLSearchParams({ repo: did, collection, limit: '100' })
-    const body = await requestJson<{
-      records?: Array<{ uri: string; value?: { subject?: { uri?: string } } }>
-    }>(
-      `${BACKEND_BASE}/pds/xrpc/com.atproto.repo.listRecords?${params}`,
-      { headers: { Authorization: `Bearer ${accessJwt}` } },
-    )
-    return new Map(
-      (body.records ?? [])
-        .filter((record) => typeof record.value?.subject?.uri === 'string')
-        .map((record) => [record.value?.subject?.uri as string, record.uri]),
-    )
+  const subjects = new Set(posts.map((post) => post.uri))
+  const list = async (collection: InteractionCollection) => {
+    // ponytail: Scan the reader's records; use authenticated AppView lookups if histories become large.
+    const found = new Map<string, string>()
+    let cursor: string | undefined
+    do {
+      const params = new URLSearchParams({ repo: did, collection, limit: '100' })
+      if (cursor) params.set('cursor', cursor)
+      const body = await requestJson<{
+        records?: Array<{ uri: string; value?: { subject?: { uri?: string } } }>
+        cursor?: string
+      }>(
+        `${BACKEND_BASE}/pds/xrpc/com.atproto.repo.listRecords?${params}`,
+        { headers: { Authorization: `Bearer ${accessJwt}` } },
+      )
+      for (const record of body.records ?? []) {
+        const subject = record.value?.subject?.uri
+        const uri = ownedInteractionUri(record.uri, did, collection)
+        if (subject && subjects.has(subject) && uri) found.set(subject, uri)
+      }
+      if (found.size === subjects.size || body.cursor === cursor) break
+      cursor = body.cursor
+    } while (cursor)
+    return found
   }
 
   try {
@@ -121,16 +143,13 @@ async function hydrateViewerRecords(
       list('app.bsky.feed.like'),
       list('app.bsky.feed.repost'),
     ])
-    return posts.map((post) => ({
-      ...post,
-      viewer: {
-        ...post.viewer,
-        ...(likes.get(post.uri) ? { like: likes.get(post.uri) } : {}),
-        ...(reposts.get(post.uri) ? { repost: reposts.get(post.uri) } : {}),
-      },
-    }))
+    return publicPosts.map((post) => {
+      const like = likes.get(post.uri)
+      const repost = reposts.get(post.uri)
+      return like || repost ? { ...post, viewer: { ...(like ? { like } : {}), ...(repost ? { repost } : {}) } } : post
+    })
   } catch {
-    return posts
+    return publicPosts
   }
 }
 
@@ -344,12 +363,12 @@ export async function loadPostThread(data: PostThreadInput): Promise<PostThread>
       data.accessJwt ? { headers: { Authorization: `Bearer ${data.accessJwt}` } } : undefined,
     )
     const thread = normalizePostThread(payload)
-    const [post] = await hydrateViewerRecords(
-      [thread.post],
+    const posts = await hydrateViewerRecords(
+      [thread.post, ...thread.replies.map((reply) => reply.post)],
       data.did,
       data.accessJwt,
     )
-    const [namedPost, ...replies] = await hydrateAuthorNames([post, ...thread.replies.map((reply) => reply.post)])
+    const [namedPost, ...replies] = await hydrateAuthorNames(posts)
     return { post: namedPost, replies: replies.map((reply) => ({ post: reply })) }
 }
 
@@ -444,9 +463,10 @@ type ToggleInteractionInput = {
 
 export async function updateInteractionRecord(
   data: ToggleInteractionInput,
-  collection: 'app.bsky.feed.like' | 'app.bsky.feed.repost',
+  collection: InteractionCollection,
 ) {
   if (data.recordUri) {
+    if (!ownedInteractionUri(data.recordUri, data.did, collection)) throw new Error('只能取消当前账号的点赞或转发')
     await deletePdsRecord(data.accessJwt, {
       repo: data.did,
       collection,

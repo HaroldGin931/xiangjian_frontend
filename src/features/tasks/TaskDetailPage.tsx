@@ -16,6 +16,7 @@ import {
   approveTaskResult,
   cancelTask,
   getTask,
+  rejectTaskApplication,
   requestTaskChanges,
   submitTaskResult,
 } from './api'
@@ -189,10 +190,10 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
           <div className="task-neutral-note">你申请过该任务；任务现已失效。</div>
         ) : null}
 
-        {actions.has('appoint') && token ? (
+        {(actions.has('appoint') || actions.has('reject_application')) && token ? (
           <section className="task-action-section">
             <h2>待审批申请</h2>
-            <TextArea
+            {actions.has('appoint') && <TextArea
               label="选人说明"
               value={appointmentReason}
               onChange={setAppointmentReason}
@@ -200,14 +201,22 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
               rows={3}
               width="100%"
               isOptional
-            />
+            />}
             <div className="applicant-list">
               {(task.applications ?? []).filter((item) => item.status === 'pending').map((application) => (
                 <article key={application.id}>
                   <strong>{application.user.nickname || application.user.handle}</strong>
                   <p>{application.reason || '没有填写申请理由'}</p>
                   <div className="form-actions">
-                    <Button
+                    {actions.has('reject_application') && <Button
+                      label="拒绝申请"
+                      variant="secondary"
+                      isDisabled={busy}
+                      clickAction={() => run(() => rejectTaskApplication({
+                        data: { token, taskId, applicationId: application.id },
+                      }))}
+                    />}
+                    {actions.has('appoint') && <Button
                       label="选定此人"
                       variant="primary"
                       isDisabled={busy}
@@ -219,7 +228,7 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
                           appointmentReason,
                         },
                       }))}
-                    />
+                    />}
                   </div>
                 </article>
               ))}

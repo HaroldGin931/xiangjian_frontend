@@ -182,6 +182,20 @@ export const appointTaskApplication = createServerFn({ method: 'POST' })
     return body.data
   })
 
+type RejectTaskApplicationInput = { token: string; taskId: string; applicationId: string }
+
+export async function rejectTaskApplicationRequest(data: RejectTaskApplicationInput) {
+  const body = await requestJson<{ data: RiceTask }>(
+    `${BACKEND_BASE}/api/tasks/${data.taskId}/applications/${data.applicationId}/reject`,
+    { method: 'POST', headers: authHeaders(data.token) },
+  )
+  return body.data
+}
+
+export const rejectTaskApplication = createServerFn({ method: 'POST' })
+  .validator((data: RejectTaskApplicationInput) => data)
+  .handler(({ data }) => rejectTaskApplicationRequest(data))
+
 export const submitTaskResult = createServerFn({ method: 'POST' })
   .validator((data: { token: string; taskId: string; body: string }) => data)
   .handler(async ({ data }) => {

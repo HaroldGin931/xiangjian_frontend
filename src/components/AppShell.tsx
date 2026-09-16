@@ -15,7 +15,7 @@ import { useStoredSession } from '~/features/session/session'
 
 export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter()
-  const { session, isReady } = useStoredSession()
+  const { session, isReady, recoveryError } = useStoredSession()
   const previousSession = useRef<{ accountId?: string; token?: string } | null>(null)
   const [compose, setCompose] = useState<ComposeKind | null>(null)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
@@ -100,7 +100,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header> : null}
 
-      <main key={session?.user.id ?? 'guest'} className="page-frame">{isReady ? children : <div className="page initial-loading" aria-busy="true"><span className="visually-hidden" role="status">正在恢复登录状态</span></div>}</main>
+      <main key={session?.user.id ?? 'guest'} className="page-frame">{recoveryError && <p className="inline-error" role="alert">{recoveryError}</p>}{isReady ? children : <div className="page initial-loading" aria-busy="true"><span className="visually-hidden" role="status">正在恢复登录状态</span></div>}</main>
       {navigating && <LoadingProgress label="正在加载页面…" />}
 
       {!isStandalone ? <nav className="bottom-nav" aria-label="主要导航">

@@ -5,6 +5,7 @@ import type { RiceSession } from '~/lib/models'
 import {
   readStoredSession,
   refreshStoredSession,
+  refreshStoredUser,
   tokenExpiresSoon,
   writeStoredSession,
 } from './session'
@@ -25,7 +26,7 @@ function useMemoryStorage() {
 
 const storedSession = {
   token: 'rice-token',
-  user: { id: 'mo', nickname: '旧名字' },
+  user: { id: 'mo', did: 'did:example:mo', handle: 'mo.local', nickname: '旧名字' },
   pds: {
     service: 'http://pds',
     did: 'did:example:mo',
@@ -74,6 +75,7 @@ describe('PDS session lifetime', () => {
       const next = change === 'logout' ? null : {
         ...storedSession,
         token: 'new-rice-token',
+        user: { ...storedSession.user, did: change === 'another account' ? 'did:example:other' : storedSession.user.did },
         pds: {
           ...storedSession.pds,
           did: change === 'another account' ? 'did:example:other' : storedSession.pds.did,
@@ -101,5 +103,78 @@ describe('PDS session lifetime', () => {
     })
 
     expect(readStoredSession()).toEqual({ ...updated, pds })
+  })
+})
+
+describe('stored session boundaries', () => {
+  it.each([null, {}, [], { ...storedSession, user: undefined }, { ...storedSession, pds: undefined }, { ...storedSession, user: { id: 'mo' } }])(
+    'never exposes incomplete cached data as a logged-in session: %j',
+    (value) => {
+      useMemoryStorage()
+      window.localStorage.setItem('xiangjian-rice-session', JSON.stringify(value))
+      expect(readStoredSession()).toBeNull()
+    },
+  )
+
+  it('repairs the observed token+pds cache from the current user endpoint', async () => {
+    useMemoryStorage()
+    const { user, ...credentials } = storedSession
+    window.localStorage.setItem('xiangjian-rice-session', JSON.stringify(credentials))
+    expect(readStoredSession()).toBeNull()
+    const loadUser = vi.fn().mockResolvedValue(user)
+    await expect(refreshStoredUser(credentials, loadUser)).resolves.toEqual(storedSession)
+    expect(loadUser).toHaveBeenCalledWith({ data: credentials.token })
+    expect(readStoredSession()).toEqual(storedSession)
+  })
+
+  it.each([undefined, null, {}, { ...storedSession.user, did: 'did:example:other' }])(
+    'preserves the last valid session when profile loading returns invalid data: %j',
+    async (user) => {
+      useMemoryStorage()
+      writeStoredSession(storedSession)
+      await expect(refreshStoredUser(storedSession, vi.fn().mockResolvedValue(user))).rejects.toThrow('用户资料返回异常')
+      expect(readStoredSession()).toEqual(storedSession)
+    },
+  )
+
+  it('does not overwrite a valid cache with an invalid login result', () => {
+    useMemoryStorage()
+    writeStoredSession(storedSession)
+    expect(() => writeStoredSession({ ...storedSession, user: undefined } as unknown as RiceSession)).toThrow('登录信息不完整')
+    expect(readStoredSession()).toEqual(storedSession)
+  })
+
+  it.each(['logout', 'new login'])('does not restore a pending profile response after %s', async (change) => {
+    useMemoryStorage()
+    writeStoredSession(storedSession)
+    const next = change === 'logout' ? null : { ...storedSession, token: 'new-login-token' }
+    const result = await refreshStoredUser(storedSession, async () => {
+      writeStoredSession(next)
+      return storedSession.user
+    })
+    expect(result).toEqual(next)
+    expect(readStoredSession()).toEqual(next)
+  })
+
+  it('rejects an invalid PDS refresh without damaging the previous session', async () => {
+    useMemoryStorage()
+    writeStoredSession(storedSession)
+    await expect(refreshStoredSession(storedSession, vi.fn().mockResolvedValue(undefined))).rejects.toThrow('登录状态刷新失败')
+    expect(readStoredSession()).toEqual(storedSession)
+  })
+
+  it('does not overwrite an edited profile with an older same-account response', async () => {
+    useMemoryStorage()
+    writeStoredSession(storedSession)
+    let revision = 0
+    const requestRevision = revision
+    const edited = { ...storedSession, user: { ...storedSession.user, nickname: '新昵称' } }
+    const result = await refreshStoredUser(storedSession, async () => {
+      writeStoredSession(edited)
+      revision++
+      return storedSession.user
+    }, () => revision === requestRevision)
+    expect(result).toEqual(edited)
+    expect(readStoredSession()).toEqual(edited)
   })
 })

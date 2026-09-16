@@ -5,6 +5,18 @@ import { readJson, requestJson } from './http'
 afterEach(() => vi.unstubAllGlobals())
 
 describe('HTTP error mapping', () => {
+  it.each(['', '<html>unexpected gateway page</html>', 'null'])(
+    'rejects malformed successful JSON instead of returning an empty object: %s',
+    async (body) => {
+      await expect(readJson(new Response(body, { status: 200 })))
+        .rejects.toThrow('服务返回的数据不完整')
+    },
+  )
+
+  it('accepts an intentional empty 204 response', async () => {
+    await expect(readJson(new Response(null, { status: 204 }))).resolves.toEqual({})
+  })
+
   it('does not expose low-level fetch errors to the interface', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('fetch failed')))
 

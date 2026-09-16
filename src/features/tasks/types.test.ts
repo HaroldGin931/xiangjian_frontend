@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { taskApplicationStatusLabel, taskEventLabel, type TaskEvent } from './types'
+import { myTaskGroup, taskApplicationStatusLabel, taskEventLabel, type RiceTask, type TaskEvent } from './types'
 
 const event = (overrides: Partial<TaskEvent>): TaskEvent => ({
   id: 'event-1',
@@ -27,11 +27,21 @@ describe('task labels', () => {
   })
 })
 
-it('keeps candidate decisions separate from deliverable review and closed applications', async () => {
-  const { myTaskGroup } = await import('./types')
-  const task = { status: 'in_progress', my_application_status: 'not_selected', application_count: 2 } as import('./types').RiceTask
+it('keeps candidate decisions separate from deliverable review and closed applications', () => {
+  const task = { status: 'in_progress', my_application_status: 'not_selected', application_count: 2, allowed_actions: ['appoint', 'reject_application'] } as RiceTask
   expect(myTaskGroup(task, false)).toBe('ended')
   expect(myTaskGroup({ ...task, status: 'open', my_application_status: 'pending' }, true)).toBe('pending')
   expect(myTaskGroup({ ...task, status: 'open', my_application_status: 'pending' }, false)).toBe('applying')
   expect(myTaskGroup({ ...task, status: 'under_review', my_application_status: 'appointed' }, false)).toBe('under_review')
+})
+
+it('returns an open task to recruitment after all applications have been rejected', () => {
+  const task = { status: 'open', my_application_status: 'not_selected', application_count: 2, allowed_actions: ['cancel'] } as RiceTask
+  expect(myTaskGroup(task, true)).toBe('open')
+  expect(myTaskGroup(task, false)).toBe('ended')
+})
+
+it.each(['appoint', 'reject_application'] as const)('keeps a publisher task pending while %s is allowed', (action) => {
+  const task = { status: 'open', my_application_status: null, application_count: 2, allowed_actions: [action, 'cancel'] } as RiceTask
+  expect(myTaskGroup(task, true)).toBe('pending')
 })

@@ -504,3 +504,108 @@ describe('feed data', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('viewer interaction isolation', () => {
+  const alice = 'did:alice'
+  const bob = 'did:bob'
+  const liked = {
+    ...post,
+    likeCount: 1,
+    repostCount: 1,
+    viewer: {
+      like: `at://${alice}/app.bsky.feed.like/same-key`,
+      repost: `at://${alice}/app.bsky.feed.repost/same-key`,
+    },
+  }
+  const response = (value: unknown) => new Response(JSON.stringify(value))
+
+  it.each([
+    ['plaza', {}],
+    ['search', { query: '真实帖子' }],
+    ['profile posts', { repo: post.author.did }],
+  ] as const)('rebuilds %s interactions for A, B and guests from the same cached post', async (_name, filters) => {
+    const fetchMock = vi.fn(async (input: string | URL) => {
+      const url = new URL(String(input))
+      if (url.pathname.includes('/post/api/posts/')) return response({ posts: [liked] })
+      if (url.pathname.endsWith('listRecords')) {
+        const collection = url.searchParams.get('collection')!
+        return response({ records: url.searchParams.get('repo') === alice
+          ? [{ uri: `at://${alice}/${collection}/same-key`, value: { subject: { uri: post.uri } } }]
+          : [] })
+      }
+      return response({ feed: [] })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const a = await loadPostPage({ ...filters, did: alice, accessJwt: 'alice-token' })
+    const b = await loadPostPage({ ...filters, did: bob, accessJwt: 'bob-token' })
+    const guest = await loadPostPage(filters)
+    expect(a.posts[0].viewer).toEqual(liked.viewer)
+    expect(b.posts[0].viewer).toBeUndefined()
+    expect(guest.posts[0].viewer).toBeUndefined()
+    expect([a, b, guest].map((feed) => [feed.posts[0].likeCount, feed.posts[0].repostCount])).toEqual([[1, 1], [1, 1], [1, 1]])
+    expect(liked.viewer.like).toContain(alice)
+    for (const [input, init] of fetchMock.mock.calls as unknown as Array<[string, RequestInit]>) {
+      const url = new URL(input)
+      if (url.pathname.endsWith('listRecords')) {
+        expect(init.headers).toEqual({ Authorization: `Bearer ${url.searchParams.get('repo') === alice ? 'alice' : 'bob'}-token` })
+      }
+    }
+  })
+
+  it('never preserves another account viewer when private hydration fails', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (input: string | URL) => {
+      const url = String(input)
+      if (url.includes('/post/api/posts/')) return response({ posts: [liked] })
+      if (url.includes('listRecords')) return new Response(JSON.stringify({ message: 'PDS unavailable' }), { status: 503 })
+      return response({ feed: [] })
+    }))
+    const feed = await loadPosts({ did: bob, accessJwt: 'bob-token' })
+    expect(feed.posts[0].viewer).toBeUndefined()
+    expect(feed.posts[0].likeCount).toBe(1)
+  })
+
+  it('hydrates thread replies as well as the root and strips all guest viewer records', async () => {
+    const reply = { ...liked, uri: `${post.uri}-reply` }
+    const bobLike = `at://${bob}/app.bsky.feed.like/reply-like`
+    vi.stubGlobal('fetch', vi.fn(async (input: string | URL) => {
+      const url = new URL(String(input))
+      if (url.pathname.endsWith('getPostThread')) return response({ thread: { post: liked, replies: [{ post: reply }] } })
+      if (url.pathname.endsWith('listRecords')) return response({ records: url.searchParams.get('collection') === 'app.bsky.feed.like'
+        ? [{ uri: bobLike, value: { subject: { uri: reply.uri } } }]
+        : [] })
+      return response({})
+    }))
+    const thread = await loadPostThread({ uri: post.uri, did: bob, accessJwt: 'bob-token' })
+    expect(thread.post.viewer).toBeUndefined()
+    expect(thread.replies[0].post.viewer).toEqual({ like: bobLike })
+    const guest = await loadPostThread({ uri: post.uri })
+    expect(guest.post.viewer).toBeUndefined()
+    expect(guest.replies[0].post.viewer).toBeUndefined()
+  })
+
+  it('reads subsequent interaction pages and ignores records from a different repository or collection', async () => {
+    const bobLike = `at://${bob}/app.bsky.feed.like/older`
+    const fetchMock = vi.fn(async (input: string | URL) => {
+      const url = new URL(String(input))
+      if (url.pathname.includes('/post/api/posts/')) return response({ posts: [liked] })
+      if (!url.pathname.endsWith('listRecords')) return response({ feed: [] })
+      if (url.searchParams.get('collection') === 'app.bsky.feed.repost') return response({ records: [] })
+      if (!url.searchParams.has('cursor')) return response({ records: [
+        { uri: liked.viewer.like, value: { subject: { uri: post.uri } } },
+        { uri: `at://${bob}/app.bsky.feed.repost/wrong-collection`, value: { subject: { uri: post.uri } } },
+      ], cursor: 'older-page' })
+      return response({ records: [{ uri: bobLike, value: { subject: { uri: post.uri } } }] })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const feed = await loadPosts({ did: bob, accessJwt: 'bob-token' })
+    expect(feed.posts[0].viewer).toEqual({ like: bobLike })
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('cursor=older-page'))).toBe(true)
+  })
+
+  it.each(['app.bsky.feed.like', 'app.bsky.feed.repost'] as const)('rejects cancelling a foreign %s URI before contacting PDS', async (collection) => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(updateInteractionRecord({ did: bob, accessJwt: 'bob-token', postUri: post.uri, postCid: post.cid, recordUri: `at://${alice}/${collection}/same-key` }, collection)).rejects.toThrow('只能取消当前账号')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
