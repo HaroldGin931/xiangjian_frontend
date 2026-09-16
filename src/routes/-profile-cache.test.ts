@@ -132,18 +132,21 @@ describe('private profile route cache', () => {
     expect(api.wallet).toHaveBeenLastCalledWith({ data: { token: 'new-token-a' } })
   })
 
-  it('keeps the same-session successful snapshot and error after a failed refresh then reopening', async () => {
+  it.each([
+    { failure: new Error('钱包服务暂时不可用'), message: '钱包服务暂时不可用' },
+    { failure: new TypeError('Failed to fetch'), message: '网络连接失败，请检查网络后重试。' },
+  ])('keeps the same-session successful snapshot after a failed refresh: $message', async ({ failure, message }) => {
     const router = await readyRouter()
     await router.navigate({ to: '/me' })
-    api.wallet.mockRejectedValueOnce(new Error('钱包服务暂时不可用'))
+    api.wallet.mockRejectedValueOnce(failure)
     await router.invalidate({ filter: (match) => match.routeId === '/me/' })
     await vi.advanceTimersByTimeAsync(0)
-    expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ initialData: { accountId: 'a', wallet: { balance: 100 } }, error: '钱包服务暂时不可用' })
+    expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ initialData: { accountId: 'a', wallet: { balance: 100 } }, error: message })
 
     await router.navigate({ to: '/' })
     await router.navigate({ to: '/me' })
     expect(api.wallet).toHaveBeenCalledTimes(2)
-    expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ initialData: { accountId: 'a', wallet: { balance: 100 } }, error: '钱包服务暂时不可用' })
+    expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ initialData: { accountId: 'a', wallet: { balance: 100 } }, error: message })
 
     await router.navigate({ to: '/' })
     state.session = session('a', 'new-token-a')

@@ -22,12 +22,14 @@ vi.mock('../routeTree.gen', async () => {
   const tasks = createRoute({
     getParentRoute: () => taskParent, path: '/',
     loader: taskOptions.loader,
+    beforeLoad: taskOptions.beforeLoad,
     staleTime: taskOptions.staleTime,
     preloadStaleTime: taskOptions.preloadStaleTime,
   })
   const events = createRoute({
     getParentRoute: () => root, path: '/events',
     loader: eventOptions.loader,
+    beforeLoad: eventOptions.beforeLoad,
     staleTime: eventOptions.staleTime,
     preloadStaleTime: eventOptions.preloadStaleTime,
   })
@@ -112,5 +114,36 @@ describe('public list route cache', () => {
     await vi.advanceTimersByTimeAsync(0)
     expect(api.events).toHaveBeenCalledTimes(2)
     expect(api.tasks).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['/tasks', '/events'] as const)('keeps cached %s after a failed refresh and reopening, then clears the error on success', async (to) => {
+    const request = to === '/tasks' ? api.tasks : api.events
+    const routeId = to === '/tasks' ? '/tasks/' : '/events'
+    const router = await readyRouter()
+    await router.navigate({ to })
+    const previous = router.state.matches.at(-1)?.loaderData
+    request.mockRejectedValueOnce(new Error('Network request failed'))
+    await router.invalidate({ filter: (match) => match.routeId === routeId })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(router.state.matches.at(-1)).toMatchObject({ status: 'success', loaderData: { ...previous, refreshError: '暂时无法更新，已保留上次显示的内容。' } })
+
+    await router.navigate({ to: '/' })
+    await router.navigate({ to })
+    expect(request).toHaveBeenCalledTimes(2)
+    expect(router.state.matches.at(-1)).toMatchObject({ status: 'success', loaderData: { ...previous, refreshError: '暂时无法更新，已保留上次显示的内容。' } })
+
+    request.mockResolvedValueOnce({ data: [{ id: 'new-content' }], meta: { next_cursor: null } })
+    await router.invalidate({ filter: (match) => match.routeId === routeId })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(router.state.matches.at(-1)).toMatchObject({ status: 'success', loaderData: { page: { data: [{ id: 'new-content' }] }, refreshError: '' } })
+  })
+
+  it.each(['/tasks', '/events'] as const)('keeps the ordinary route error for a first %s visit with no cached data', async (to) => {
+    const request = to === '/tasks' ? api.tasks : api.events
+    const router = await readyRouter()
+    const failure = new Error('服务暂时不可用')
+    request.mockRejectedValueOnce(failure)
+    await router.navigate({ to })
+    expect(router.state.matches.at(-1)).toMatchObject({ status: 'error', error: failure })
   })
 })

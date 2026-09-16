@@ -34,7 +34,7 @@ export const Route = createFileRoute('/me/')({
       if (!isCurrentSession()) return empty
       const previous = context.previousData
       const initialData = previous?.accountId === deps.accountId && previous.sessionToken === deps.token ? previous : null
-      return { initialData, error: error instanceof Error ? error.message : '个人资料暂时无法加载，请稍后重试。' }
+      return { initialData, error: error instanceof TypeError ? '网络连接失败，请检查网络后重试。' : error instanceof Error ? error.message : '个人资料暂时无法加载，请稍后重试。' }
     }
   } },
   component: () => { const { initialData, error } = Route.useLoaderData(); return <ProfilePage initialData={initialData} initialError={error} /> },

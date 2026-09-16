@@ -28,7 +28,7 @@ export function EventCard({ event, onOpen, onOpenCommunity }: { event: RiceEvent
     </button></article>{open && <DetailDialog title="活动详情" onClose={() => setOpen(false)}><EventDetail eventId={event.id} loadEvent={(token) => token === session?.token ? loadEvent() : getEvent({ data: { id: event.id, token } })} /></DetailDialog>}{communityOpen && <DetailDialog title="社区详情" onClose={() => setCommunityOpen(false)}><NodeDetail nodeId={event.node.id} /></DetailDialog>}</>
 }
 
-export function EventsPage({ nodeId, embedded = false, mine = false, initialPage }: { nodeId?: string; embedded?: boolean; mine?: boolean; initialPage?: EventPage }) {
+export function EventsPage({ nodeId, embedded = false, mine = false, initialPage, refreshError = '' }: { nodeId?: string; embedded?: boolean; mine?: boolean; initialPage?: EventPage; refreshError?: string }) {
   const { session, isReady } = useStoredSession()
   const [tab, setTab] = useState<'applied' | 'created'>('applied')
   const [rows, setRows] = useState<RiceEvent[]>(initialPage?.data ?? [])
@@ -42,6 +42,7 @@ export function EventsPage({ nodeId, embedded = false, mine = false, initialPage
   const routePage = useRef(initialPage)
   const paginated = useRef(false)
   const usesRoutePage = Boolean(initialPage && !nodeId && !mine)
+  const visibleError = error || (usesRoutePage ? refreshError : '')
   usePanelReady(isReady && (!loading || rows.length > 0 || !!error))
   useEffect(() => { if (usesRoutePage) return; const refresh = () => setReload((v) => v + 1); window.addEventListener('rice-changed', refresh); return () => window.removeEventListener('rice-changed', refresh) }, [usesRoutePage])
   useEffect(() => {
@@ -69,9 +70,9 @@ export function EventsPage({ nodeId, embedded = false, mine = false, initialPage
   return <div className={`page events-page${embedded ? ' business-panel list-panel' : ''}`}><div className="business-heading"><h1>{mine ? '我的活动' : '活动'}</h1>{session && !mine && !embedded && <Link to="/me/events">我的活动</Link>}</div>
     {mine && <div className="filter-buttons">{(['applied', 'created'] as const).map((value) => <Button key={value} label={value === 'applied' ? '我申请的' : '我主办的'} variant="ghost" className={tab === value ? 'active' : undefined} aria-pressed={tab === value} onClick={() => setTab(value)} />)}</div>}
     {mine && !session && isReady && <Link to="/login" className="primary-link">登录后查看我的活动</Link>}
-    {error && <p className="inline-error" role="alert">{error}</p>}{loading && <p className={rows.length ? 'refresh-status' : 'loading-line'} role="status">正在加载活动…</p>}
+    {visibleError && <p className="inline-error" role="alert">{visibleError}</p>}{loading && <p className={rows.length ? 'refresh-status' : 'loading-line'} role="status">正在加载活动…</p>}
     <section className="task-list" aria-busy={loading}>{rows.map((event) => <EventCard event={event} key={event.id} onOpen={(load) => setSelectedEvent({ id: event.id, load })} onOpenCommunity={setSelectedCommunity} />)}</section>
-    {!loading && !error && !rows.length && <p className="search-hint">暂时没有活动。</p>}{cursor && <Button label="加载更多" variant="secondary" isDisabled={loading} clickAction={more} />}
+    {!loading && !visibleError && !rows.length && <p className="search-hint">暂时没有活动。</p>}{cursor && <Button label="加载更多" variant="secondary" isDisabled={loading} clickAction={more} />}
     {selectedEvent && <DetailDialog key={selectedEvent.id} title="活动详情" onClose={() => setSelectedEvent(null)}><EventDetail eventId={selectedEvent.id} loadEvent={selectedEvent.load} /></DetailDialog>}
     {selectedCommunity && <DetailDialog title="社区详情" onClose={() => setSelectedCommunity(null)}><NodeDetail nodeId={selectedCommunity} /></DetailDialog>}
   </div>
