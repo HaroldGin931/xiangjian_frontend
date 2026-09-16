@@ -172,9 +172,14 @@ export function normalizePostImages(post: PostView): PostView {
       const url = httpUrl(value)
       if (!url) return undefined
       try {
-        // The isolated AppView advertises its Docker/TLS hostname; serve that
-        // record's blob through our fixed PDS gateway instead.
-        return ['bsky.localhost', 'bsky'].includes(new URL(url).hostname) ? blobUrl : url
+        // Legacy cached AppView URLs may name a deployment's internal origin.
+        // Only explicitly configured origins use our AppView gateway: external
+        // authors' images must not be redirected to this deployment's PDS.
+        const parsed = new URL(url)
+        const origins = (process.env.XIANGJIAN_APPVIEW_IMAGE_ORIGINS ?? '').split(',').map((origin) => origin.trim()).filter(Boolean)
+        return origins.includes(parsed.origin) && parsed.pathname.startsWith('/img/')
+          ? `/bsky${parsed.pathname}${parsed.search}`
+          : url
       } catch { return undefined }
     }
     const fullsize = viewUrl(item.fullsize)
@@ -327,7 +332,7 @@ export const getPostPage = createServerFn({ method: 'POST' })
   .validator((data: GetPostsInput) => data)
   .handler(({ data }) => loadPostPage(data))
 
-type PostThreadInput = { uri: string; accessJwt: string; did: string }
+type PostThreadInput = { uri: string; accessJwt?: string; did?: string }
 export async function loadPostThread(data: PostThreadInput): Promise<PostThread> {
     const params = new URLSearchParams({
       uri: data.uri,
@@ -335,8 +340,8 @@ export async function loadPostThread(data: PostThreadInput): Promise<PostThread>
       parentHeight: '0',
     })
     const payload = await requestJson<unknown>(
-      `${BACKEND_BASE}/pds/xrpc/app.bsky.feed.getPostThread?${params}`,
-      { headers: { Authorization: `Bearer ${data.accessJwt}` } },
+      `${BACKEND_BASE}/${data.accessJwt ? 'pds' : 'bsky'}/xrpc/app.bsky.feed.getPostThread?${params}`,
+      data.accessJwt ? { headers: { Authorization: `Bearer ${data.accessJwt}` } } : undefined,
     )
     const thread = normalizePostThread(payload)
     const [post] = await hydrateViewerRecords(

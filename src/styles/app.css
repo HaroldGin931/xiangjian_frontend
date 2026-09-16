@@ -75,19 +75,20 @@ input:-webkit-autofill:focus {
 .topbar-actions { display: flex; align-items: center; gap: 7px; }
 .header-publish {
   min-height: 48px;
-  padding: 0 12px;
+  padding: 0 16px;
   border: 0;
   border-radius: 999px;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
+  gap: 6px;
   background: var(--xj-accent);
   color: #fff;
   font-size: var(--xj-font-body);
   font-weight: 650;
+  line-height: 1;
 }
-.header-publish svg { width: 14px; height: 14px; }
-.header-search { width: 48px; height: 48px; display: grid; place-items: center; color: var(--xj-text); }
+.header-search { width: 48px; height: 48px; padding: 0; border: 0; background: transparent; display: grid; place-items: center; color: var(--xj-text); }
 .header-search svg { width: 18px; height: 18px; }
 
 .page-frame { width: 100%; margin: 0 auto; padding: 14px 10px 80px; }
@@ -270,7 +271,7 @@ input:-webkit-autofill:focus {
 .grain-metrics .unavailable { opacity: .48; }
 .profile-menu { border: 1px solid var(--xj-line); border-radius: 14px; overflow: hidden; background: var(--xj-surface); }
 .profile-menu-row { width: 100%; min-height: 76px; padding: 13px 14px; border: 0; border-bottom: 1px solid var(--xj-line); display: flex; align-items: center; justify-content: space-between; gap: 12px; background: transparent; text-align: left; }
-.profile-menu-row:last-child { border-bottom: 0; }
+.profile-menu > .profile-menu-row:last-child { border-bottom: 0; }
 .profile-menu-row span { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .profile-menu-row strong { font-size: var(--xj-font-body); }
 .profile-menu-row small { color: var(--xj-muted); font-size: var(--xj-font-caption); }
@@ -575,6 +576,13 @@ button.content-card-author { padding: 0; border: 0; background: transparent; col
 .business-panel, .business-dialog .compose-page, .business-dialog .events-page, .business-dialog .task-page, .business-dialog .grain-history-page { padding: 26px; }
 .business-panel h1 { font-size: 30px; margin: 12px 0; }
 .business-panel h2 { font-size: 23px; margin-bottom: 14px; }
+.list-panel { display: flex; flex-direction: column; gap: 20px; }
+.list-panel > :not(dialog) { margin-block: 0; }
+.list-panel > :is(h1, .business-heading) { margin-top: 12px; }
+.list-panel > .business-heading h1 { margin: 0; }
+.list-panel > .filter-buttons { flex-wrap: wrap; }
+.list-panel > :is(.node-list, .task-list, .post-list) { gap: 16px; }
+.list-panel > :is(.node-list, .task-list):empty { display: none; }
 .business-description { white-space: pre-wrap; overflow-wrap: anywhere; }
 .business-section { border-top: 1px solid var(--xj-line); padding-top: 24px; margin-top: 24px; }
 .business-section summary, .task-event-history summary { cursor: pointer; min-height: 44px; font-weight: 650; }
@@ -607,7 +615,6 @@ button.content-card-author { padding: 0; border: 0; background: transparent; col
 .profile-public-action { display: inline-flex; margin-top: 14px; }
 .text-button { padding: 0; border: 0; background: none; color: inherit; text-align: left; }
 .task-event-history { margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--xj-line); }
-.my-task-tabs { flex-wrap: wrap; margin: 20px 0; }
 .compact-task-card { padding: 18px 20px; }
 .compact-task-card h2 { margin: 0; font-size: 20px; }
 .compact-task-card .task-card-actions { margin-top: 8px; }

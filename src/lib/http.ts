@@ -3,12 +3,16 @@ export const BACKEND_BASE =
 
 export type JsonObject = Record<string, unknown>
 
-const authErrors = new Set([
-  'AuthMissing',
-  'ExpiredToken',
-  'InvalidToken',
-  'JwtExpired',
-])
+const errorMessages: Record<string, string> = {
+  InvalidCredentials: '账号或密码错误',
+  AccountDisabled: '该账号已被禁用',
+  LoginUnavailable: '登录服务暂时不可用，请稍后重试。',
+  InvalidLoginRequest: '请输入账号和密码。',
+  AuthMissing: '请先登录。',
+  ExpiredToken: '登录状态已过期，请重新登录。',
+  InvalidToken: '登录状态已失效，请重新登录。',
+  JwtExpired: '登录状态已过期，请重新登录。',
+}
 
 export async function readJson(response: Response) {
   const body = (await response.json().catch(() => ({}))) as JsonObject
@@ -16,9 +20,7 @@ export async function readJson(response: Response) {
 
   const errors = body.errors as JsonObject | undefined
   const code = typeof body.error === 'string' ? body.error : ''
-  if (response.status === 401 || authErrors.has(code)) {
-    throw new Error('登录状态已过期，请重新登录。')
-  }
+  if (Object.hasOwn(errorMessages, code)) throw new Error(errorMessages[code])
 
   const detail =
     (typeof errors?.detail === 'string' && errors.detail) ||
@@ -28,7 +30,7 @@ export async function readJson(response: Response) {
     : undefined
   throw new Error(
     detail || (Array.isArray(fieldError) ? String(fieldError[0]) : '') ||
-      '服务暂时不可用，请稍后重试。',
+      (response.status === 401 ? '请先登录后再试。' : '服务暂时不可用，请稍后重试。'),
   )
 }
 
@@ -40,7 +42,7 @@ export async function requestJson<T>(
   try {
     response = await fetch(input, init)
   } catch {
-    throw new Error('服务暂时不可用，请确认本地服务已经启动。')
+    throw new Error('网络连接失败，请检查网络后重试。')
   }
   return (await readJson(response)) as T
 }

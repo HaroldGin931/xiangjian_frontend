@@ -31,7 +31,7 @@ import {
   withPostCategory,
 } from './tags'
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
 const post = {
   uri: 'at://did:example/app.bsky.feed.post/1',
@@ -105,17 +105,42 @@ describe('post images', () => {
     expect(normalizePostImages({ ...post, embed: { $type: 'app.bsky.embed.images#view', images: [{ thumb: 'javascript:alert(1)', fullsize: 'data:text/html,test', alt: '' }] } }).images).toBeUndefined()
   })
 
-  it('preserves trusted AppView image URLs and uses raw blobs for isolated AppView hostnames', () => {
+  it('preserves external image URLs and maps only configured AppView origins to the same-origin gateway', () => {
+    vi.stubEnv('XIANGJIAN_APPVIEW_IMAGE_ORIGINS', 'https://internal-appview.example, https://previous-appview.example')
     const viewed = { ...post, record: { ...post.record, embed: { $type: 'app.bsky.embed.images', images: [image] } }, embed: { $type: 'app.bsky.embed.images#view', images: [{ thumb: 'https://cdn.bsky.app/thumb.jpg', fullsize: 'https://cdn.bsky.app/full.jpg', alt: image.alt }] } }
     expect(normalizePostImages(viewed).images).toEqual([{ src: 'https://cdn.bsky.app/thumb.jpg', fullsize: 'https://cdn.bsky.app/full.jpg', alt: image.alt }])
-    viewed.embed.images[0].thumb = 'https://bsky.localhost/img/thumb.jpg'
-    viewed.embed.images[0].fullsize = 'https://bsky.localhost/img/full.jpg'
-    const src = pdsBlobUrl(post.author.did, image.image.ref.$link)
-    expect(normalizePostImages(viewed).images).toEqual([{ src, fullsize: src, alt: image.alt }])
+    viewed.embed.images[0].thumb = 'https://internal-appview.example/img/thumb.jpg?format=jpeg'
+    viewed.embed.images[0].fullsize = 'https://previous-appview.example/img/full.jpg'
+    expect(normalizePostImages(viewed).images).toEqual([{ src: '/bsky/img/thumb.jpg?format=jpeg', fullsize: '/bsky/img/full.jpg', alt: image.alt }])
+    // A new deployment's public URLs need no legacy mapping.
+    viewed.embed.images[0].thumb = 'https://community.example/bsky/img/thumb.jpg'
+    viewed.embed.images[0].fullsize = 'https://community.example/bsky/img/full.jpg'
+    expect(normalizePostImages(viewed).images).toEqual([{ src: viewed.embed.images[0].thumb, fullsize: viewed.embed.images[0].fullsize, alt: image.alt }])
+  })
+
+  it('does not rewrite lookalike hosts, arbitrary paths, or any origin without deployment configuration', () => {
+    const viewed = { ...post, embed: { $type: 'app.bsky.embed.images#view', images: [{ thumb: 'https://internal-appview.example/img/thumb.jpg', fullsize: 'https://internal-appview.example/img/full.jpg', alt: '' }] } }
+    vi.stubEnv('XIANGJIAN_APPVIEW_IMAGE_ORIGINS', '')
+    expect(normalizePostImages(viewed).images?.[0].src).toBe(viewed.embed.images[0].thumb)
+    vi.stubEnv('XIANGJIAN_APPVIEW_IMAGE_ORIGINS', 'https://internal-appview.example')
+    viewed.embed.images[0].thumb = 'https://internal-appview.example.attacker.test/img/thumb.jpg'
+    viewed.embed.images[0].fullsize = 'https://internal-appview.example/private/file.jpg'
+    expect(normalizePostImages(viewed).images).toEqual([{ src: viewed.embed.images[0].thumb, fullsize: viewed.embed.images[0].fullsize, alt: '' }])
   })
 })
 
 describe('feed data', () => {
+  it('loads a public thread for guests without bearer headers or private viewer record reads', async () => {
+    const fetchMock = vi.fn(async (input: string | URL, _init?: RequestInit) => String(input).includes('getPostThread')
+      ? new Response(JSON.stringify({ thread: { post, replies: [] } }))
+      : new Response(JSON.stringify({ error: 'not_found' }), { status: 404 }))
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(loadPostThread({ uri: post.uri })).resolves.toEqual({ post, replies: [] })
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/bsky/xrpc/app.bsky.feed.getPostThread?')
+    expect(fetchMock.mock.calls[0][1]).toBeUndefined()
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('listRecords'))).toBe(false)
+  })
+
   it.each([undefined, '真实帖子'])('uses local author names in list/search and preserves external authors (query=%s)', async (query) => {
     const external = { ...post, uri: `${post.uri}-external`, author: { did: 'did:external', handle: 'outside.test', displayName: '外部作者' } }
     const fetchMock = vi.fn(async (input: string | URL) => {

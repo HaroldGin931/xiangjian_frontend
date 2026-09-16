@@ -1,5 +1,5 @@
 import { Button } from '@astryxdesign/core/Button'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { useNavigate } from '@tanstack/react-router'
 import { ArrowRight, LogOut, Pencil, UserRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { DetailDialog } from '~/components/DetailDialog'
@@ -34,7 +34,7 @@ export function ProfilePage() {
     return () => { active = false }
   }, [session?.token, version])
   const logout = async () => { if (session) await logoutRice({ data: session.token }).catch(() => undefined); saveSession(null); await navigate({ to: '/' }) }
-  if (isReady && !session) return <div className="page profile-page signed-out-state"><UserRound size={34} /><strong>还没有登录</strong><p>登录后查看社区身份、稻米和个人内容。</p><Link to="/login" className="primary-link">前往登录</Link></div>
+  if (!isReady || !session) return null
   const profile = user ?? session?.user
   return <div className="page profile-page">
     <section className="profile-identity"><button type="button" className="profile-identity-edit" aria-label="编辑资料" onClick={() => setPanel('edit')}><Pencil size={20} /></button>
@@ -47,7 +47,7 @@ export function ProfilePage() {
       <button type="button" className="profile-menu-row" onClick={() => setPanel('alliance')}><span><strong>联盟与治理</strong><small>浏览联盟中的社区节点</small></span><ArrowRight size={18} /></button>
     </nav><div className="logout-button"><Button label="退出登录" icon={<LogOut size={16} />} variant="ghost" clickAction={logout} /></div>
     {panel && <DetailDialog title={titles[panel]} onClose={() => { setPanel(null); setVersion((v) => v + 1) }}>
-      {panel === 'identity' ? <NodesPanel identity /> : panel === 'nodes' ? <NodesPanel /> : panel === 'tasks' ? <MyTasksPage embedded /> : panel === 'events' ? <EventsPage mine embedded /> : panel === 'posts' ? <MyPostsPage embedded /> : panel === 'wallet' ? <GrainHistoryPage embedded /> : panel === 'profile' ? <UserProfilePage actor={profile?.did ?? session?.pds.did ?? ''} onEdit={() => setPanel('edit')} /> : panel === 'edit' ? <ProfileEditPage onSaved={() => { setPanel(null); setVersion((v) => v + 1) }} /> : <div className="page business-panel"><h1>联盟与治理</h1><button type="button" className="profile-menu-row node-card" onClick={() => setPanel('nodes')}><span><strong>节点目录</strong><small>查看联盟中的社区</small></span><ArrowRight size={18} /></button></div>}
+      {panel === 'identity' ? <NodesPanel identity /> : panel === 'nodes' ? <NodesPanel /> : panel === 'tasks' ? <MyTasksPage embedded /> : panel === 'events' ? <EventsPage mine embedded /> : panel === 'posts' ? <MyPostsPage embedded /> : panel === 'wallet' ? <GrainHistoryPage embedded /> : panel === 'profile' ? <UserProfilePage actor={profile?.did ?? session?.pds.did ?? ''} onEdit={() => setPanel('edit')} /> : panel === 'edit' ? <ProfileEditPage onSaved={() => { setPanel(null); setVersion((v) => v + 1) }} /> : <div className="page business-panel list-panel"><h1>联盟与治理</h1><button type="button" className="profile-menu-row node-card" onClick={() => setPanel('nodes')}><span><strong>节点目录</strong><small>查看联盟中的社区</small></span><ArrowRight size={18} /></button></div>}
     </DetailDialog>}
   </div>
 }

@@ -1,5 +1,4 @@
 import { Button } from '@astryxdesign/core/Button'
-import { Link } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { DetailDialog } from '~/components/DetailDialog'
 import { getNodes, type CommunityNode } from '../nodes/api'
@@ -39,7 +38,7 @@ export function TasksPage({ nodeId, embedded = false }: { nodeId?: string; embed
   }, [isReady, session?.token, filter, nodeId, version])
   const more = async () => { if (!nextCursor || loading) return; const current = request.current; setLoading(true); try { const page = await getTaskPage({ data: { ...input, before: nextCursor } }); if (current === request.current) { setTasks((r) => [...r, ...page.data]); setNextCursor(page.meta.next_cursor) } } catch (e) { if (current === request.current) setError(e instanceof Error ? e.message : '加载失败') } finally { if (current === request.current) setLoading(false) } }
   return <div className="page task-page">
-    {!embedded && <section className="task-hero"><span>TASKS · COMMUNITY COLLABORATION</span><h1>一起把事情<br />真正做完</h1><p>申请、交付、验收与稻米结算，任务进展都在这里。</p>{session ? <button type="button" className="hero-action" onClick={() => setMyTasks(true)}>我的任务</button> : <Link to="/login">登录后参与</Link>}</section>}
+    {!embedded && <section className="task-hero"><span>TASKS · COMMUNITY COLLABORATION</span><h1>一起把事情<br />真正做完</h1><p>申请、交付、验收与稻米结算，任务进展都在这里。</p>{session ? <button type="button" className="hero-action" onClick={() => setMyTasks(true)}>我的任务</button> : null}</section>}
     <div className="business-heading"><h2>{embedded ? '社区任务' : '全部任务'}</h2>{!nodeId && <select aria-label="任务筛选" value={filter} onChange={(e) => setFilter(e.target.value)}><option value="all">全部</option><option value="available">可申请</option>{nodes.map((n) => <option value={n.id} key={n.id}>{n.name}</option>)}</select>}</div>
     {error && <p className="inline-error" role="alert">{error}</p>}{loading && !tasks.length && <p className="loading-line">正在加载任务…</p>}<section className="task-list">{tasks.map((task) => <TaskCard task={task} key={task.id} onOpen={() => setSelectedTask(task.id)} onOpenCommunity={setSelectedCommunity} />)}</section>
     {!loading && !error && !tasks.length && <p className="search-hint">暂时没有任务。</p>}{nextCursor && <Button label="加载更多" variant="secondary" isDisabled={loading} clickAction={more} />}

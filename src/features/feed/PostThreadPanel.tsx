@@ -64,20 +64,23 @@ export function PostThreadPanel({
   )
 
   useEffect(() => {
-    if (!uri || !session) return
+    if (!uri || !isReady) return
+    let active = true
     setError('')
+    setThread(null)
     getPostThread({
       data: {
         uri,
-        accessJwt: session.pds.access_jwt,
-        did: session.pds.did,
+        accessJwt: session?.pds.access_jwt,
+        did: session?.pds.did,
       },
     })
-      .then(setThread)
+      .then((next) => { if (active) setThread(next) })
       .catch((reason) => {
-        setError(reason instanceof Error ? reason.message : '帖子暂时无法显示')
+        if (active) setError(reason instanceof Error ? reason.message : '帖子暂时无法显示')
       })
-  }, [session, uri])
+    return () => { active = false }
+  }, [isReady, session, uri])
 
   useEffect(() => {
     if (!focusReply || !thread) return
@@ -150,24 +153,6 @@ export function PostThreadPanel({
     await submitComment(ACTIVITY_PARTICIPATION_TEXT, '已参与活动。', '参与失败')
   }
 
-  if (isReady && !session) {
-    return (
-      <div className="account-empty">
-        <EmptyState
-          title="登录后查看帖子详情"
-          description="登录后可以查看评论并参与互动。"
-          actions={
-            <Button
-              label="前往登录"
-              variant="primary"
-              clickAction={() => { void navigate({ to: '/login' }) }}
-            />
-          }
-        />
-      </div>
-    )
-  }
-
   return (
     <div className="post-thread-panel">
       {error ? <div className="form-error">{error}</div> : null}
@@ -205,7 +190,7 @@ export function PostThreadPanel({
 
           {category === 'post' ? (
             <section className="reply-section" aria-label="评论">
-              <div className="reply-composer" id={replyComposerId}>
+              {session && <div className="reply-composer" id={replyComposerId}>
                 <TextArea
                   label="写下评论"
                   value={replyText}
@@ -226,7 +211,7 @@ export function PostThreadPanel({
                     isDisabled={!replyText.trim() || replyText.length > 300}
                   />
                 </div>
-              </div>
+              </div>}
 
               <h2>评论 <span>{thread.replies.length}</span></h2>
               {thread.replies.length === 0 ? (
@@ -265,7 +250,7 @@ export function PostThreadPanel({
                   <strong>{formatPostFieldValue(field.key, fields[field.key])}</strong>
                 </div>
               ))}
-              {category === 'activity' ? (
+              {session && category === 'activity' ? (
                 <div className="activity-participation">
                   <span>{participants.length} 人已参与</span>
                   <Button

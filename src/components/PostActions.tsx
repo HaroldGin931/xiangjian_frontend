@@ -149,6 +149,8 @@ export function PostActions({
     }
   }
 
+  if (!session) return null
+
   return (
     <>
       <div className="content-card-actions post-actions" aria-label="帖子互动">

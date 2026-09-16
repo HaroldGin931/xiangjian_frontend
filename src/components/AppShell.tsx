@@ -1,5 +1,5 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import { Bell, Plus, Search } from 'lucide-react'
+import { Bell, Search } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 
 import {
@@ -7,6 +7,7 @@ import {
   getTaskNotifications,
   NOTIFICATIONS_READ_EVENT,
 } from '~/features/notifications/api'
+import { NotificationsPage } from '~/features/notifications/NotificationsPage'
 import { DetailDialog } from './DetailDialog'
 import { ComposePanel, type ComposeKind } from '~/features/feed/ComposePanel'
 import { useStoredSession } from '~/features/session/session'
@@ -14,8 +15,10 @@ import { useStoredSession } from '~/features/session/session'
 export function AppShell({ children }: { children: ReactNode }) {
   const { session } = useStoredSession()
   const [compose, setCompose] = useState<ComposeKind | null>(null)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false)
   const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const href = useRouterState({ select: (state) => state.location.href })
   const isStandalone =
     ['/login', '/register', '/forgot-password', '/post', '/search', '/compose'].includes(pathname) ||
     pathname.startsWith('/tasks/') ||
@@ -29,6 +32,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         : pathname.startsWith('/me')
           ? '我的'
           : null
+
+  useEffect(() => {
+    setNotificationsOpen(false)
+    setCompose(null)
+  }, [href, session?.user.id])
 
   useEffect(() => {
     if (!session) {
@@ -77,9 +85,10 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           )}
           <div className="topbar-actions">
-            {['/', '/tasks', '/events'].includes(pathname) && <button type="button" className="header-publish" onClick={() => setCompose(pathname === '/tasks' ? 'task' : pathname === '/events' ? 'activity' : 'post')}><Plus size={18} aria-hidden="true" /> 发布</button>}
+            {session && ['/', '/tasks', '/events'].includes(pathname) && <button type="button" className="header-publish" onClick={() => setCompose(pathname === '/tasks' ? 'task' : pathname === '/events' ? 'activity' : 'post')}>发布</button>}
+            {!session && <Link to="/login" className="header-publish">登录</Link>}
             <Link to="/search" className="header-search" aria-label="搜索帖子、任务、活动、社区、用户"><Search size={22} aria-hidden="true" /></Link>
-            <Link to="/notifications" className="header-search notification-trigger" aria-label={hasUnreadNotifications ? '通知，有新消息' : '通知'}><Bell size={22} aria-hidden="true" />{hasUnreadNotifications && <i className="notification-dot" aria-hidden="true" />}</Link>
+            {session && <button type="button" className="header-search notification-trigger" aria-label={hasUnreadNotifications ? '通知，有新消息' : '通知'} aria-haspopup="dialog" onClick={() => setNotificationsOpen(true)}><Bell size={22} aria-hidden="true" />{hasUnreadNotifications && <i className="notification-dot" aria-hidden="true" />}</button>}
           </div>
         </div>
       </header> : null}
@@ -106,7 +115,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           我的
         </Link>
       </nav> : null}
-      {compose && <DetailDialog title="发布" onClose={() => setCompose(null)}><ComposePanel key={session?.user.id ?? 'guest'} initialKind={compose} onPublished={() => setCompose(null)} /></DetailDialog>}
+      {session && compose && <DetailDialog title="发布" onClose={() => setCompose(null)}><ComposePanel key={session?.user.id ?? 'guest'} initialKind={compose} onPublished={() => setCompose(null)} /></DetailDialog>}
+      {session && notificationsOpen && <DetailDialog title="通知" onClose={() => setNotificationsOpen(false)}><NotificationsPage key={session?.user.id ?? 'guest'} embedded /></DetailDialog>}
     </div>
   )
 }

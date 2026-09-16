@@ -8,9 +8,19 @@ import '~/styles/images.css'
 
 export type PreviewImage = { src: string; alt: string }
 
+function ContentImage({ src, alt, loading, canRetry = false }: PreviewImage & { loading?: 'lazy'; canRetry?: boolean }) {
+  const [failed, setFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
+  if (failed) return <span className="content-image-failure" role="status">
+    <span>图片暂时无法加载</span>
+    {canRetry && <Button label="重试" variant="secondary" onClick={() => { setFailed(false); setAttempt(attempt + 1) }} />}
+  </span>
+  return <img key={attempt} src={src} alt={alt} loading={loading} onError={() => setFailed(true)} />
+}
+
 export function ImageCover({ images }: { images: PreviewImage[] }) {
   if (!images.length) return null
-  return <span className="content-image-cover"><img src={images[0].src} alt={images[0].alt} loading="lazy" /><span className="content-image-count">{images.length} 张图片</span></span>
+  return <span className="content-image-cover"><ContentImage key={images[0].src} {...images[0]} loading="lazy" /><span className="content-image-count">{images.length} 张图片</span></span>
 }
 
 export function ImageGroup({ images }: { images: PreviewImage[] }) {
@@ -19,7 +29,7 @@ export function ImageGroup({ images }: { images: PreviewImage[] }) {
   if (!images.length) return null
   return <>
     <div className="content-image-group" aria-label="图片">
-      {images.map((image, index) => <button type="button" className="content-image-thumbnail" key={`${image.src}:${index}`} aria-label={`查看第 ${index + 1} 张图片${image.alt ? `：${image.alt}` : ''}`} onClick={(event) => { opener.current = event.currentTarget; setSelected(index) }}><img src={image.src} alt={image.alt} loading="lazy" /></button>)}
+      {images.map((image, index) => <button type="button" className="content-image-thumbnail" key={`${image.src}:${index}`} aria-label={`查看第 ${index + 1} 张图片${image.alt ? `：${image.alt}` : ''}`} onClick={(event) => { opener.current = event.currentTarget; setSelected(index) }}><ContentImage {...image} loading="lazy" /></button>)}
     </div>
     {selected !== null && <ImageViewer images={images} initialIndex={selected} opener={opener.current} onClose={() => setSelected(null)} />}
   </>
@@ -47,7 +57,7 @@ function ImageViewer({ images, initialIndex, opener, onClose }: { images: Previe
     }}>
     <div className="post-dialog-shell">
       <header className="post-dialog-header"><strong id={titleId}>查看图片</strong><IconButton label="关闭图片" icon={<X size={20} />} variant="ghost" onClick={onClose} /></header>
-      <div className="content-image-stage"><img src={image.src} alt={image.alt || `第 ${currentIndex + 1} 张图片`} /></div>
+      <div className="content-image-stage"><ContentImage key={image.src} src={image.src} alt={image.alt || `第 ${currentIndex + 1} 张图片`} canRetry /></div>
       <footer className="content-image-controls"><Button label="上一张" variant="secondary" isDisabled={currentIndex === 0} onClick={() => move(-1)} /><span role="status" aria-live="polite">{currentIndex + 1} / {images.length}</span><Button label="下一张" variant="secondary" isDisabled={currentIndex === images.length - 1} onClick={() => move(1)} /></footer>
     </div>
   </dialog>, document.body)

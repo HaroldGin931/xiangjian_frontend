@@ -8,6 +8,7 @@ export default defineConfig({
     proxy: {
       '/api/attachments': process.env.XIANGJIAN_BACKEND_URL ?? 'http://localhost:19006',
       '/pds/xrpc/com.atproto.sync.getBlob': process.env.XIANGJIAN_BACKEND_URL ?? 'http://localhost:19006',
+      '/bsky/img/': process.env.XIANGJIAN_BACKEND_URL ?? 'http://localhost:19006',
     },
   },
   build: {

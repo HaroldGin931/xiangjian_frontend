@@ -1,11 +1,13 @@
 import { Button } from '@astryxdesign/core/Button'
 import { TextArea } from '@astryxdesign/core/TextArea'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { ImagePicker } from '~/components/ContentImages'
 import { readFileBase64 } from '~/lib/images'
 import type { PdsImage } from '~/lib/models'
 import { MAX_POST_IMAGE_BYTES, MAX_POST_IMAGES, newPostRecordKey } from '~/lib/pds'
+import { LoginPage } from '../session/LoginPage'
+import { getNodes } from '../nodes/api'
 import { EventCreateForm } from '../events/EventCreateForm'
 import { TaskCreatePage } from '../tasks/TaskCreatePage'
 import { useStoredSession } from '../session/session'
@@ -19,6 +21,27 @@ export function ComposePanel({ initialKind = 'post', onPublished }: { initialKin
   const mounted = useRef(false)
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   const [kind, setKind] = useState(initialKind)
+  const [canPublishCommunity, setCanPublishCommunity] = useState<boolean | null>(null)
+  useEffect(() => {
+    if (!session) return
+    let active = true
+    setCanPublishCommunity(null)
+    // Managed nodes use the same owner check as task and activity creation.
+    void getNodes({ data: { token: session.token, mine: 'managed' } })
+      .then((nodes) => {
+        if (!active) return
+        const allowed = nodes.length > 0
+        setCanPublishCommunity(allowed)
+        if (!allowed) setKind('post')
+      })
+      .catch((reason) => {
+        if (!active) return
+        setCanPublishCommunity(false)
+        setKind('post')
+        setError(reason instanceof Error ? reason.message : '暂时无法加载发布选项')
+      })
+    return () => { active = false }
+  }, [session?.token])
   const [text, setText] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -53,9 +76,13 @@ export function ComposePanel({ initialKind = 'post', onPublished }: { initialKin
       if (onPublished) onPublished(); else await navigate({ to: '/' })
     } catch (e) { if (mounted.current) setError(e instanceof Error ? e.message : '发布失败') } finally { if (mounted.current) setBusy(false) }
   }
-  return <div className="page compose-page"><div className="compose-type-tabs filter-buttons" role="group" aria-label="发布类型">{composeKinds.map((item) => <Button label={item.label} variant="ghost" className={kind === item.value ? 'active' : undefined} aria-pressed={kind === item.value} onClick={() => setKind(item.value)} key={item.value} />)}</div>
-    <div hidden={kind !== 'post'}><h2>发布帖子</h2><TextArea label="想分享什么" value={text} onChange={setText} rows={7} placeholder="分享社区里的见闻、想法或近况… 输入 #话题" width="100%" /><p className="compose-character-count">{text.trim().length}/300</p><ImagePicker images={previews} onSelect={(selected) => setFiles((current) => [...current, ...selected])} onRemove={(index) => setFiles((current) => current.filter((_, i) => i !== index))} disabled={busy} maxImages={MAX_POST_IMAGES} maxBytes={MAX_POST_IMAGE_BYTES} />{error && <p className="form-error" role="alert">{error}</p>}{isReady && !session ? <Link to="/login" className="primary-link">登录后发布</Link> : <Button label="发布帖子" variant="primary" width="100%" isLoading={busy} isDisabled={!session || (!text.trim() && !files.length) || text.trim().length > 300 || busy} clickAction={submit} />}</div>
-    <div hidden={kind !== 'activity'}><h2>发布活动</h2><EventCreateForm onPublished={onPublished} /></div>
-    <div hidden={kind !== 'task'}><h2>发布任务</h2><TaskCreatePage embedded onPublished={onPublished} /></div>
+  if (!isReady) return <p className="loading-line">正在加载…</p>
+  if (!session) return <LoginPage />
+  if (canPublishCommunity === null) return <p className="loading-line">正在加载发布选项…</p>
+  const availableKinds = composeKinds.filter((item) => item.value === 'post' || canPublishCommunity)
+  return <div className="page compose-page"><div className="compose-type-tabs filter-buttons" role="group" aria-label="发布类型">{availableKinds.map((item) => <Button label={item.label} variant="ghost" className={kind === item.value ? 'active' : undefined} aria-pressed={kind === item.value} onClick={() => setKind(item.value)} key={item.value} />)}</div>
+    <div hidden={kind !== 'post'}><h2>发布帖子</h2><TextArea label="想分享什么" value={text} onChange={setText} rows={7} placeholder="分享社区里的见闻、想法或近况… 输入 #话题" width="100%" /><p className="compose-character-count">{text.trim().length}/300</p><ImagePicker images={previews} onSelect={(selected) => setFiles((current) => [...current, ...selected])} onRemove={(index) => setFiles((current) => current.filter((_, i) => i !== index))} disabled={busy} maxImages={MAX_POST_IMAGES} maxBytes={MAX_POST_IMAGE_BYTES} />{error && <p className="form-error" role="alert">{error}</p>}<Button label="发布帖子" variant="primary" width="100%" isLoading={busy} isDisabled={!session || (!text.trim() && !files.length) || text.trim().length > 300 || busy} clickAction={submit} /></div>
+    {canPublishCommunity && <div hidden={kind !== 'activity'}><h2>发布活动</h2><EventCreateForm onPublished={onPublished} /></div>}
+    {canPublishCommunity && <div hidden={kind !== 'task'}><h2>发布任务</h2><TaskCreatePage embedded onPublished={onPublished} /></div>}
   </div>
 }

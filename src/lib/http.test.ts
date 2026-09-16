@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { requestJson } from './http'
+import { readJson, requestJson } from './http'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -9,7 +9,39 @@ describe('HTTP error mapping', () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('fetch failed')))
 
     await expect(requestJson('http://backend.test')).rejects.toThrow(
-      '服务暂时不可用，请确认本地服务已经启动。',
+      '网络连接失败，请检查网络后重试。',
     )
+  })
+
+  it('maps a rejected login to the backend credential error rather than session expiry', async () => {
+    const response = Response.json({ error: 'InvalidCredentials' }, { status: 401 })
+
+    await expect(readJson(response)).rejects.toThrow('账号或密码错误')
+  })
+
+  it('preserves the login error detail from servers without machine codes', async () => {
+    const response = Response.json({ errors: { detail: '账号或密码错误' } }, { status: 401 })
+
+    await expect(readJson(response)).rejects.toThrow('账号或密码错误')
+  })
+
+  it.each(['ExpiredToken', 'JwtExpired'])('recognizes actual expired session code %s', async (error) => {
+    await expect(readJson(Response.json({ error }, { status: 401 }))).rejects.toThrow(
+      '登录状态已过期，请重新登录。',
+    )
+  })
+
+  it('does not claim an unidentified 401 means an expired session', async () => {
+    await expect(readJson(Response.json({}, { status: 401 }))).rejects.toThrow('请先登录后再试。')
+  })
+
+  it('distinguishes unavailable login service from incorrect credentials', async () => {
+    await expect(readJson(Response.json({ error: 'LoginUnavailable' }, { status: 503 })))
+      .rejects.toThrow('登录服务暂时不可用，请稍后重试。')
+  })
+
+  it('retains backend validation messages', async () => {
+    await expect(readJson(Response.json({ errors: { title: ['请填写标题'] } }, { status: 422 })))
+      .rejects.toThrow('请填写标题')
   })
 })

@@ -108,10 +108,10 @@ export function UserProfilePage({ actor, onEdit, embedded = false }: { actor: st
               <span className="follows-you">也关注了你</span>
             ) : null}
 
-            {!ownProfile && profile.socialAvailable !== false ? (
+            {session && !ownProfile && profile.socialAvailable !== false ? (
               <div className="social-profile-actions">
                 <Button
-                  label={session ? (profile.viewer?.following ? '已关注' : '关注') : '登录后关注'}
+                  label={profile.viewer?.following ? '已关注' : '关注'}
                   variant={profile.viewer?.following ? 'secondary' : 'primary'}
                   clickAction={changeFollow}
                   isLoading={isFollowing}

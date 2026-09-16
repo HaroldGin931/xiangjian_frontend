@@ -42,7 +42,8 @@ export function MyPostsPage({ embedded = false }: { embedded?: boolean }) {
   }
 
   return (
-    <div className={`page my-posts-page${embedded ? ' business-panel' : ''}`}>
+    <div className={`page my-posts-page${embedded ? ' business-panel list-panel' : ''}`}>
+      {embedded && <h1>我的帖子</h1>}
       {!embedded && <Link to="/me" className="back-link">
         <ArrowLeft size={18} aria-hidden="true" /> 返回个人中心
       </Link>}

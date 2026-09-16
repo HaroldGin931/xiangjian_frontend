@@ -145,10 +145,6 @@ export function TaskDetailPage({ taskId, embedded = false }: { taskId: string; e
           </section>
         ) : null}
 
-        {!session && task.status === 'open' ? (
-          <Link to="/login" className="primary-link">登录后申请承接</Link>
-        ) : null}
-
         {actions.has('apply') && token ? (
           <section className="task-action-section">
             {!applyOpen ? (

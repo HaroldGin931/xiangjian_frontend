@@ -1,6 +1,6 @@
 import { Button } from '@astryxdesign/core/Button'
 import { Link } from '@tanstack/react-router'
-import { Bell } from 'lucide-react'
+import { ArrowLeft, Bell } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { DetailDialog } from '~/components/DetailDialog'
@@ -42,7 +42,7 @@ function notificationTitle(notification: NotificationView) {
   return `${authorDisplayName(notification.author)} ${reasonCopy[notification.reason]?.action || '与你有新的互动'}`
 }
 
-export function NotificationsPage() {
+export function NotificationsPage({ embedded = false }: { embedded?: boolean }) {
   const { session, isReady } = useStoredSession()
   const [selected, setSelected] = useState<NotificationView | null>(null)
   const [marking, setMarking] = useState(false)
@@ -95,7 +95,8 @@ export function NotificationsPage() {
 
   if (isReady && !session) {
     return (
-      <div className="page signed-out-state">
+      <div className={`page signed-out-state${embedded ? ' business-panel list-panel' : ''}`}>
+        {!embedded && <Link to="/" className="back-link"><ArrowLeft size={18} aria-hidden="true" /> 返回广场</Link>}
         <Bell size={34} aria-hidden="true" />
         <strong>登录后查看通知</strong>
         <p>新的互动会集中显示在这里。</p>
@@ -105,7 +106,8 @@ export function NotificationsPage() {
   }
 
   return (
-    <div className="page notifications-page">
+    <div className={`page notifications-page${embedded ? ' business-panel list-panel' : ''}`}>
+      {!embedded && <Link to="/" className="back-link"><ArrowLeft size={18} aria-hidden="true" /> 返回广场</Link>}
       <div className="business-heading"><h1>通知</h1><Button label="全部已读" variant="ghost" isDisabled={marking || !notifications.some((n) => !n.isRead)} clickAction={markAll} /></div>
       {error ? (
         <div className="inline-error" role="alert">
