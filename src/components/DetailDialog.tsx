@@ -11,7 +11,10 @@ export function DetailDialog({ title, onClose, children }: { title: string; onCl
     return () => dialog?.close()
   }, [])
   return <dialog ref={ref} className="post-dialog business-dialog" aria-labelledby={titleId}
-    onCancel={(event) => { event.preventDefault(); onClose() }}
+    onCancel={(event) => {
+      if (event.target !== event.currentTarget) return
+      event.preventDefault(); event.stopPropagation(); onClose()
+    }}
     onClick={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <div className="post-dialog-shell">
       <header className="post-dialog-header"><strong id={titleId}>{title}</strong><IconButton label="关闭" icon={<X size={20} />} variant="ghost" onClick={onClose} /></header>

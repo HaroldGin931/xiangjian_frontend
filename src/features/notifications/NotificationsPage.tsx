@@ -1,12 +1,14 @@
 import { Button } from '@astryxdesign/core/Button'
 import { Link } from '@tanstack/react-router'
-import { ArrowLeft, Bell } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { ArrowLeft, Bell, ChevronRight } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
 
 import { DetailDialog } from '~/components/DetailDialog'
 import { EventDetail } from '../events/EventDetail'
 import { NodeDetail } from '../nodes/NodesPanel'
 import { TaskDetailPage } from '../tasks/TaskDetailPage'
+import { PostThreadPanel } from '../feed/PostThreadPanel'
+import { UserProfilePage } from '../social/UserProfilePage'
 import { authorDisplayName, formatTimestamp } from '~/lib/format'
 import type { NotificationView } from '~/lib/models'
 
@@ -17,6 +19,8 @@ import {
   markNotificationsRead,
   markTaskNotificationsRead,
   NOTIFICATIONS_READ_EVENT,
+  notificationTarget,
+  type NotificationTarget,
 } from './api'
 
 const reasonCopy: Record<string, { label: string; action: string }> = {
@@ -44,7 +48,7 @@ function notificationTitle(notification: NotificationView) {
 
 export function NotificationsPage({ embedded = false }: { embedded?: boolean }) {
   const { session, isReady } = useStoredSession()
-  const [selected, setSelected] = useState<NotificationView | null>(null)
+  const [selected, setSelected] = useState<NotificationTarget | null>(null)
   const [marking, setMarking] = useState(false)
   const [notifications, setNotifications] = useState<NotificationView[]>([])
   const [isLoading, setLoading] = useState(false)
@@ -52,9 +56,18 @@ export function NotificationsPage({ embedded = false }: { embedded?: boolean }) 
   const [reloadKey, setReloadKey] = useState(0)
   const accessJwt = session?.pds.access_jwt
   const riceToken = session?.token
+  const lifetime = useRef(0)
+
+  useEffect(() => {
+    lifetime.current += 1
+    setMarking(false)
+    return () => { lifetime.current += 1 }
+  }, [accessJwt, riceToken])
 
   useEffect(() => {
     if (!isReady || !accessJwt || !riceToken) {
+      setNotifications([])
+      setSelected(null)
       setLoading(false)
       return
     }
@@ -75,8 +88,6 @@ export function NotificationsPage({ embedded = false }: { embedded?: boolean }) 
 
         const failures = [social, tasks].filter((result) => result.status === 'rejected')
         if (failures.length > 0) setError('部分通知暂时无法加载，请稍后重试。')
-
-
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -86,12 +97,16 @@ export function NotificationsPage({ embedded = false }: { embedded?: boolean }) 
 
   const markAll = async () => {
     if (!accessJwt || !riceToken || marking) return
+    const requestLifetime = lifetime.current
     setMarking(true); setError('')
     const results = await Promise.allSettled([markNotificationsRead({ data: accessJwt }), markTaskNotificationsRead({ data: riceToken })])
+    if (requestLifetime !== lifetime.current) return
     if (results.every((r) => r.status === 'fulfilled')) { setNotifications((rows) => rows.map((n) => ({ ...n, isRead: true }))); window.dispatchEvent(new Event(NOTIFICATIONS_READ_EVENT)) }
     else { setError('部分通知未能标记已读，请重试。'); setReloadKey((v) => v + 1) }
     setMarking(false)
   }
+
+  const unreadCount = notifications.filter((notification) => !notification.isRead).length
 
   if (isReady && !session) {
     return (
@@ -108,7 +123,10 @@ export function NotificationsPage({ embedded = false }: { embedded?: boolean }) 
   return (
     <div className={`page notifications-page${embedded ? ' business-panel list-panel' : ''}`}>
       {!embedded && <Link to="/" className="back-link"><ArrowLeft size={18} aria-hidden="true" /> 返回广场</Link>}
-      <div className="business-heading"><h1>通知</h1><Button label="全部已读" variant="ghost" isDisabled={marking || !notifications.some((n) => !n.isRead)} clickAction={markAll} /></div>
+      <div className="business-heading notification-heading">
+        <div>{embedded ? <strong>全部消息</strong> : <h1>通知</h1>}{unreadCount > 0 && <span className="notification-count">{unreadCount} 条未读</span>}</div>
+        <Button label={marking ? '正在标记…' : '全部已读'} variant="ghost" isDisabled={marking || !unreadCount} clickAction={markAll} />
+      </div>
       {error ? (
         <div className="inline-error" role="alert">
           <span>{error}</span>
@@ -124,27 +142,37 @@ export function NotificationsPage({ embedded = false }: { embedded?: boolean }) 
         </section>
       ) : (
         <section className="notification-list" aria-label="通知列表">
-          {notifications.map((notification) => (
-            <article
+          {notifications.map((notification) => {
+            const target = notificationTarget(notification)
+            const Row = target ? 'button' : 'div'
+            return <Row
               className={`notification-row ${notification.isRead ? '' : 'unread'}`}
               key={`${notification.uri}-${notification.reason}`}
+              type={target ? 'button' : undefined}
+              onClick={target ? () => setSelected(target) : undefined}
+              aria-haspopup={target ? 'dialog' : undefined}
             >
               <span className={`notification-reason reason-${notification.reason}`}>
                 {notification.subjectType === 'event' ? '活动' : notification.subjectType === 'node' ? '社区' : reasonCopy[notification.reason]?.label || '互动'}
               </span>
-              <div className="notification-body">
-                <strong>
-                  {notification.taskId || notification.subjectId ? <button type="button" className="text-button" onClick={() => setSelected(notification)}>{notificationTitle(notification)}</button> : notificationTitle(notification)}
-                </strong>
-                {notification.text && notification.text !== notificationTitle(notification) ? <p>{notification.text}</p> : null}
-                <time>{formatTimestamp(notification.indexedAt)}</time>
-              </div>
-            </article>
-          ))}
+              <span className="notification-body">
+                <strong>{notificationTitle(notification)}</strong>
+                {notification.text && notification.text !== notificationTitle(notification) ? <span className="notification-preview">{notification.text}</span> : null}
+                <span className="notification-meta"><time dateTime={notification.indexedAt}>{formatTimestamp(notification.indexedAt)}</time>{!notification.isRead && <span className="notification-unread"><i aria-hidden="true" />未读</span>}</span>
+              </span>
+              {target && <ChevronRight className="notification-arrow" size={20} aria-hidden="true" />}
+            </Row>
+          })}
         </section>
       )}
       {isLoading ? <p className="loading-line" aria-live="polite">正在加载通知…</p> : null}
-      {selected && <DetailDialog title="通知详情" onClose={() => setSelected(null)}>{selected.subjectType === 'event' ? <EventDetail eventId={selected.subjectId!} /> : selected.subjectType === 'node' ? <NodeDetail nodeId={selected.subjectId!} /> : <TaskDetailPage taskId={selected.taskId || selected.subjectId!} embedded />}</DetailDialog>}
+      {selected && <DetailDialog title={{ task: '任务详情', event: '活动详情', node: '社区详情', post: '帖子详情', profile: '个人主页' }[selected.kind]} onClose={() => setSelected(null)}>
+        {selected.kind === 'event' && <EventDetail eventId={selected.id} />}
+        {selected.kind === 'node' && <NodeDetail nodeId={selected.id} />}
+        {selected.kind === 'task' && <TaskDetailPage taskId={selected.id} embedded />}
+        {selected.kind === 'post' && <PostThreadPanel uri={selected.uri} onPostDeleted={() => setSelected(null)} />}
+        {selected.kind === 'profile' && <UserProfilePage actor={selected.actor} embedded />}
+      </DetailDialog>}
     </div>
   )
 }

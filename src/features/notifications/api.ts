@@ -5,13 +5,50 @@ import type { NotificationView } from '~/lib/models'
 
 export const NOTIFICATIONS_READ_EVENT = 'xiangjian-notifications-read'
 
+export type NotificationTarget =
+  | { kind: 'task' | 'event' | 'node'; id: string }
+  | { kind: 'post'; uri: string }
+  | { kind: 'profile'; actor: string }
+
+function isPostUri(uri: string | undefined): uri is string {
+  return typeof uri === 'string' && /^at:\/\/[^/\s?#]+\/app\.bsky\.feed\.post\/[^/\s?#]+$/.test(uri)
+}
+
+export function notificationTarget(notification: NotificationView): NotificationTarget | null {
+  const { subjectType, subjectId, taskId, reason } = notification
+  if (subjectType === 'event' || subjectType === 'node') {
+    return subjectId?.trim() ? { kind: subjectType, id: subjectId } : null
+  }
+  if (subjectType === 'task' || (!subjectType && taskId)) {
+    const id = subjectId?.trim() ? subjectId : taskId
+    return id?.trim() ? { kind: 'task', id } : null
+  }
+  if (subjectType) return null
+
+  if (reason === 'like' || reason === 'repost') {
+    // The notification URI is the like/repost record, not the post being referenced.
+    const uri = [notification.reasonSubject, notification.recordSubjectUri].find(isPostUri)
+    return uri ? { kind: 'post', uri } : null
+  }
+  if (['reply', 'mention', 'quote', 'subscribed-post'].includes(reason)) {
+    return isPostUri(notification.uri) ? { kind: 'post', uri: notification.uri } : null
+  }
+  if (reason === 'follow') {
+    const { did, handle } = notification.author
+    if (did && /^did:[a-z0-9]+:[^\s/?#]+$/i.test(did)) return { kind: 'profile', actor: did }
+    if (/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/i.test(handle)) return { kind: 'profile', actor: handle }
+  }
+  return null
+}
+
 export function normalizeNotifications(payload: unknown): NotificationView[] {
   const body = (payload ?? {}) as {
     notifications?: Array<{
       uri?: unknown
-      author?: { handle?: unknown; displayName?: unknown }
+      author?: { did?: unknown; handle?: unknown; displayName?: unknown }
       reason?: unknown
-      record?: { text?: unknown }
+      reasonSubject?: unknown
+      record?: { text?: unknown; subject?: { uri?: unknown } }
       isRead?: unknown
       indexedAt?: unknown
       taskId?: unknown
@@ -19,9 +56,10 @@ export function normalizeNotifications(payload: unknown): NotificationView[] {
       subjectId?: unknown
     }>
   }
-  return (body.notifications ?? [])
+  return (Array.isArray(body.notifications) ? body.notifications : [])
     .filter(
       (notification) =>
+        notification != null &&
         typeof notification.uri === 'string' &&
         typeof notification.author?.handle === 'string',
     )
@@ -29,6 +67,7 @@ export function normalizeNotifications(payload: unknown): NotificationView[] {
       (notification): NotificationView => ({
         uri: notification.uri as string,
         author: {
+          ...(typeof notification.author?.did === 'string' ? { did: notification.author.did } : {}),
           handle: notification.author?.handle as string,
           displayName:
             typeof notification.author?.displayName === 'string'
@@ -39,6 +78,8 @@ export function normalizeNotifications(payload: unknown): NotificationView[] {
           typeof notification.reason === 'string'
             ? notification.reason
             : 'unknown',
+        ...(typeof notification.reasonSubject === 'string' ? { reasonSubject: notification.reasonSubject } : {}),
+        ...(typeof notification.record?.subject?.uri === 'string' ? { recordSubjectUri: notification.record.subject.uri } : {}),
         text:
           typeof notification.record?.text === 'string'
             ? notification.record.text

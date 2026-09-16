@@ -126,10 +126,13 @@ export type PostThread = {
 export type NotificationView = {
   uri: string
   author: {
+    did?: string
     handle: string
     displayName?: string
   }
   reason: string
+  reasonSubject?: string
+  recordSubjectUri?: string
   text: string
   isRead: boolean
   indexedAt: string
