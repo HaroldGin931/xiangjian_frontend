@@ -20,7 +20,7 @@ export function EventCard({ event, onOpen, onOpenCommunity }: { event: RiceEvent
   const [open, setOpen] = useState(false)
   const [communityOpen, setCommunityOpen] = useState(false)
   return <><article className="content-card task-card business-card">
-    <ContentCardHeader initial={event.node.name.slice(0, 1)} name={event.node.name} avatarUrl={event.node.logo?.url} onAuthorClick={() => onOpenCommunity ? onOpenCommunity(event.node.id) : setCommunityOpen(true)} timestamp={`${formatTimestamp(event.published_at ?? event.inserted_at)} · 发布`} />
+    <ContentCardHeader name={event.node.name} avatarUrl={event.node.logo?.url} onAuthorClick={() => onOpenCommunity ? onOpenCommunity(event.node.id) : setCommunityOpen(true)} timestamp={`${formatTimestamp(event.published_at ?? event.inserted_at)} · 发布`} />
     <button className="business-card-body" type="button" onPointerEnter={prefetch} onFocus={prefetch} onTouchStart={prefetch} onClick={() => { prefetch(); if (onOpen) onOpen((token) => token === session?.token ? loadEvent() : getEvent({ data: { id: event.id, token } })); else setOpen(true) }}>
     <h2>{event.title}</h2><p>{formatTimestamp(event.starts_at, true)} · {event.location}</p>
     <ImageCover images={attachmentImages(event.attachments)} />

@@ -4,7 +4,8 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, Pencil, UserRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import { authorDisplayName, authorInitial } from '~/lib/format'
+import { authorDisplayName } from '~/lib/format'
+import { Avatar } from '~/components/Avatar'
 import { usePanelReady } from '~/components/DetailDialog'
 import type { SocialProfile } from '~/lib/models'
 
@@ -100,13 +101,7 @@ function UserProfileContent({ actor, onEdit, embedded = false }: UserProfileProp
                 <Pencil size={20} aria-hidden="true" />
               </Link>
             ) : null}
-            <div className="social-profile-avatar" aria-hidden="true">
-              {profile.avatar ? (
-                <img src={profile.avatar} alt="" />
-              ) : (
-                <span>{authorInitial(profile)}</span>
-              )}
-            </div>
+            <Avatar name={authorDisplayName(profile)} src={profile.avatar} size="large" />
             <h1>{authorDisplayName(profile)}</h1>
             <p className="social-profile-handle">@{profile.handle}</p>
             {profile.description ? (

@@ -9,7 +9,7 @@ import { PostText } from '~/components/PostText'
 import { PostActions, type RepostChange } from '~/components/PostActions'
 import { isPostHidden } from '~/features/feed/api'
 import { postCategory, postDisplayText } from '~/features/feed/tags'
-import { authorDisplayName, authorInitial, formatTimestamp } from '~/lib/format'
+import { authorDisplayName, formatTimestamp } from '~/lib/format'
 import type { PostView } from '~/lib/models'
 
 export function PostList({
@@ -90,7 +90,6 @@ export function PostCard({
         </div>
       ) : null}
       <ContentCardHeader
-        initial={authorInitial(post.author)}
         name={authorDisplayName(post.author)}
         timestamp={formatTimestamp(post.record.createdAt || post.indexedAt)}
         profileActor={post.author.did}

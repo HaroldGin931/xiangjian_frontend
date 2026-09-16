@@ -4,7 +4,8 @@ import { Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import { authorDisplayName, authorInitial } from '~/lib/format'
+import { authorDisplayName } from '~/lib/format'
+import { Avatar } from '~/components/Avatar'
 import type { SocialConnectionPage } from '~/lib/models'
 
 import { useStoredSession } from '../session/session'
@@ -76,9 +77,7 @@ export function PeopleListPage({
               className="person-row"
               key={profile.did}
             >
-              <span className="person-avatar" aria-hidden="true">
-                {profile.avatar ? <img src={profile.avatar} alt="" /> : authorInitial(profile)}
-              </span>
+              <Avatar name={authorDisplayName(profile)} src={profile.avatar} />
               <span className="person-copy">
                 <strong>{authorDisplayName(profile)}</strong>
                 <small>@{profile.handle}</small>

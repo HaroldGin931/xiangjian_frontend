@@ -4,7 +4,7 @@ import { Link } from '@tanstack/react-router'
 import { ArrowRight } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { DetailDialog, usePanelReady } from '~/components/DetailDialog'
-import { publicAttachmentUrl } from '~/lib/attachments'
+import { Avatar } from '~/components/Avatar'
 import { formatTimestamp } from '~/lib/format'
 import { useStoredSession } from '../session/session'
 import { TasksPage } from '../tasks/TasksPage'
@@ -13,8 +13,8 @@ import { applyToNode, getNode, getNodes, reviewNodeApplication, type CommunityNo
 
 export function NodeCard({ node, onOpen }: { node: CommunityNode; onOpen: () => void }) {
   return <button type="button" className="profile-menu-row node-card" onClick={onOpen}>
-    <span className="content-card-avatar" aria-hidden="true">{node.logo ? <img src={publicAttachmentUrl(node.logo.url)} alt="" /> : node.name.slice(0, 1)}</span>
-    <span><strong>{node.name}</strong><small>{node.role === 'admin' ? '管理员' : node.role === 'member' ? '正式成员' : node.my_application?.status === 'pending' ? '申请中' : node.description}</small></span><ArrowRight size={18} />
+    <Avatar name={node.name} src={node.logo?.url} />
+    <span className="profile-menu-copy"><strong>{node.name}</strong><small>{node.role === 'admin' ? '管理员' : node.role === 'member' ? '正式成员' : node.my_application?.status === 'pending' ? '申请中' : node.description}</small></span><ArrowRight size={18} />
   </button>
 }
 
@@ -74,7 +74,7 @@ export function NodeDetail({ nodeId }: { nodeId: string }) {
     <section className="business-section"><h2>社区成员</h2>{node.members?.map(({ user, role }) => <p key={user.id}><Link to="/profile/$actor" params={{ actor: user.did }}>{user.nickname || user.handle}</Link> · {role === 'admin' ? '管理员' : '成员'}</p>)}</section>
     {node.role ? <p className="task-neutral-note">我的身份：{node.role === 'admin' ? '管理员' : '正式成员'}</p> : node.my_application?.status === 'pending' ? <p className="task-neutral-note">加入申请已提交，等待管理员审批。</p> : node.owner && session ? <section className="business-section">
       {node.my_application?.status === 'rejected' && <p>上次加入申请未通过，可重新申请。{node.my_application.review_reason}</p>}
-      {applyOpen ? <><TextArea label="加入说明" value={reason} onChange={setReason} rows={3} maxLength={512} width="100%" /><Button label="提交申请" variant="primary" isDisabled={busy} clickAction={() => run(() => applyToNode({ data: { token: session.token, nodeId, reason } }))} /></> : <Button label="申请加入社区" variant="primary" onClick={() => setApplyOpen(true)} />}
+      {applyOpen ? <div className="form-stack"><TextArea label="加入说明" value={reason} onChange={setReason} rows={3} maxLength={512} width="100%" /><div><Button label="提交申请" variant="primary" isDisabled={busy} clickAction={() => run(() => applyToNode({ data: { token: session.token, nodeId, reason } }))} /></div></div> : <Button label="申请加入社区" variant="primary" onClick={() => setApplyOpen(true)} />}
     </section> : null}
     {node.role === 'admin' && session && <section className="business-section"><h2>待审批申请</h2>{node.applications?.filter((a) => a.status === 'pending').map((a) => <article className="candidate" key={a.id}><strong>{a.user?.nickname || a.user?.handle}</strong><p>{a.reason}</p><div className="button-row"><Button label="拒绝" variant="secondary" isDisabled={busy} clickAction={() => run(() => reviewNodeApplication({ data: { token: session.token, nodeId, applicationId: a.id, action: 'reject' } }))} /><Button label="通过" variant="primary" isDisabled={busy} clickAction={() => run(() => reviewNodeApplication({ data: { token: session.token, nodeId, applicationId: a.id, action: 'approve' } }))} /></div></article>)}{!node.applications?.some((a) => a.status === 'pending') && <p>暂无待审批申请。</p>}</section>}
     {node.role === 'admin' && node.applications?.some((a) => a.status !== 'pending') && <details className="business-section"><summary>已处理申请</summary><ul className="business-history">{node.applications.filter((a) => a.status !== 'pending').map((a) => <li key={a.id}><strong>{a.user?.nickname || a.user?.handle} · {a.status === 'approved' ? '已通过' : '未通过'}</strong><p>{a.reason}</p>{a.review_reason && <p>{a.review_reason}</p>}<time>{formatTimestamp(a.reviewed_at || a.inserted_at, true)}</time></li>)}</ul></details>}

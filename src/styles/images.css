@@ -7,7 +7,7 @@
 .content-image-thumbnail { display: block; min-width: 0; min-height: 44px; aspect-ratio: 3 / 2; padding: 0; overflow: hidden; border: 1px solid var(--xj-line); border-radius: 12px; background: var(--xj-surface-soft); cursor: pointer; }
 .content-image-thumbnail:hover { border-color: var(--xj-accent); }
 .content-image-thumbnail:focus-visible, .content-image-remove:focus-visible, .content-image-add:focus-within { outline: 3px solid #7e9e62; outline-offset: 4px; }
-.content-image-picker { display: grid; gap: 12px; min-width: 0; margin-block: 22px; }
+.content-image-picker { display: grid; gap: 12px; min-width: 0; }
 .content-image-picker-label { color: var(--xj-text); font-size: var(--xj-font-body); font-weight: 600; }
 .content-image-previews { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .content-image-preview { position: relative; min-width: 0; height: 110px; border-radius: 12px; background: var(--xj-surface-soft); }

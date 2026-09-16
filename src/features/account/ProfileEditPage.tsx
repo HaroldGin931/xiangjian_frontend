@@ -3,10 +3,10 @@ import { FileInput } from '@astryxdesign/core/FileInput'
 import { TextArea } from '@astryxdesign/core/TextArea'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, UserRound } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-import { publicAttachmentUrl } from '~/lib/attachments'
+import { Avatar } from '~/components/Avatar'
 import { usePanelReady } from '~/components/DetailDialog'
 
 import { useStoredSession } from '../session/session'
@@ -70,16 +70,14 @@ export function ProfileEditPage({ onSaved }: { onSaved?: () => void }) {
     }
   }
 
-  const avatarUrl = preview || (session.user.avatar ? publicAttachmentUrl(session.user.avatar.url) : '')
+  const avatarUrl = preview || session.user.avatar?.url
 
   return (
     <div className="page narrow-page profile-edit-page">
       {!onSaved && <Link to="/me/settings" className="back-link"><ArrowLeft size={16} /> 设置</Link>}
       <h1>个人资料</h1>
       <section className="form-card">
-        <div className="avatar-preview">
-          {avatarUrl ? <img src={avatarUrl} alt="当前头像" /> : <UserRound size={34} />}
-        </div>
+        <Avatar name={nickname || session.user.handle} src={avatarUrl} size="large" />
         <FileInput
           label="头像"
           placeholder="选择图片"

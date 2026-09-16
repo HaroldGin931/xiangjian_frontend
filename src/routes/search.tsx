@@ -1,3 +1,4 @@
+import { Avatar } from '~/components/Avatar'
 import { Button } from '@astryxdesign/core/Button'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { createFileRoute, Link } from '@tanstack/react-router'
@@ -94,7 +95,7 @@ function SearchPage() {
       </SearchGroup>
       <SearchGroup title="用户" count={users.length} hasMore={!!cursors.users} emptyMessage={emptyMessage('用户')}>
         <div className="people-list">{users.map((user) => <button type="button" onClick={() => setSelectedUser(user.did)} className="person-row search-person-row" key={user.id}>
-          <span className="person-avatar" aria-hidden="true">{user.avatar ? <img src={user.avatar.url} alt="" /> : (user.nickname || user.handle).slice(0, 1)}</span>
+          <Avatar name={user.nickname || user.handle} src={user.avatar?.url} />
           <span className="person-copy"><strong>{user.nickname || user.handle}</strong><small>@{user.handle}</small>{user.bio && <p>{user.bio}</p>}</span>
         </button>)}</div>
         {cursors.users && <Button label="更多用户" variant="ghost" isDisabled={loading} clickAction={() => more('users')} />}

@@ -30,11 +30,11 @@ export function SettingsPage() {
       <h1>设置</h1>
       <nav className="profile-menu" aria-label="设置项目">
         <Link to="/me/settings/account" className="profile-menu-row">
-          <span><strong>账号与安全</strong><small>手机号、邮箱、密码与注销</small></span>
+          <span className="profile-menu-copy"><strong>账号与安全</strong><small>手机号、邮箱、密码与注销</small></span>
           <ChevronRight size={18} />
         </Link>
         <Link to="/me/settings/profile" className="profile-menu-row">
-          <span><strong>个人资料</strong><small>头像、昵称和简介</small></span>
+          <span className="profile-menu-copy"><strong>个人资料</strong><small>头像、昵称和简介</small></span>
           <ChevronRight size={18} />
         </Link>
       </nav>

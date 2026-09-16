@@ -12,7 +12,7 @@ import {
   PostActions,
   type RepostChange,
 } from '~/components/PostActions'
-import { authorDisplayName, authorInitial, formatTimestamp } from '~/lib/format'
+import { authorDisplayName, formatTimestamp } from '~/lib/format'
 import type { PostThread } from '~/lib/models'
 
 import { useStoredSession } from '../session/session'
@@ -169,7 +169,6 @@ function PostThreadContent({
         <>
           <article className="content-card post-detail-card">
             <ContentCardHeader
-              initial={authorInitial(thread.post.author)}
               name={authorDisplayName(thread.post.author)}
               timestamp={formatTimestamp(
                 thread.post.record.createdAt || thread.post.indexedAt,
@@ -232,7 +231,6 @@ function PostThreadContent({
                   {thread.replies.map((reply) => (
                     <article className="reply-row" key={reply.post.uri}>
                       <ContentCardHeader
-                        initial={authorInitial(reply.post.author)}
                         name={authorDisplayName(reply.post.author)}
                         timestamp={formatTimestamp(
                           reply.post.record.createdAt || reply.post.indexedAt,

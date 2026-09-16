@@ -1,9 +1,8 @@
 import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
-import { publicAttachmentUrl } from '~/lib/attachments'
+import { Avatar } from './Avatar'
 
 export function ContentCardHeader({
-  initial,
   name,
   timestamp,
   profileActor,
@@ -11,7 +10,6 @@ export function ContentCardHeader({
   avatarUrl,
   onAuthorClick,
 }: {
-  initial: string
   name: string
   timestamp: string
   profileActor?: string
@@ -21,7 +19,7 @@ export function ContentCardHeader({
 }) {
   const author = (
     <>
-      <span className="content-card-avatar" aria-hidden="true">{avatarUrl ? <img src={publicAttachmentUrl(avatarUrl)} alt="" /> : initial}</span>
+      <Avatar name={name} src={avatarUrl} />
       <span className="content-card-author-copy">
         <strong>{name}</strong>
         <time className="content-card-time">{timestamp}</time>

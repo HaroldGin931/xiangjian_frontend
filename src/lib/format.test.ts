@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { authorDisplayName, authorInitial, formatTimestamp } from './format'
+import { authorDisplayName, formatTimestamp } from './format'
 
 describe('timestamp formatting', () => {
   it('uses one explicit timezone for SSR and browser rendering', () => {
@@ -13,6 +13,5 @@ describe('author formatting', () => {
     expect(authorDisplayName({ handle: 'mo-alice.local', displayName: 'Alice' }))
       .toBe('Alice')
     expect(authorDisplayName({ handle: 'mo-bob.local' })).toBe('mo-bob')
-    expect(authorInitial({ handle: 'mo-bob.local' })).toBe('M')
   })
 })

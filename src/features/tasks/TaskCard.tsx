@@ -20,7 +20,7 @@ export function TaskCard({ task, compact = false, onOpen, onOpenCommunity }: { t
   const [communityOpen, setCommunityOpen] = useState(false)
   const name = task.node?.name || task.creator.nickname || task.creator.handle
   return <><article className={`content-card task-card business-card ${compact ? 'compact-task-card' : ''}`}>
-    {!compact && <ContentCardHeader initial={name.slice(0, 1)} name={name} avatarUrl={task.node ? task.node.logo?.url : task.creator.avatar?.url} onAuthorClick={task.node ? () => onOpenCommunity ? onOpenCommunity(task.node!.id) : setCommunityOpen(true) : undefined} timestamp={`${formatTimestamp(task.published_at ?? task.inserted_at)} · 发布`} />}
+    {!compact && <ContentCardHeader name={name} avatarUrl={task.node ? task.node.logo?.url : task.creator.avatar?.url} onAuthorClick={task.node ? () => onOpenCommunity ? onOpenCommunity(task.node!.id) : setCommunityOpen(true) : undefined} timestamp={`${formatTimestamp(task.published_at ?? task.inserted_at)} · 发布`} />}
     <button type="button" onPointerEnter={prefetch} onFocus={prefetch} onTouchStart={prefetch} onClick={() => { prefetch(); if (onOpen) onOpen((token) => token === session?.token ? loadTask() : getTask({ data: { id: task.id, token } })); else setOpen(true) }} className="business-card-body">
     <h2>{task.title}</h2>{!compact && <p>{task.description}</p>}
     {!compact && <ImageCover images={attachmentImages(task.attachments)} />}
