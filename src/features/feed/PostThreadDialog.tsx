@@ -1,7 +1,4 @@
-import { IconButton } from '@astryxdesign/core/IconButton'
-import { X } from 'lucide-react'
-import { useEffect, useRef } from 'react'
-
+import { DetailDialog } from '~/components/DetailDialog'
 import type { RepostChange } from '~/components/PostActions'
 
 import { PostThreadPanel } from './PostThreadPanel'
@@ -24,51 +21,19 @@ export function PostThreadDialog({
   onReplyCreated?: (postUri: string) => void
   onPostDeleted?: (postUri: string) => void
 }) {
-  const dialogRef = useRef<HTMLDialogElement>(null)
-
-  useEffect(() => {
-    const dialog = dialogRef.current
-    if (dialog && !dialog.open) dialog.showModal()
-    return () => {
-      if (dialog?.open) dialog.close()
-    }
-  }, [])
-
   return (
-    <dialog
-      ref={dialogRef}
+    <DetailDialog
       className="post-dialog"
-      aria-labelledby="post-dialog-title"
-      onCancel={(event) => {
-        event.preventDefault()
-        onClose()
-      }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) onClose()
-      }}
+      title={category === 'activity' ? '活动' : category === 'product' ? '商品' : '帖子'}
+      onClose={onClose}
     >
-      <div className="post-dialog-shell">
-        <header className="post-dialog-header">
-          <strong id="post-dialog-title">
-            {category === 'activity' ? '活动' : category === 'product' ? '商品' : '帖子'}
-          </strong>
-          <IconButton
-            label="关闭详情"
-            icon={<X size={20} aria-hidden="true" />}
-            variant="ghost"
-            onClick={onClose}
-          />
-        </header>
-        <div className="post-dialog-scroll">
-          <PostThreadPanel
-            uri={uri}
-            focusReply={focusReply}
-            onRepostChange={onRepostChange}
-            onReplyCreated={onReplyCreated}
-            onPostDeleted={onPostDeleted}
-          />
-        </div>
-      </div>
-    </dialog>
+      <PostThreadPanel
+        uri={uri}
+        focusReply={focusReply}
+        onRepostChange={onRepostChange}
+        onReplyCreated={onReplyCreated}
+        onPostDeleted={onPostDeleted}
+      />
+    </DetailDialog>
   )
 }

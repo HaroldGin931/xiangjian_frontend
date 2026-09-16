@@ -71,8 +71,15 @@ export function refreshStoredSession(
 
   const request = refresh({ data: stored.pds })
     .then((pds) => {
+      const latest = readStoredSession()
       const refreshed = { ...stored, pds }
-      writeStoredSession(refreshed)
+      if (
+        latest?.token === stored.token &&
+        latest.pds.did === stored.pds.did &&
+        latest.pds.refresh_jwt === key
+      ) {
+        writeStoredSession({ ...latest, pds })
+      }
       return refreshed
     })
     .finally(() => {
@@ -88,19 +95,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let active = true
+    let revision = 0
+    let restoredAccount: string | undefined
 
     const sync = async () => {
+      const currentRevision = ++revision
       const stored = readStoredSession()
-      if (!stored) {
-        if (active) {
-          setSession(null)
-          setIsReady(true)
-        }
-        return
-      }
+      const needsRefresh = stored && tokenExpiresSoon(stored.pds.access_jwt)
+      setSession(stored)
+      setIsReady(!needsRefresh || stored?.user.id === restoredAccount)
+      if (!stored) return
 
       let current = stored
-      if (tokenExpiresSoon(stored.pds.access_jwt)) {
+      if (needsRefresh) {
         try {
           current = await refreshStoredSession(stored)
         } catch {
@@ -108,17 +115,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      if (!active || currentRevision !== revision) return
+      restoredAccount = current.user.id
+      setIsReady(true)
       try {
         const user = await getCurrentUser({ data: current.token })
-        current = { ...current, user }
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(current))
+        if (!active || currentRevision !== revision) return
+        const latest = readStoredSession()
+        if (latest?.token !== current.token || latest.pds.did !== current.pds.did) return
+        const updated = { ...latest, user }
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+        setSession(updated)
       } catch {
         // 保留现有会话，让具体页面显示 Rice 或 PDS 返回的错误。
-      } finally {
-        if (active) {
-          setSession(current)
-          setIsReady(true)
-        }
       }
     }
 

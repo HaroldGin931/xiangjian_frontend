@@ -5,6 +5,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useId, useState } from 'react'
 
 import { ContentCardHeader } from '~/components/ContentCardHeader'
+import { usePanelReady } from '~/components/DetailDialog'
 import { ImageGroup } from '~/components/ContentImages'
 import { PostText } from '~/components/PostText'
 import {
@@ -30,19 +31,26 @@ import {
   postFieldValues,
 } from './tags'
 
-export function PostThreadPanel({
-  uri,
-  focusReply = false,
-  onRepostChange,
-  onReplyCreated,
-  onPostDeleted,
-}: {
+type PostThreadPanelProps = {
   uri: string
   focusReply?: boolean
   onRepostChange?: (change: RepostChange) => void
   onReplyCreated?: (postUri: string) => void
   onPostDeleted?: (postUri: string) => void
-}) {
+}
+
+export function PostThreadPanel(props: PostThreadPanelProps) {
+  const { session } = useStoredSession()
+  return <PostThreadContent key={`${props.uri}:${session?.user.id ?? 'guest'}`} {...props} />
+}
+
+function PostThreadContent({
+  uri,
+  focusReply = false,
+  onRepostChange,
+  onReplyCreated,
+  onPostDeleted,
+}: PostThreadPanelProps) {
   const { session, isReady } = useStoredSession()
   const navigate = useNavigate()
   const [thread, setThread] = useState<PostThread | null>(null)
@@ -51,6 +59,7 @@ export function PostThreadPanel({
   const [replyNotice, setReplyNotice] = useState('')
   const [isReplying, setReplying] = useState(false)
   const replyComposerId = useId()
+  usePanelReady(isReady && Boolean(thread || error))
   const category = thread ? postCategory(thread.post.record) : 'post'
   const fields = thread ? postFieldValues(thread.post.record.text, category) : {}
   const participants = thread?.replies.filter(
@@ -64,10 +73,10 @@ export function PostThreadPanel({
   )
 
   useEffect(() => {
-    if (!uri || !isReady) return
+    if (!isReady) return
+    if (!uri) { setError('帖子不存在'); return }
     let active = true
     setError('')
-    setThread(null)
     getPostThread({
       data: {
         uri,
@@ -80,7 +89,7 @@ export function PostThreadPanel({
         if (active) setError(reason instanceof Error ? reason.message : '帖子暂时无法显示')
       })
     return () => { active = false }
-  }, [isReady, session, uri])
+  }, [isReady, session?.pds.access_jwt, session?.pds.did, uri])
 
   useEffect(() => {
     if (!focusReply || !thread) return

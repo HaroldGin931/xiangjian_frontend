@@ -5,23 +5,31 @@ import { ArrowLeft, Pencil, UserRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { authorDisplayName, authorInitial } from '~/lib/format'
+import { usePanelReady } from '~/components/DetailDialog'
 import type { SocialProfile } from '~/lib/models'
 
 import { useStoredSession } from '../session/session'
 import { getSocialProfile, toggleFollow } from './api'
 import { PublicProfileContent } from './PublicProfileContent'
 
-export function UserProfilePage({ actor, onEdit, embedded = false }: { actor: string; onEdit?: () => void; embedded?: boolean }) {
+type UserProfileProps = { actor: string; onEdit?: () => void; embedded?: boolean }
+
+export function UserProfilePage(props: UserProfileProps) {
+  const { session } = useStoredSession()
+  return <UserProfileContent key={`${props.actor}:${session?.user.id ?? 'guest'}`} {...props} />
+}
+
+function UserProfileContent({ actor, onEdit, embedded = false }: UserProfileProps) {
   const { session, isReady } = useStoredSession()
   const navigate = useNavigate()
   const [profile, setProfile] = useState<SocialProfile | null>(null)
   const [error, setError] = useState('')
   const [followError, setFollowError] = useState('')
   const [isFollowing, setFollowing] = useState(false)
+  usePanelReady(isReady && Boolean(profile || error))
 
   useEffect(() => {
     let active = true
-    setProfile(null)
     setError('')
     void getSocialProfile({
       data: { actor, accessJwt: session?.pds.access_jwt },
@@ -31,7 +39,7 @@ export function UserProfilePage({ actor, onEdit, embedded = false }: { actor: st
         if (active) setError(reason instanceof Error ? reason.message : '用户主页暂时无法显示')
       })
     return () => { active = false }
-  }, [actor, session])
+  }, [actor, session?.pds.access_jwt])
 
   const ownProfile = Boolean(profile && session?.pds.did === profile.did)
 

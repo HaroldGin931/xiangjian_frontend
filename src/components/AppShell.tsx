@@ -13,11 +13,12 @@ import { ComposePanel, type ComposeKind } from '~/features/feed/ComposePanel'
 import { useStoredSession } from '~/features/session/session'
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { session } = useStoredSession()
+  const { session, isReady } = useStoredSession()
   const [compose, setCompose] = useState<ComposeKind | null>(null)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false)
-  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const pathname = useRouterState({ select: (state) => (state.resolvedLocation ?? state.location).pathname })
+  const navigating = useRouterState({ select: (state) => state.isLoading && state.location.href !== state.resolvedLocation?.href })
   const href = useRouterState({ select: (state) => state.location.href })
   const isStandalone =
     ['/login', '/register', '/forgot-password', '/post', '/search', '/compose'].includes(pathname) ||
@@ -85,32 +86,34 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           )}
           <div className="topbar-actions">
-            {session && ['/', '/tasks', '/events'].includes(pathname) && <button type="button" className="header-publish" onClick={() => setCompose(pathname === '/tasks' ? 'task' : pathname === '/events' ? 'activity' : 'post')}>发布</button>}
-            {!session && <Link to="/login" className="header-publish">登录</Link>}
+            {!isReady && <span className="session-placeholder" aria-hidden="true" />}
+            {isReady && session && ['/', '/tasks', '/events'].includes(pathname) && <button type="button" className="header-publish" onClick={() => setCompose(pathname === '/tasks' ? 'task' : pathname === '/events' ? 'activity' : 'post')}>发布</button>}
+            {isReady && !session && <Link to="/login" className="header-publish">登录</Link>}
             <Link to="/search" className="header-search" aria-label="搜索帖子、任务、活动、社区、用户"><Search size={22} aria-hidden="true" /></Link>
-            {session && <button type="button" className="header-search notification-trigger" aria-label={hasUnreadNotifications ? '通知，有新消息' : '通知'} aria-haspopup="dialog" onClick={() => setNotificationsOpen(true)}><Bell size={22} aria-hidden="true" />{hasUnreadNotifications && <i className="notification-dot" aria-hidden="true" />}</button>}
+            {isReady && session && <button type="button" className="header-search notification-trigger" aria-label={hasUnreadNotifications ? '通知，有新消息' : '通知'} aria-haspopup="dialog" onClick={() => setNotificationsOpen(true)}><Bell size={22} aria-hidden="true" />{hasUnreadNotifications && <i className="notification-dot" aria-hidden="true" />}</button>}
           </div>
         </div>
       </header> : null}
 
-      <main key={session?.user.id ?? 'guest'} className="page-frame">{children}</main>
+      <main key={session?.user.id ?? 'guest'} className="page-frame">{isReady ? children : <div className="page initial-loading" role="status">正在加载…</div>}</main>
+      {navigating && <div className="navigation-progress" role="status">正在加载页面…</div>}
 
       {!isStandalone ? <nav className="bottom-nav" aria-label="主要导航">
-        <Link to="/" className="bottom-link" activeProps={{ className: 'bottom-link active' }}>
+        <Link to="/" activeProps={{}} className={`bottom-link${pathname === '/' ? ' active' : ''}`}>
           广场
         </Link>
         <Link
           to="/tasks"
-          className="bottom-link"
-          activeProps={{ className: 'bottom-link active' }}
+          activeProps={{}}
+          className={`bottom-link${pathname.startsWith('/tasks') ? ' active' : ''}`}
         >
           任务
         </Link>
-        <Link to="/events" className="bottom-link" activeProps={{ className: 'bottom-link active' }}>活动</Link>
+        <Link to="/events" activeProps={{}} className={`bottom-link${pathname.startsWith('/events') ? ' active' : ''}`}>活动</Link>
         <Link
           to="/me"
-          className="bottom-link"
-          activeProps={{ className: 'bottom-link active' }}
+          activeProps={{}}
+          className={`bottom-link${pathname.startsWith('/me') ? ' active' : ''}`}
         >
           我的
         </Link>

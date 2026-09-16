@@ -4,18 +4,19 @@ import { TextInput } from '@astryxdesign/core/TextInput'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { ImagePicker } from '~/components/ContentImages'
+import { usePanelReady } from '~/components/DetailDialog'
 import { RICE_IMAGE_MAX_BYTES, useRiceImages } from '../media/useRiceImages'
 import { localDateTimeValue } from '~/lib/format'
 import { getNodes, type CommunityNode } from '../nodes/api'
 import { useStoredSession } from '../session/session'
 import { createTask, getTask, getTasks, publishTask, updateTaskDraft } from './api'
 
-export function TaskCreatePage({ embedded = false, onPublished }: { embedded?: boolean; onPublished?: () => void }) {
+export function TaskCreatePage({ embedded = false, onPublished, active = true }: { embedded?: boolean; onPublished?: () => void; active?: boolean }) {
   const { session } = useStoredSession()
-  return <TaskCreateForm key={session?.token ?? 'guest'} embedded={embedded} onPublished={onPublished} />
+  return <TaskCreateForm key={session?.token ?? 'guest'} embedded={embedded} active={active} onPublished={onPublished} />
 }
 
-function TaskCreateForm({ embedded, onPublished }: { embedded: boolean; onPublished?: () => void }) {
+function TaskCreateForm({ embedded, onPublished, active }: { embedded: boolean; onPublished?: () => void; active: boolean }) {
   const { session, isReady } = useStoredSession()
   const navigate = useNavigate()
   const mounted = useRef(false)
@@ -33,6 +34,7 @@ function TaskCreateForm({ embedded, onPublished }: { embedded: boolean; onPublis
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [submitting, setSubmitting] = useState<'draft' | 'open' | null>(null)
+  usePanelReady(!active || (isReady && !draftLoading))
   const requestId = useRef('')
   const imageSelection = useRiceImages()
   const restoreImages = imageSelection.restore

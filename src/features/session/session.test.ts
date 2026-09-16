@@ -1,8 +1,39 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { RiceSession } from '~/lib/models'
 
-import { refreshStoredSession, tokenExpiresSoon } from './session'
+import {
+  readStoredSession,
+  refreshStoredSession,
+  tokenExpiresSoon,
+  writeStoredSession,
+} from './session'
+
+afterEach(() => vi.unstubAllGlobals())
+
+function useMemoryStorage() {
+  const values = new Map<string, string>()
+  vi.stubGlobal('window', {
+    localStorage: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key),
+    },
+    dispatchEvent: vi.fn(),
+  })
+}
+
+const storedSession = {
+  token: 'rice-token',
+  user: { id: 'mo', nickname: '旧名字' },
+  pds: {
+    service: 'http://pds',
+    did: 'did:example:mo',
+    handle: 'mo.local',
+    access_jwt: 'expired-access',
+    refresh_jwt: 'one-use-refresh',
+  },
+} as RiceSession
 
 function jwt(exp: number) {
   const payload = Buffer.from(JSON.stringify({ exp })).toString('base64url')
@@ -17,16 +48,7 @@ describe('PDS session lifetime', () => {
   })
 
   it('deduplicates concurrent refreshes that use one rotating refresh token', async () => {
-    const stored = {
-      token: 'rice-token',
-      pds: {
-        service: 'http://pds',
-        did: 'did:example:mo',
-        handle: 'mo.local',
-        access_jwt: 'expired-access',
-        refresh_jwt: 'one-use-refresh',
-      },
-    } as RiceSession
+    const stored = storedSession
     const refreshedPds = {
       ...stored.pds,
       access_jwt: 'fresh-access',
@@ -42,5 +64,42 @@ describe('PDS session lifetime', () => {
     expect(refresh).toHaveBeenCalledTimes(1)
     expect(first.pds).toEqual(refreshedPds)
     expect(second).toEqual(first)
+  })
+
+  it.each(['logout', 'another account', 'new login'])(
+    'does not restore an old session when refresh finishes after %s',
+    async (change) => {
+      useMemoryStorage()
+      writeStoredSession(storedSession)
+      const next = change === 'logout' ? null : {
+        ...storedSession,
+        token: 'new-rice-token',
+        pds: {
+          ...storedSession.pds,
+          did: change === 'another account' ? 'did:example:other' : storedSession.pds.did,
+        },
+      }
+
+      await refreshStoredSession(storedSession, async () => {
+        writeStoredSession(next)
+        return { ...storedSession.pds, access_jwt: 'refreshed-access' }
+      })
+
+      expect(readStoredSession()).toEqual(next)
+    },
+  )
+
+  it('preserves profile changes made while the PDS token refresh was pending', async () => {
+    useMemoryStorage()
+    writeStoredSession(storedSession)
+    const updated = { ...storedSession, user: { ...storedSession.user, nickname: '新名字' } }
+    const pds = { ...storedSession.pds, access_jwt: 'refreshed-access', refresh_jwt: 'rotated' }
+
+    await refreshStoredSession(storedSession, async () => {
+      writeStoredSession(updated)
+      return pds
+    })
+
+    expect(readStoredSession()).toEqual({ ...updated, pds })
   })
 })

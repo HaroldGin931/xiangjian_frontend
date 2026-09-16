@@ -45,7 +45,7 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
         setFeed(cachedFeed)
         return
       }
-      if (!session) {
+      if (!did) {
         setLoading(false)
         setError('')
         writeCachedFeed(initialFeed)
@@ -76,7 +76,7 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
         if (active) setLoading(false)
       })
     return () => { active = false }
-  }, [accessJwt, did, initialFeed, isReady, reloadKey, session])
+  }, [accessJwt, did, initialFeed, isReady, reloadKey])
 
   const handleRepostChange = ({ post, reason }: RepostChange) => {
     if (!did) return

@@ -1,6 +1,7 @@
 import { Button } from '@astryxdesign/core/Button'
 import { Link } from '@tanstack/react-router'
 import { Sprout } from 'lucide-react'
+import { usePanelReady } from '~/components/DetailDialog'
 import { useEffect, useRef, useState } from 'react'
 import { formatTimestamp } from '~/lib/format'
 import { useStoredSession } from '../session/session'
@@ -18,6 +19,7 @@ function WalletHistory({ embedded }: { embedded: boolean }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const request = useRef(0)
+  usePanelReady(isReady && (!session || Boolean(wallet || error)))
   useEffect(() => {
     if (!isReady) return
     if (!session) { setLoading(false); return }

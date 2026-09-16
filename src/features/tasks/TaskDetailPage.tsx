@@ -1,10 +1,11 @@
 import { ImageGroup } from '~/components/ContentImages'
+import { usePanelReady } from '~/components/DetailDialog'
 import { attachmentImages } from '~/lib/attachments'
 import { Button } from '@astryxdesign/core/Button'
 import { TextArea } from '@astryxdesign/core/TextArea'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft, CheckCircle2, CircleAlert, Sprout } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { formatTimestamp } from '~/lib/format'
 
@@ -26,6 +27,11 @@ import {
 } from './types'
 
 export function TaskDetailPage({ taskId, embedded = false }: { taskId: string; embedded?: boolean }) {
+  const { session } = useStoredSession()
+  return <TaskDetails key={`${taskId}:${session?.user.id ?? 'guest'}`} taskId={taskId} embedded={embedded} />
+}
+
+function TaskDetails({ taskId, embedded }: { taskId: string; embedded: boolean }) {
   const { session, isReady } = useStoredSession()
   const [task, setTask] = useState<RiceTask | null>(null)
   const [error, setError] = useState('')
@@ -39,22 +45,18 @@ export function TaskDetailPage({ taskId, embedded = false }: { taskId: string; e
   const [result, setResult] = useState('')
   const [reviewReason, setReviewReason] = useState('')
 
-  const load = useCallback(async () => {
+  usePanelReady(isReady && Boolean(task || (!loading && error)))
+  useEffect(() => {
     if (!isReady) return
+    let active = true
     setLoading(true)
     setError('')
-    try {
-      setTask(await getTask({ data: { id: taskId, token: session?.token } }))
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '任务暂时无法加载')
-    } finally {
-      setLoading(false)
-    }
+    void getTask({ data: { id: taskId, token: session?.token } })
+      .then((next) => { if (active) setTask(next) })
+      .catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : '任务暂时无法加载') })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
   }, [isReady, session?.token, taskId])
-
-  useEffect(() => {
-    void load()
-  }, [load])
 
   const pendingSubmission = useMemo(
     () => task?.submissions?.find((submission) => submission.status === 'pending') ?? null,
@@ -86,7 +88,7 @@ export function TaskDetailPage({ taskId, embedded = false }: { taskId: string; e
     }
   }
 
-  if (!isReady || loading) return <div className="page loading-line">正在加载任务…</div>
+  if (!isReady || (loading && !task)) return <div className="page loading-line">正在加载任务…</div>
   if (!task) return <div className="page"><div className="inline-error">{error || '任务不存在'}</div></div>
 
   const actions = new Set(task.allowed_actions)

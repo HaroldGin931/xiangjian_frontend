@@ -4,6 +4,7 @@ import { TextInput } from '@astryxdesign/core/TextInput'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { ImagePicker } from '~/components/ContentImages'
+import { usePanelReady } from '~/components/DetailDialog'
 import { RICE_IMAGE_MAX_BYTES, useRiceImages } from '../media/useRiceImages'
 import { localDateTimeValue } from '~/lib/format'
 import { getNodes, type CommunityNode } from '../nodes/api'
@@ -11,12 +12,12 @@ import { useStoredSession } from '../session/session'
 import { getEvents, saveEvent } from './api'
 
 const emptyFields = { node_id: '', title: '', description: '', location: '', application_deadline: '', starts_at: '', ends_at: '', fee_amount: '0', capacity: '' }
-export function EventCreateForm({ onPublished }: { onPublished?: () => void }) {
+export function EventCreateForm({ onPublished, active = true }: { onPublished?: () => void; active?: boolean }) {
   const { session } = useStoredSession()
-  return <EventEditor key={session?.token ?? 'guest'} onPublished={onPublished} />
+  return <EventEditor key={session?.token ?? 'guest'} active={active} onPublished={onPublished} />
 }
 
-function EventEditor({ onPublished }: { onPublished?: () => void }) {
+function EventEditor({ onPublished, active }: { onPublished?: () => void; active: boolean }) {
   const { session, isReady } = useStoredSession()
   const navigate = useNavigate()
   const mounted = useRef(false)
@@ -28,6 +29,7 @@ function EventEditor({ onPublished }: { onPublished?: () => void }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  usePanelReady(!active || (isReady && !loading))
   const requestId = useRef('')
   const imageSelection = useRiceImages()
   const restoreImages = imageSelection.restore

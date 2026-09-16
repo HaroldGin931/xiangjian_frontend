@@ -3,6 +3,7 @@ import { EmptyState } from '@astryxdesign/core/EmptyState'
 import { useEffect, useState } from 'react'
 
 import { PostList } from '~/components/PostList'
+import { usePanelReady } from '~/components/DetailDialog'
 import { getPosts } from '~/features/feed/api'
 import { getTasks } from '~/features/tasks/api'
 import { TaskCard } from '~/features/tasks/TaskCard'
@@ -54,10 +55,10 @@ function PublicPosts({ actor }: { actor: string }) {
   const [selected, setSelected] = useState<PostView | null>(null)
   const [posts, setPosts] = useState<PostView[] | null>(null)
   const [error, setError] = useState('')
+  usePanelReady(Boolean(posts || error))
 
   useEffect(() => {
     let active = true
-    setPosts(null)
     setError('')
     void getPosts({
       data: {
@@ -71,7 +72,7 @@ function PublicPosts({ actor }: { actor: string }) {
         if (active) setError(reason instanceof Error ? reason.message : '帖子暂时无法显示')
       })
     return () => { active = false }
-  }, [actor, session])
+  }, [actor, session?.pds.did, session?.pds.access_jwt])
 
   if (error || !posts || posts.length === 0) {
     return <ProfileContentState error={error} items={posts} empty="还没有发布帖子" />
@@ -83,10 +84,10 @@ function PublicTasks({ actor }: { actor: string }) {
   const { session } = useStoredSession()
   const [tasks, setTasks] = useState<RiceTask[] | null>(null)
   const [error, setError] = useState('')
+  usePanelReady(Boolean(tasks || error))
 
   useEffect(() => {
     let active = true
-    setTasks(null)
     setError('')
     void Promise.all([
       getTasks({ data: { token: session?.token, participantDid: actor } }),
@@ -101,7 +102,7 @@ function PublicTasks({ actor }: { actor: string }) {
         if (active) setError(reason instanceof Error ? reason.message : '任务记录暂时无法显示')
       })
     return () => { active = false }
-  }, [actor, session])
+  }, [actor, session?.token])
 
   if (error || !tasks || tasks.length === 0) {
     return (
@@ -124,8 +125,9 @@ function PublicActivities({ actor }: { actor: string }) {
   const { session } = useStoredSession()
   const [items, setItems] = useState<RiceEvent[] | null>(null)
   const [error, setError] = useState('')
+  usePanelReady(Boolean(items || error))
   useEffect(() => {
-    let active = true; setItems(null); setError('')
+    let active = true; setError('')
     void Promise.all([getEvents({ data: { token: session?.token, creatorDid: actor } }), getEvents({ data: { token: session?.token, participantDid: actor } })]).then(([created, participated]) => {
       if (active) setItems([...new Map([...created.data, ...participated.data].map((event) => [event.id, event])).values()])
     }).catch((e) => { if (active) setError(e.message) })

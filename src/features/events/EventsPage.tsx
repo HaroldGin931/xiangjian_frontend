@@ -5,12 +5,12 @@ import { Link } from '@tanstack/react-router'
 import { Sprout } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { ContentCardHeader } from '~/components/ContentCardHeader'
-import { DetailDialog } from '~/components/DetailDialog'
+import { DetailDialog, usePanelReady } from '~/components/DetailDialog'
 import { formatTimestamp } from '~/lib/format'
 import { useStoredSession } from '../session/session'
 import { EventDetail } from './EventDetail'
 import { NodeDetail } from '../nodes/NodesPanel'
-import { eventStatusLabel, getEvents, type RiceEvent } from './api'
+import { eventStatusLabel, getEvents, type RiceEvent, type EventPage } from './api'
 
 export function EventCard({ event, onOpen, onOpenCommunity }: { event: RiceEvent; onOpen?: () => void; onOpenCommunity?: (nodeId: string) => void }) {
   const [open, setOpen] = useState(false)
@@ -24,25 +24,26 @@ export function EventCard({ event, onOpen, onOpenCommunity }: { event: RiceEvent
     </button></article>{open && <DetailDialog title="活动详情" onClose={() => setOpen(false)}><EventDetail eventId={event.id} /></DetailDialog>}{communityOpen && <DetailDialog title="社区详情" onClose={() => setCommunityOpen(false)}><NodeDetail nodeId={event.node.id} /></DetailDialog>}</>
 }
 
-export function EventsPage({ nodeId, embedded = false, mine = false }: { nodeId?: string; embedded?: boolean; mine?: boolean }) {
+export function EventsPage({ nodeId, embedded = false, mine = false, initialPage }: { nodeId?: string; embedded?: boolean; mine?: boolean; initialPage?: EventPage }) {
   const { session, isReady } = useStoredSession()
   const [tab, setTab] = useState<'applied' | 'created'>('applied')
-  const [rows, setRows] = useState<RiceEvent[]>([])
-  const [cursor, setCursor] = useState<string | null>(null)
+  const [rows, setRows] = useState<RiceEvent[]>(initialPage?.data ?? [])
+  const [cursor, setCursor] = useState<string | null>(initialPage?.meta?.next_cursor ?? null)
   const [error, setError] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(!initialPage)
   const [reload, setReload] = useState(0)
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null)
   const [selectedCommunity, setSelectedCommunity] = useState<string | null>(null)
   const request = useRef(0)
-  const loadedScope = useRef('')
+  const firstLoad = useRef(true)
+  usePanelReady(isReady && (!loading || rows.length > 0 || !!error))
   useEffect(() => { const refresh = () => setReload((v) => v + 1); window.addEventListener('rice-changed', refresh); return () => window.removeEventListener('rice-changed', refresh) }, [])
   useEffect(() => {
     if (!isReady) return
+    if (firstLoad.current && initialPage) { firstLoad.current = false; return }
+    firstLoad.current = false
     let active = true; ++request.current
-    const scope = JSON.stringify([session?.token, nodeId, mine, tab])
-    setLoading(true); setError('')
-    if (scope !== loadedScope.current) { setRows([]); setCursor(null); loadedScope.current = scope }
+    setLoading(true); setError(''); setCursor(null)
     if (mine && !session) { setLoading(false); return }
     void getEvents({ data: { token: session?.token, nodeId, mine: mine ? tab : undefined } }).then((page) => { if (active) { setRows(page.data); setCursor(page.meta?.next_cursor ?? null) } }).catch((e) => { if (active) setError(e.message) }).finally(() => { if (active) setLoading(false) })
     return () => { active = false; ++request.current }
@@ -51,8 +52,8 @@ export function EventsPage({ nodeId, embedded = false, mine = false }: { nodeId?
   return <div className={`page events-page${embedded ? ' business-panel list-panel' : ''}`}><div className="business-heading"><h1>{mine ? '我的活动' : '活动'}</h1>{session && !mine && !embedded && <Link to="/me/events">我的活动</Link>}</div>
     {mine && <div className="filter-buttons">{(['applied', 'created'] as const).map((value) => <Button key={value} label={value === 'applied' ? '我申请的' : '我主办的'} variant="ghost" className={tab === value ? 'active' : undefined} aria-pressed={tab === value} onClick={() => setTab(value)} />)}</div>}
     {mine && !session && isReady && <Link to="/login" className="primary-link">登录后查看我的活动</Link>}
-    {error && <p className="inline-error" role="alert">{error}</p>}{loading && !rows.length && <p className="loading-line">正在加载活动…</p>}
-    <section className="task-list">{rows.map((event) => <EventCard event={event} key={event.id} onOpen={() => setSelectedEvent(event.id)} onOpenCommunity={setSelectedCommunity} />)}</section>
+    {error && <p className="inline-error" role="alert">{error}</p>}{loading && <p className={rows.length ? 'refresh-status' : 'loading-line'} role="status">正在加载活动…</p>}
+    <section className="task-list" aria-busy={loading}>{rows.map((event) => <EventCard event={event} key={event.id} onOpen={() => setSelectedEvent(event.id)} onOpenCommunity={setSelectedCommunity} />)}</section>
     {!loading && !error && !rows.length && <p className="search-hint">暂时没有活动。</p>}{cursor && <Button label="加载更多" variant="secondary" isDisabled={loading} clickAction={more} />}
     {selectedEvent && <DetailDialog title="活动详情" onClose={() => setSelectedEvent(null)}><EventDetail eventId={selectedEvent} /></DetailDialog>}
     {selectedCommunity && <DetailDialog title="社区详情" onClose={() => setSelectedCommunity(null)}><NodeDetail nodeId={selectedCommunity} /></DetailDialog>}

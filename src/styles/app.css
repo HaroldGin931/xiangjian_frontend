@@ -643,3 +643,10 @@ button.content-card-author { padding: 0; border: 0; background: transparent; col
 .business-dialog .social-profile-page { padding: 16px; }
 .business-dialog .grain-transfer-row { grid-template-columns: minmax(0, 1fr) auto; }
 .business-dialog .grain-transfer-row > div { min-width: 0; }
+
+/* Loading feedback stays out of the document flow, so existing content keeps its place. */
+.session-placeholder { display: inline-block; width: 88px; height: 44px; }
+.initial-loading { min-height: 55vh; color: var(--xj-text-soft); }
+.navigation-progress, .refresh-status, .panel-opening { position: fixed; z-index: 100; left: 50%; bottom: 104px; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 32px); margin: 0; padding: 10px 16px; border: 1px solid var(--xj-line); border-radius: 12px; background: var(--xj-surface); color: var(--xj-text-soft); box-shadow: 0 4px 20px #173d2c18; font-size: 16px; }
+.panel-opening { display: flex; align-items: center; gap: 18px; }
+.panel-opening button { border: 0; padding: 4px 8px; background: transparent; color: var(--xj-accent); font: inherit; cursor: pointer; }

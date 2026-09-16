@@ -3,7 +3,7 @@ import { TextArea } from '@astryxdesign/core/TextArea'
 import { Link } from '@tanstack/react-router'
 import { ArrowRight } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { DetailDialog } from '~/components/DetailDialog'
+import { DetailDialog, usePanelReady } from '~/components/DetailDialog'
 import { publicAttachmentUrl } from '~/lib/attachments'
 import { formatTimestamp } from '~/lib/format'
 import { useStoredSession } from '../session/session'
@@ -20,27 +20,36 @@ export function NodeCard({ node, onOpen }: { node: CommunityNode; onOpen: () => 
 
 export function NodesPanel({ identity = false }: { identity?: boolean }) {
   const { session, isReady } = useStoredSession()
-  const [nodes, setNodes] = useState<CommunityNode[]>([])
+  const owner = session?.user.id ?? 'guest'
+  const [data, setData] = useState<{ owner: string; nodes: CommunityNode[] } | null>(null)
   const [filter, setFilter] = useState<NodeMine | undefined>(identity ? 'identity' : undefined)
   const [query, setQuery] = useState('')
-  const [selected, setSelected] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState<{ owner: string; id: string } | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [version, setVersion] = useState(0)
+  useEffect(() => { const refresh = () => setVersion((v) => v + 1); window.addEventListener('rice-changed', refresh); return () => window.removeEventListener('rice-changed', refresh) }, [])
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSearch(query), 250)
+    return () => window.clearTimeout(timer)
+  }, [query])
   useEffect(() => {
     if (!isReady) return
     let active = true
-    setLoading(true); setError(''); setNodes([])
-    void getNodes({ data: { token: session?.token, mine: filter, q: query } }).then((rows) => { if (active) setNodes(rows) })
+    setLoading(true); setError('')
+    void getNodes({ data: { token: session?.token, mine: filter, q: search } }).then((nodes) => { if (active) setData({ owner, nodes }) })
       .catch((e) => { if (active) setError(e.message) }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [isReady, session?.token, filter, query, version])
-  return <div className="page business-panel list-panel"><h1>{identity ? '社区身份' : '节点目录'}</h1>
+  }, [isReady, owner, session?.token, filter, search, version])
+  const nodes = data?.owner === owner ? data.nodes : null
+  usePanelReady(isReady && (nodes !== null || !!error))
+  return <div className="page business-panel list-panel" aria-busy={loading || query !== search}><h1>{identity ? '社区身份' : '节点目录'}</h1>
     {!identity && <><input className="business-search" aria-label="搜索社区" placeholder="搜索社区" value={query} onChange={(e) => setQuery(e.target.value)} /><div className="filter-buttons">{([[undefined, '全部节点'], ['joined', '已加入'], ['pending', '申请中']] as const).map(([value, label]) => <Button key={label} label={label} variant="ghost" className={filter === value ? 'active' : undefined} aria-pressed={filter === value} onClick={() => setFilter(value)} />)}</div></>}
-    {error && <p className="inline-error" role="alert">{error}</p>}{loading && <p className="loading-line">正在加载社区…</p>}
-    <div className="node-list">{nodes.map((node) => <NodeCard node={node} onOpen={() => setSelected(node.id)} key={node.id} />)}</div>
-    {!loading && !error && !nodes.length && <p className="search-hint">{identity ? '还没有社区身份或待处理的申请。' : '没有找到社区。'}</p>}
-    {selected && <DetailDialog title="社区详情" onClose={() => { setSelected(null); setVersion((v) => v + 1) }}><NodeDetail nodeId={selected} /></DetailDialog>}
+    {error && <p className="inline-error" role="alert">{error}</p>}{nodes && (loading || query !== search) && <p className="refresh-status" role="status">正在更新社区…</p>}{!nodes && !error && <p className="loading-line">正在加载社区…</p>}
+    <div className="node-list">{nodes?.map((node) => <NodeCard node={node} onOpen={() => setSelected({ owner, id: node.id })} key={node.id} />)}</div>
+    {nodes && !error && !nodes.length && <p className="search-hint">{identity ? '还没有社区身份或待处理的申请。' : '没有找到社区。'}</p>}
+    {selected?.owner === owner && <DetailDialog title="社区详情" onClose={() => setSelected(null)}><NodeDetail nodeId={selected.id} /></DetailDialog>}
   </div>
 }
 
@@ -52,13 +61,14 @@ export function NodeDetail({ nodeId }: { nodeId: string }) {
   const [applyOpen, setApplyOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [stream, setStream] = useState<'tasks' | 'events' | null>(null)
+  usePanelReady(node !== null || !!error)
   useEffect(() => {
     let active = true
     setNode(null); setError('')
     void getNode({ data: { id: nodeId, token: session?.token } }).then((value) => { if (active) setNode(value) }).catch((e) => { if (active) setError(e.message) })
     return () => { active = false }
   }, [nodeId, session?.token])
-  const run = async (action: () => Promise<CommunityNode>) => { setBusy(true); setError(''); try { setNode(await action()); setApplyOpen(false) } catch (e) { setError(e instanceof Error ? e.message : '操作失败') } finally { setBusy(false) } }
+  const run = async (action: () => Promise<CommunityNode>) => { setBusy(true); setError(''); try { setNode(await action()); setApplyOpen(false); window.dispatchEvent(new Event('rice-changed')) } catch (e) { setError(e instanceof Error ? e.message : '操作失败') } finally { setBusy(false) } }
   return <div className="page business-panel">{error && <p className="inline-error" role="alert">{error}</p>}{!node && !error && <p>正在加载社区…</p>}{node && <>
     <h1>{node.name}</h1><p className="business-description">{node.description}</p>
     <section className="business-section"><h2>社区成员</h2>{node.members?.map(({ user, role }) => <p key={user.id}><Link to="/profile/$actor" params={{ actor: user.did }}>{user.nickname || user.handle}</Link> · {role === 'admin' ? '管理员' : '成员'}</p>)}</section>

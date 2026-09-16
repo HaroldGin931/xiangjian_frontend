@@ -6,12 +6,16 @@ import {
   writeCachedFeed,
 } from '~/features/feed/api'
 import { PlazaPage } from '~/features/feed/PlazaPage'
-import { readStoredSession } from '~/features/session/session'
+import { readStoredSession, refreshStoredSession, tokenExpiresSoon } from '~/features/session/session'
 
 export const Route = createFileRoute('/')({
   loader: {
     handler: async () => {
-      const session = readStoredSession()
+      let session = readStoredSession()
+      if (session && tokenExpiresSoon(session.pds.access_jwt)) {
+        await refreshStoredSession(session).catch(() => undefined)
+        session = readStoredSession()
+      }
       const cachedFeed = readCachedFeed(session?.pds.did)
       if (cachedFeed) return cachedFeed
 

@@ -7,6 +7,7 @@ import { ArrowLeft, UserRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { publicAttachmentUrl } from '~/lib/attachments'
+import { usePanelReady } from '~/components/DetailDialog'
 
 import { useStoredSession } from '../session/session'
 import { updateCurrentUser, uploadRiceAttachment } from './api'
@@ -14,7 +15,8 @@ import { updateCurrentUser, uploadRiceAttachment } from './api'
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
 
 export function ProfileEditPage({ onSaved }: { onSaved?: () => void }) {
-  const { session, saveSession } = useStoredSession()
+  const { session, isReady, saveSession } = useStoredSession()
+  usePanelReady(isReady)
   const navigate = useNavigate()
   const [nickname, setNickname] = useState(session?.user.nickname || '')
   const [bio, setBio] = useState(session?.user.bio || '')

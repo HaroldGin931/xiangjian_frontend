@@ -1,4 +1,5 @@
 import { ImageGroup } from '~/components/ContentImages'
+import { usePanelReady } from '~/components/DetailDialog'
 import { attachmentImages } from '~/lib/attachments'
 import { Button } from '@astryxdesign/core/Button'
 import { TextArea } from '@astryxdesign/core/TextArea'
@@ -11,16 +12,22 @@ import { applicationStatusLabel, eventAction, eventStatusLabel, getEvent, type R
 
 const historyLabels: Record<string, string> = { applied: '提交申请', completed: '活动结束', application_completed: '完成参与记录', application_cancelled: '报名已取消', created: '创建活动', published: '发布活动', application_created: '提交申请', application_approved: '通过申请', application_rejected: '拒绝申请', application_removed: '移除报名', started: '活动开始', finished: '活动结束', cancelled: '活动取消', application_not_selected: '申请未入选' }
 export function EventDetail({ eventId }: { eventId: string }) {
+  const { session } = useStoredSession()
+  return <EventDetails key={`${eventId}:${session?.user.id ?? 'guest'}`} eventId={eventId} />
+}
+
+function EventDetails({ eventId }: { eventId: string }) {
   const { session, isReady } = useStoredSession()
   const [event, setEvent] = useState<RiceEvent | null>(null)
   const [error, setError] = useState('')
   const [reason, setReason] = useState('')
   const [confirm, setConfirm] = useState<'apply' | 'finish' | 'cancel' | null>(null)
   const [busy, setBusy] = useState(false)
+  usePanelReady(isReady && Boolean(event || error))
   useEffect(() => {
     if (!isReady) return
     let active = true
-    setEvent(null); setError('')
+    setError('')
     void getEvent({ data: { id: eventId, token: session?.token } }).then((value) => { if (active) setEvent(value) }).catch((e) => { if (active) setError(e.message) })
     return () => { active = false }
   }, [isReady, session?.token, eventId])

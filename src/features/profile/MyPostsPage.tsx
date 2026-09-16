@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { PostList } from '~/components/PostList'
+import { usePanelReady } from '~/components/DetailDialog'
 import { getPosts } from '~/features/feed/api'
 import { PostThreadDialog } from '~/features/feed/PostThreadDialog'
 import { postCategory } from '~/features/feed/tags'
@@ -15,9 +16,11 @@ export function MyPostsPage({ embedded = false }: { embedded?: boolean }) {
   const [feed, setFeed] = useState<PostFeed | null>(null)
   const [error, setError] = useState('')
   const [selectedPost, setSelectedPost] = useState<{ post: PostView; focusReply: boolean } | null>(null)
+  usePanelReady(isReady && (!session || Boolean(feed || error)))
 
   useEffect(() => {
     if (!session) return
+    let active = true
     setError('')
     void getPosts({
       data: {
@@ -26,11 +29,12 @@ export function MyPostsPage({ embedded = false }: { embedded?: boolean }) {
         accessJwt: session.pds.access_jwt,
       },
     })
-      .then(setFeed)
+      .then((next) => { if (active) setFeed(next) })
       .catch((reason) => {
-        setError(reason instanceof Error ? reason.message : '帖子暂时无法加载')
+        if (active) setError(reason instanceof Error ? reason.message : '帖子暂时无法加载')
       })
-  }, [session])
+    return () => { active = false }
+  }, [session?.pds.did, session?.pds.access_jwt])
 
   if (isReady && !session) {
     return (

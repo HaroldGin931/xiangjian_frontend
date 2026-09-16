@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { ArrowLeft, Bell, ChevronRight } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
-import { DetailDialog } from '~/components/DetailDialog'
+import { DetailDialog, usePanelReady } from '~/components/DetailDialog'
 import { EventDetail } from '../events/EventDetail'
 import { NodeDetail } from '../nodes/NodesPanel'
 import { TaskDetailPage } from '../tasks/TaskDetailPage'
@@ -51,12 +51,13 @@ export function NotificationsPage({ embedded = false }: { embedded?: boolean }) 
   const [selected, setSelected] = useState<NotificationTarget | null>(null)
   const [marking, setMarking] = useState(false)
   const [notifications, setNotifications] = useState<NotificationView[]>([])
-  const [isLoading, setLoading] = useState(false)
+  const [isLoading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
   const accessJwt = session?.pds.access_jwt
   const riceToken = session?.token
   const lifetime = useRef(0)
+  usePanelReady(isReady && (!session || !isLoading))
 
   useEffect(() => {
     lifetime.current += 1
@@ -65,7 +66,8 @@ export function NotificationsPage({ embedded = false }: { embedded?: boolean }) 
   }, [accessJwt, riceToken])
 
   useEffect(() => {
-    if (!isReady || !accessJwt || !riceToken) {
+    if (!isReady) return
+    if (!accessJwt || !riceToken) {
       setNotifications([])
       setSelected(null)
       setLoading(false)

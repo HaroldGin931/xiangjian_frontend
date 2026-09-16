@@ -1,7 +1,7 @@
 import { Button } from '@astryxdesign/core/Button'
 import { Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
-import { DetailDialog } from '~/components/DetailDialog'
+import { DetailDialog, usePanelReady } from '~/components/DetailDialog'
 import { useStoredSession } from '../session/session'
 import { getTaskPage } from './api'
 import { TaskCard } from './TaskCard'
@@ -10,7 +10,7 @@ import { myTaskGroup, type TaskGroup as Group, type RiceTask, type TaskMine } fr
 
 export function MyTasksPage({ embedded = false }: { embedded?: boolean }) {
   const { session, isReady } = useStoredSession()
-  const [tasks, setTasks] = useState<RiceTask[]>([])
+  const [data, setData] = useState<{ owner: string; tasks: RiceTask[] } | null>(null)
   const [group, setGroup] = useState<Group | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -18,7 +18,8 @@ export function MyTasksPage({ embedded = false }: { embedded?: boolean }) {
   const [selectedTask, setSelectedTask] = useState<string | null>(null)
   useEffect(() => { const refresh = () => setVersion((v) => v + 1); window.addEventListener('rice-changed', refresh); return () => window.removeEventListener('rice-changed', refresh) }, [])
   useEffect(() => {
-    if (!isReady || !session) { setLoading(false); return }
+    if (!isReady) return
+    if (!session) { setData(null); setLoading(false); return }
     let active = true; setLoading(true); setError('')
     const load = async () => {
       const mine: TaskMine[] = ['created', 'applied', 'assigned']
@@ -28,20 +29,23 @@ export function MyTasksPage({ embedded = false }: { embedded?: boolean }) {
         do { const page = await getTaskPage({ data: { token: session.token, mine: value, limit: 100, before } }); rows.push(...page.data); before = page.meta.next_cursor ?? undefined } while (before && active)
         return rows
       }))
-      if (active) setTasks([...new Map(groups.flat().map((t) => [t.id, t])).values()])
+      if (active) setData({ owner: session.user.id, tasks: [...new Map(groups.flat().map((t) => [t.id, t])).values()] })
     }
     void load().catch((e) => { if (active) setError(e.message) }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [isReady, session?.token, version])
-  useEffect(() => { setGroup(null); setTasks([]); setSelectedTask(null) }, [session?.token])
+  }, [isReady, session?.token, session?.user.id, version])
+  useEffect(() => { setGroup(null); setSelectedTask(null) }, [session?.user.id])
+  const tasks = data && data.owner === session?.user.id ? data.tasks : null
+  usePanelReady(isReady && (!session || tasks !== null || !!error))
   if (isReady && !session) return <div className="page"><Link to="/login" className="primary-link">登录后查看我的任务</Link></div>
+  if (!tasks) return <div className="page business-panel list-panel">{!embedded && <Link to="/me" className="back-link">返回我的</Link>}<h1>我的任务</h1>{error ? <p className="inline-error" role="alert">{error}</p> : <p className="loading-line">正在加载任务…</p>}</div>
   const own = (task: RiceTask) => task.creator.id === session?.user.id
   const groupOf = (task: RiceTask) => myTaskGroup(task, own(task))
   const publisher = tasks.some(own)
   const tabs: Array<[Group, string]> = [...(publisher ? [['pending', '待审批']] as Array<[Group, string]> : []), ...(!publisher || tasks.some((t) => groupOf(t) === 'applying') ? [['applying', '申请中']] as Array<[Group, string]> : []), ['in_progress', '进行中'], ['under_review', '审核中'], ['ended', '已结束'], ...(publisher ? [['open', '招募中'], ['draft', '草稿']] as Array<[Group, string]> : [])]
   const selected = group && tabs.some(([value]) => value === group) ? group : tabs[0][0]
-  return <div className="page business-panel list-panel">{!embedded && <Link to="/me" className="back-link">返回我的</Link>}<h1>我的任务</h1><div className="filter-buttons my-task-tabs">{tabs.map(([value, label]) => <Button key={value} label={`${label} ${tasks.filter((t) => groupOf(t) === value).length}`} variant="ghost" className={selected === value ? 'active' : undefined} aria-pressed={selected === value} onClick={() => setGroup(value)} />)}</div>
-    {error && <p className="inline-error" role="alert">{error}</p>}{loading && !tasks.length && <p className="loading-line">正在加载任务…</p>}<section className="task-list">{tasks.filter((t) => groupOf(t) === selected).map((task) => <TaskCard task={task} compact key={task.id} onOpen={() => setSelectedTask(task.id)} />)}</section>{!loading && !error && !tasks.some((t) => groupOf(t) === selected) && <p className="search-hint">这里还没有任务。</p>}
+  return <div className="page business-panel list-panel" aria-busy={loading}>{!embedded && <Link to="/me" className="back-link">返回我的</Link>}<h1>我的任务</h1><div className="filter-buttons my-task-tabs">{tabs.map(([value, label]) => <Button key={value} label={`${label} ${tasks.filter((t) => groupOf(t) === value).length}`} variant="ghost" className={selected === value ? 'active' : undefined} aria-pressed={selected === value} onClick={() => setGroup(value)} />)}</div>
+    {error && <p className="inline-error" role="alert">{error}</p>}<section className="task-list">{tasks.filter((t) => groupOf(t) === selected).map((task) => <TaskCard task={task} compact key={task.id} onOpen={() => setSelectedTask(task.id)} />)}</section>{!error && !tasks.some((t) => groupOf(t) === selected) && <p className="search-hint">这里还没有任务。</p>}
     {selectedTask && <DetailDialog title="任务详情" onClose={() => setSelectedTask(null)}><TaskDetailPage taskId={selectedTask} embedded /></DetailDialog>}
   </div>
 }
