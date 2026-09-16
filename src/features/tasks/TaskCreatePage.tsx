@@ -1,201 +1,101 @@
 import { Button } from '@astryxdesign/core/Button'
-import { DateTimeInput, type ISODateTimeString } from '@astryxdesign/core/DateTimeInput'
 import { TextArea } from '@astryxdesign/core/TextArea'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft } from 'lucide-react'
-import { useEffect, useState } from 'react'
-
+import { useEffect, useRef, useState } from 'react'
+import { ImagePicker } from '~/components/ContentImages'
+import { RICE_IMAGE_MAX_BYTES, useRiceImages } from '../media/useRiceImages'
 import { localDateTimeValue } from '~/lib/format'
-
+import { getNodes, type CommunityNode } from '../nodes/api'
 import { useStoredSession } from '../session/session'
-import { createTask, getTasks, publishTask, updateTaskDraft } from './api'
+import { createTask, getTask, getTasks, publishTask, updateTaskDraft } from './api'
 
-export function TaskCreatePage({ embedded = false }: { embedded?: boolean }) {
+export function TaskCreatePage({ embedded = false, onPublished }: { embedded?: boolean; onPublished?: () => void }) {
+  const { session } = useStoredSession()
+  return <TaskCreateForm key={session?.token ?? 'guest'} embedded={embedded} onPublished={onPublished} />
+}
+
+function TaskCreateForm({ embedded, onPublished }: { embedded: boolean; onPublished?: () => void }) {
   const { session, isReady } = useStoredSession()
   const navigate = useNavigate()
+  const mounted = useRef(false)
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
+  const [nodes, setNodes] = useState<CommunityNode[]>([])
+  const [nodeId, setNodeId] = useState('')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [requirement, setRequirement] = useState('')
   const [applicationDeadline, setApplicationDeadline] = useState('')
+  const [executionDeadline, setExecutionDeadline] = useState('')
   const [rewardAmount, setRewardAmount] = useState('')
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null)
   const [draftLoading, setDraftLoading] = useState(true)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [submitting, setSubmitting] = useState<'draft' | 'open' | null>(null)
-
+  const requestId = useRef('')
+  const imageSelection = useRiceImages()
+  const restoreImages = imageSelection.restore
   useEffect(() => {
     if (!isReady) return
-    if (!session) {
-      setDraftLoading(false)
-      return
-    }
-    let active = true
-    setDraftLoading(true)
-
-    void getTasks({ data: { token: session.token, mine: 'created', status: 'draft', limit: 1 } })
-      .then(([draft]) => {
-        if (!active || !draft) return
-        setEditingDraftId(draft.id)
-        setTitle(draft.title)
-        setDescription(draft.description)
-        setApplicationDeadline(toLocalDateTime(draft.application_deadline))
-        setRewardAmount(String(draft.reward_amount))
-      })
-      .catch((reason) => {
-        if (active) setError(reason instanceof Error ? reason.message : '草稿暂时无法加载')
-      })
-      .finally(() => {
-        if (active) setDraftLoading(false)
-      })
-
-    return () => {
-      active = false
-    }
-  }, [isReady, session?.token])
-
-  if (!isReady) {
-    return <div className="page loading-line">正在恢复登录状态…</div>
-  }
-
-  if (!session) {
-    return <LoginRequired />
-  }
-
-  if (draftLoading) {
-    return <div className="page loading-line">正在恢复草稿…</div>
-  }
-
+    if (!session) { setDraftLoading(false); return }
+    let active = true; setDraftLoading(true)
+    void Promise.all([getNodes({ data: { token: session.token, mine: 'managed' } }), getTasks({ data: { token: session.token, mine: 'created', status: 'draft', limit: 1 } })]).then(([managed, [draft]]) => {
+      if (!active) return
+      setNodes(managed); setNodeId(draft?.node?.id ?? managed[0]?.id ?? '')
+      if (draft) { setEditingDraftId(draft.id); restoreImages(draft.attachments ?? []); setTitle(draft.title); setDescription(draft.description); setRequirement(draft.requirement ?? ''); setApplicationDeadline(draft.application_deadline ? localDateTimeValue(draft.application_deadline) : ''); setExecutionDeadline(draft.execution_deadline ? localDateTimeValue(draft.execution_deadline) : ''); setRewardAmount(String(draft.reward_amount)) }
+    }).catch((e) => { if (active) setError(e.message) }).finally(() => { if (active) setDraftLoading(false) })
+    return () => { active = false }
+  }, [isReady, session?.token, restoreImages])
+  if (!isReady || draftLoading) return <p className="loading-line">正在恢复草稿…</p>
+  if (!session) return <Link to="/login" className="primary-link">登录后发布任务</Link>
+  if (!nodes.length) return <div className="form-card"><p>只有社区管理员可以发布任务。</p>{error && <p className="inline-error" role="alert">{error}</p>}<Button label="发布任务" variant="primary" isDisabled /></div>
   const submit = async (status: 'draft' | 'open') => {
-    if (applicationDeadline && applicationDeadline < localDateTimeValue()) {
-      setError('截止日期不能早于当前时间')
-      return
-    }
-    setSubmitting(status)
-    setError('')
+    if (submitting) return
+    if ((applicationDeadline && applicationDeadline < localDateTimeValue()) || (executionDeadline && executionDeadline < localDateTimeValue()) || (applicationDeadline && executionDeadline && executionDeadline <= applicationDeadline)) { setError('申请截止应早于交付截止，日期应晚于当前时间。'); return }
+    setSubmitting(status); setError(''); setNotice('')
+    if (!requestId.current) requestId.current = crypto.randomUUID()
     try {
-      const deadline = applicationDeadline ? new Date(applicationDeadline).toISOString() : null
-      const reward = Number(rewardAmount || 0)
-      let task
-
-      if (editingDraftId) {
-        task = await updateTaskDraft({
-          data: {
-            token: session.token,
-            taskId: editingDraftId,
-            title,
-            description,
-            applicationDeadline: deadline,
-            rewardAmount: reward,
-          },
-        })
-        if (status === 'open') {
-          task = await publishTask({ data: { token: session.token, taskId: task.id } })
-        }
-      } else {
-        task = await createTask({
-          data: {
-            token: session.token,
-            title,
-            description,
-            status,
-            applicationDeadline: deadline ?? undefined,
-            rewardAmount: reward,
-          },
-        })
+      const attachmentIds = await imageSelection.upload(session.token)
+      const fields = { attachmentIds, token: session.token, title, description, nodeId, requirement, applicationDeadline: applicationDeadline ? new Date(applicationDeadline).toISOString() : null, executionDeadline: executionDeadline ? new Date(executionDeadline).toISOString() : null, rewardAmount: Number(rewardAmount || 0), clientRequestId: requestId.current }
+      // Save first so a failed publish leaves a recoverable server draft.
+      let draftId = editingDraftId
+      if (!draftId) {
+        const [saved] = await getTasks({ data: { token: session.token, mine: 'created', status: 'draft', limit: 1 } })
+        if (saved && saved.node?.id !== nodeId) throw new Error('已有另一社区的任务草稿。请重新打开发布窗口后继续编辑。')
+        draftId = saved?.id ?? null
       }
-      await navigate({ to: '/tasks/$taskId', params: { taskId: task.id } })
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '任务保存失败')
-    } finally {
-      setSubmitting(null)
-    }
+      let task = draftId ? await getTask({ data: { token: session.token, id: draftId } }) : null
+      if (task?.status === 'open' && status === 'open') {
+        const iso = (date?: string | null) => date ? new Date(date).toISOString() : null
+        const published = [task.title, task.description, task.requirement ?? '', task.reward_amount, iso(task.application_deadline), iso(task.execution_deadline), (task.attachments ?? []).map((image) => image.id)]
+        const requested = [title, description, requirement, fields.rewardAmount, fields.applicationDeadline, fields.executionDeadline, attachmentIds]
+        if (JSON.stringify(published) !== JSON.stringify(requested)) throw new Error('这项任务已发布，当前修改尚未保存。请关闭发布窗口后查看已发布的任务。')
+      } else {
+        task = draftId
+          ? await updateTaskDraft({ data: { ...fields, taskId: draftId } })
+          : await createTask({ data: { ...fields, status: 'draft', applicationDeadline: fields.applicationDeadline ?? undefined } })
+        setEditingDraftId(task.id)
+        if (status === 'open') task = await publishTask({ data: { token: session.token, taskId: task.id } })
+      }
+      if (!mounted.current) return
+      setEditingDraftId(task.id)
+      if (status === 'draft') { setNotice('草稿已保存'); return }
+      window.dispatchEvent(new Event('rice-changed'))
+      if (onPublished) onPublished(); else await navigate({ to: '/tasks/$taskId', params: { taskId: task.id } })
+    } catch (e) { if (mounted.current) setError(e instanceof Error ? e.message : '任务保存失败') } finally { if (mounted.current) setSubmitting(null) }
   }
-
-  const form = (
-    <section className={`form-card ${embedded ? 'task-compose-form' : ''}`}>
-      {editingDraftId ? <div className="form-notice">正在编辑已保存的草稿</div> : null}
-      <TextInput
-        label="任务标题"
-        value={title}
-        onChange={(value) => setTitle(value.slice(0, 128))}
-        width="100%"
-        isRequired
-      />
-      <TextArea
-        label="任务说明与预期成果"
-        value={description}
-        onChange={setDescription}
-        maxLength={4000}
-        rows={4}
-        width="100%"
-        isRequired
-      />
-      <DateTimeInput
-        label="截止日期"
-        timeLabel="截止时间"
-        description="可选，只能选择当前时间之后"
-        value={applicationDeadline ? applicationDeadline as ISODateTimeString : undefined}
-        onChange={(value) => setApplicationDeadline(value ?? '')}
-        hourFormat="24h"
-        timeOptionInterval={15}
-        min={localDateTimeValue() as ISODateTimeString}
-        width="100%"
-        isOptional
-        hasClear
-      />
-      <TextInput
-        label="任务奖励（稻米）"
-        description="0 稻米不冻结；大于 0 时，发布后从可用余额中冻结。"
-        value={rewardAmount}
-        onChange={(value) => setRewardAmount(value.replace(/\D/g, '').slice(0, 9))}
-        placeholder="请输入 0 或正整数"
-        width="100%"
-        isRequired
-      />
-      {error ? <div className="form-error" role="alert">{error}</div> : null}
-      <div className="button-row">
-        <Button
-          label={editingDraftId ? '更新草稿' : '存为草稿'}
-          variant="secondary"
-          clickAction={() => submit('draft')}
-          isLoading={submitting === 'draft'}
-          isDisabled={!title.trim() || !description.trim() || Boolean(applicationDeadline && applicationDeadline < localDateTimeValue()) || submitting === 'open'}
-        />
-        <Button
-          label="发布任务"
-          variant="primary"
-          clickAction={() => submit('open')}
-          isLoading={submitting === 'open'}
-          isDisabled={!title.trim() || !description.trim() || rewardAmount === '' || Boolean(applicationDeadline && applicationDeadline < localDateTimeValue()) || submitting === 'draft'}
-        />
-      </div>
-    </section>
-  )
-
-  if (embedded) return form
-
-  return (
-    <div className="page narrow-page task-form-page">
-      <Link to="/tasks" className="back-link"><ArrowLeft size={16} /> 取消</Link>
-      <section className="page-intro">
-        <div className="eyebrow">发布后直接进入可领取</div>
-        <h1>发布任务</h1>
-        <p>发布时冻结任务奖励；完成后发给承作人，取消或失效时自动退回。</p>
-      </section>
-      {form}
-    </div>
-  )
-}
-
-function toLocalDateTime(value: string | null) {
-  return value ? localDateTimeValue(value) : ''
-}
-
-function LoginRequired() {
-  return (
-    <div className="page signed-out-state">
-      <strong>登录后才能发布任务</strong>
-      <Link to="/login" className="primary-link">前往登录</Link>
-    </div>
-  )
+  const disabled = !nodeId || !title.trim() || !description.trim() || !requirement.trim() || rewardAmount === '' || !!submitting
+  return <section className={`form-card task-compose-form ${embedded ? '' : 'page'}`}>
+    {!embedded && <h1>发布任务</h1>}<label className="native-field">所属社区<select value={nodeId} disabled={!!editingDraftId || !!submitting} onChange={(e) => setNodeId(e.target.value)}>{nodes.map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}</select></label>
+    <TextInput label="任务标题" value={title} onChange={(v) => setTitle(v.slice(0, 128))} width="100%" isRequired />
+    <TextArea label="任务说明" value={description} onChange={setDescription} maxLength={4000} rows={4} width="100%" isRequired />
+    <ImagePicker images={imageSelection.images} onSelect={imageSelection.select} onRemove={imageSelection.remove} disabled={!!submitting} maxBytes={RICE_IMAGE_MAX_BYTES} />
+    <TextArea label="交付要求" value={requirement} onChange={setRequirement} maxLength={4000} rows={3} width="100%" isRequired />
+    <label className="native-field">申请截止时间<input type="datetime-local" value={applicationDeadline} min={localDateTimeValue()} onChange={(e) => setApplicationDeadline(e.target.value)} /></label>
+    <label className="native-field">交付截止时间<input type="datetime-local" value={executionDeadline} min={applicationDeadline || localDateTimeValue()} onChange={(e) => setExecutionDeadline(e.target.value)} /></label>
+    <TextInput label="任务报酬（测试稻米）" value={rewardAmount} onChange={(v) => setRewardAmount(v.replace(/\D/g, '').slice(0, 9))} width="100%" isRequired />
+    {error && <p className="form-error" role="alert">{error}</p>}{notice && <p className="form-notice" role="status">{notice}</p>}
+    <div className="button-row"><Button label="保存草稿" variant="secondary" isDisabled={disabled} isLoading={submitting === 'draft'} clickAction={() => submit('draft')} /><Button label="发布任务" variant="primary" isDisabled={disabled} isLoading={submitting === 'open'} clickAction={() => submit('open')} /></div>
+  </section>
 }

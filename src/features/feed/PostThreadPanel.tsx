@@ -5,6 +5,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useId, useState } from 'react'
 
 import { ContentCardHeader } from '~/components/ContentCardHeader'
+import { ImageGroup } from '~/components/ContentImages'
 import { PostText } from '~/components/PostText'
 import {
   PostActions,
@@ -185,6 +186,7 @@ export function PostThreadPanel({
             <p className="post-detail-copy">
               <PostText text={postDisplayText(thread.post.record.text, category)} />
             </p>
+            <ImageGroup images={(thread.post.images ?? []).map((image) => ({ ...image, src: image.fullsize ?? image.src }))} />
             <div className="detail-actions">
               <PostActions
                 post={thread.post}
@@ -245,6 +247,7 @@ export function PostThreadPanel({
                         profileActor={reply.post.author.did}
                       />
                       <p><PostText text={reply.post.record.text} /></p>
+                      <ImageGroup images={(reply.post.images ?? []).map((image) => ({ ...image, src: image.fullsize ?? image.src }))} />
                       <PostActions post={reply.post} onOpenComments={focusComposer} />
                     </article>
                   ))}

@@ -1,4 +1,41 @@
 import { BACKEND_BASE, requestJson, type JsonObject } from './http'
+import type { PdsImage } from './models'
+
+// The deployed PDS image lexicon still limits each blob to 1,000,000 bytes.
+export const MAX_POST_IMAGE_BYTES = 1_000_000
+export const MAX_POST_IMAGES = 4
+export const POST_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+
+export async function uploadPdsImage(accessJwt: string, base64: string, contentType: string) {
+  if (!POST_IMAGE_TYPES.includes(contentType)) throw new Error('请选择 JPG、PNG、WebP 或 GIF 图片。')
+  if (!base64 || base64.length > Math.ceil(MAX_POST_IMAGE_BYTES / 3) * 4 || !/^[A-Za-z0-9+/]*={0,2}$/.test(base64)) {
+    throw new Error('帖子图片每张不能超过 1 MB。')
+  }
+  const bytes = Buffer.from(base64, 'base64')
+  if (!bytes.length || bytes.length > MAX_POST_IMAGE_BYTES) throw new Error('帖子图片每张不能超过 1 MB。')
+  const { blob } = await requestJson<{ blob: PdsImage['image'] }>(
+    `${BACKEND_BASE}/pds/xrpc/com.atproto.repo.uploadBlob`,
+    { method: 'POST', headers: { Authorization: `Bearer ${accessJwt}`, 'Content-Type': contentType }, body: bytes },
+  )
+  if (blob?.$type !== 'blob' || !blob.ref?.$link || !POST_IMAGE_TYPES.includes(blob.mimeType) || !Number.isFinite(blob.size) || blob.size <= 0 || blob.size > MAX_POST_IMAGE_BYTES) {
+    throw new Error('图片上传失败，请重试。')
+  }
+  return blob
+}
+
+export function pdsBlobUrl(did: string, cid: string) {
+  return `/pds/xrpc/com.atproto.sync.getBlob?${new URLSearchParams({ did, cid })}`
+}
+
+let lastPostTimestamp = 0n
+export function newPostRecordKey() {
+  // AT Protocol TID: microsecond timestamp, 10-bit clock ID, sortable base32.
+  // https://atproto.com/specs/tid
+  lastPostTimestamp = BigInt(Math.max(Date.now() * 1000, Number(lastPostTimestamp) + 1))
+  const clock = crypto.getRandomValues(new Uint16Array(1))[0] & 1023
+  return ((lastPostTimestamp << 10n) | BigInt(clock)).toString(32).padStart(13, '0')
+    .replace(/./g, (digit) => '234567abcdefghijklmnopqrstuvwxyz'[parseInt(digit, 32)])
+}
 
 export function recordKeyFromUri(uri: string, collection: string) {
   const parts = uri.split('/')
@@ -10,7 +47,7 @@ export function recordKeyFromUri(uri: string, collection: string) {
 
 export function createPdsRecord(
   accessJwt: string,
-  body: { repo: string; collection: string; record: JsonObject },
+  body: { repo: string; collection: string; record: JsonObject; rkey?: string },
 ) {
   return requestJson<{ uri: string; cid: string }>(
     `${BACKEND_BASE}/pds/xrpc/com.atproto.repo.createRecord`,

@@ -1,232 +1,113 @@
 import { Button } from '@astryxdesign/core/Button'
-import { IconButton } from '@astryxdesign/core/IconButton'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { ArrowLeft, Search } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-
+import { ArrowLeft, ChevronDown } from 'lucide-react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { DetailDialog } from '~/components/DetailDialog'
 import { PostCard } from '~/components/PostList'
 import { getPostPage } from '~/features/feed/api'
-import {
-  createSearchTimeline,
-  takeSearchPage,
-  type SearchItem,
-  type SearchScope,
-  type SearchTimelineState,
-} from '~/features/search/timeline'
+import { PostThreadDialog } from '~/features/feed/PostThreadDialog'
+import { postCategory } from '~/features/feed/tags'
+import { getEvents, type RiceEvent } from '~/features/events/api'
+import { EventCard } from '~/features/events/EventsPage'
+import { getNodes, type CommunityNode } from '~/features/nodes/api'
+import { NodeCard, NodeDetail } from '~/features/nodes/NodesPanel'
 import { useStoredSession } from '~/features/session/session'
+import { searchUsers } from '~/features/social/api'
+import { UserProfilePage } from '~/features/social/UserProfilePage'
 import { getTaskPage } from '~/features/tasks/api'
 import { TaskCard } from '~/features/tasks/TaskCard'
+import type { RiceTask } from '~/features/tasks/types'
+import type { PostView, RicePublicUser } from '~/lib/models'
 
-export const Route = createFileRoute('/search')({
-  validateSearch: (search: Record<string, unknown>): { q?: string } => {
-    const q = typeof search.q === 'string' ? search.q.trim() : ''
-    return q ? { q } : {}
-  },
-  component: SearchPage,
-})
-
-const pageSize = 10
-
+export const Route = createFileRoute('/search')({ validateSearch: (search: Record<string, unknown>): { q?: string } => typeof search.q === 'string' && search.q.trim() ? { q: search.q.trim() } : {}, component: SearchPage })
 function SearchPage() {
-  const { q: requestedQuery } = Route.useSearch()
+  const { q } = Route.useSearch()
   const { session } = useStoredSession()
-  const [query, setQuery] = useState(requestedQuery ?? '')
-  const [scope, setScope] = useState<SearchScope>('all')
-  const [items, setItems] = useState<SearchItem[]>([])
-  const [hasSearched, setHasSearched] = useState(false)
-  const [isLoading, setLoading] = useState(false)
-  const [isLoadingMore, setLoadingMore] = useState(false)
-  const [hasMore, setHasMore] = useState(false)
+  const [query, setQuery] = useState(q ?? '')
+  const [searched, setSearched] = useState('')
+  const [tasks, setTasks] = useState<RiceTask[]>([])
+  const [posts, setPosts] = useState<PostView[]>([])
+  const [events, setEvents] = useState<RiceEvent[]>([])
+  const [nodes, setNodes] = useState<CommunityNode[]>([])
+  const [users, setUsers] = useState<RicePublicUser[]>([])
+  const [cursors, setCursors] = useState<{ tasks?: string; posts?: string; events?: string; users?: string }>({})
+  const [failedGroups, setFailedGroups] = useState<string[]>([])
+  const [selectedPost, setSelectedPost] = useState<PostView | null>(null)
+  const [selectedNode, setSelectedNode] = useState<string | null>(null)
+  const [selectedUser, setSelectedUser] = useState<string | null>(null)
   const [error, setError] = useState('')
-  const timeline = useRef<SearchTimelineState | null>(null)
-  const activeQuery = useRef('')
-  const loadMoreMarker = useRef<HTMLDivElement | null>(null)
-  const requestVersion = useRef(0)
-  const lastRoutedQuery = useRef('')
-
-  const loaders = (value: string) => ({
-    posts: async (cursor?: string) => {
-      const page = await getPostPage({
-        data: {
-          query: value,
-          cursor,
-          limit: pageSize,
-          accessJwt: session?.pds.access_jwt,
-          did: session?.pds.did,
-        },
-      })
-      return { items: page.posts, nextCursor: page.cursor }
-    },
-    tasks: async (cursor?: string) => {
-      const page = await getTaskPage({
-        data: {
-          token: session?.token,
-          q: value,
-          sort: 'published',
-          before: cursor,
-          limit: pageSize,
-        },
-      })
-      return { items: page.data, nextCursor: page.meta.next_cursor }
-    },
-  })
-
-  const search = async (selectedScope = scope, requestedValue = query) => {
-    const value = requestedValue.trim()
-    if (!value) return
-    const version = ++requestVersion.current
-    activeQuery.current = value
-    timeline.current = null
-    setLoading(true)
-    setLoadingMore(false)
-    setItems([])
-    setHasMore(false)
-    setError('')
-    try {
-      const page = await takeSearchPage(
-        createSearchTimeline(selectedScope),
-        loaders(value),
-        pageSize,
-      )
-      if (version !== requestVersion.current) return
-      timeline.current = page.state
-      setItems(page.items)
-      setHasMore(page.hasMore)
-    } catch (reason) {
-      if (version === requestVersion.current) {
-        timeline.current = null
-        setError(reason instanceof Error ? reason.message : '搜索暂时不可用')
-      }
-    } finally {
-      if (version === requestVersion.current) {
-        setHasSearched(true)
-        setLoading(false)
-      }
-    }
+  const [loading, setLoading] = useState(false)
+  const version = useRef(0)
+  const search = async (value = query) => {
+    value = value.trim(); if (!value) return
+    const current = ++version.current
+    setLoading(true); setError(''); setSearched(value); setTasks([]); setPosts([]); setEvents([]); setNodes([]); setUsers([]); setCursors({}); setFailedGroups([])
+    const result = await Promise.allSettled([
+      getTaskPage({ data: { q: value, token: session?.token, limit: 10 } }),
+      getPostPage({ data: { query: value, accessJwt: session?.pds.access_jwt, did: session?.pds.did, limit: 10, category: 'post' } }),
+      getEvents({ data: { q: value, token: session?.token } }),
+      getNodes({ data: { q: value, token: session?.token } }),
+      searchUsers({ data: { q: value } }),
+    ])
+    if (current !== version.current) return
+    const [t, p, e, n, u] = result
+    if (t.status === 'fulfilled') setTasks(t.value.data)
+    if (p.status === 'fulfilled') setPosts(p.value.posts)
+    if (e.status === 'fulfilled') setEvents(e.value.data)
+    if (n.status === 'fulfilled') setNodes(n.value)
+    if (u.status === 'fulfilled') setUsers(u.value.data)
+    setCursors({ tasks: t.status === 'fulfilled' ? t.value.meta.next_cursor ?? undefined : undefined, posts: p.status === 'fulfilled' ? p.value.cursor ?? undefined : undefined, events: e.status === 'fulfilled' ? e.value.meta?.next_cursor ?? undefined : undefined, users: u.status === 'fulfilled' ? u.value.meta.next_cursor ?? undefined : undefined })
+    setFailedGroups(['任务', '帖子', '活动', '社区', '用户'].filter((_, index) => result[index].status === 'rejected'))
+    if (result.some((r) => r.status === 'rejected')) setError('部分搜索结果暂时无法加载，请重试。')
+    setLoading(false)
   }
-
-  useEffect(() => {
-    if (!requestedQuery || requestedQuery === lastRoutedQuery.current) return
-    lastRoutedQuery.current = requestedQuery
-    setQuery(requestedQuery)
-    void search(scope, requestedQuery)
-  }, [requestedQuery])
-
-  const loadMore = async () => {
-    const current = timeline.current
-    if (!current || !hasMore || isLoadingMore) return
-    const version = requestVersion.current
-    setLoadingMore(true)
-    setError('')
+  useEffect(() => { if (q) { setQuery(q); void search(q) } }, [q])
+  const more = async (kind: 'tasks' | 'posts' | 'events' | 'users') => {
+    if (!cursors[kind] || loading) return
+    const current = version.current; setLoading(true); setError('')
     try {
-      const page = await takeSearchPage(current, loaders(activeQuery.current), pageSize)
-      if (version !== requestVersion.current) return
-      timeline.current = page.state
-      setItems((existing) => [...existing, ...page.items])
-      setHasMore(page.hasMore)
-    } catch (reason) {
-      if (version === requestVersion.current) {
-        setError(reason instanceof Error ? reason.message : '更多结果暂时无法加载')
-      }
-    } finally {
-      if (version === requestVersion.current) setLoadingMore(false)
-    }
+      if (kind === 'tasks') { const page = await getTaskPage({ data: { q: searched, token: session?.token, before: cursors.tasks, limit: 10 } }); if (current === version.current) { setTasks((r) => [...r, ...page.data]); setCursors((c) => ({ ...c, tasks: page.meta.next_cursor ?? undefined })) } }
+      else if (kind === 'events') { const page = await getEvents({ data: { q: searched, token: session?.token, before: cursors.events } }); if (current === version.current) { setEvents((r) => [...r, ...page.data]); setCursors((c) => ({ ...c, events: page.meta?.next_cursor ?? undefined })) } }
+      else if (kind === 'users') { const page = await searchUsers({ data: { q: searched, before: cursors.users } }); if (current === version.current) { setUsers((r) => [...r, ...page.data]); setCursors((c) => ({ ...c, users: page.meta.next_cursor ?? undefined })) } }
+      else { const page = await getPostPage({ data: { query: searched, accessJwt: session?.pds.access_jwt, did: session?.pds.did, cursor: cursors.posts, limit: 10, category: 'post' } }); if (current === version.current) { setPosts((r) => [...r, ...page.posts]); setCursors((c) => ({ ...c, posts: page.cursor ?? undefined })) } }
+    } catch (e) { if (current === version.current) setError(e instanceof Error ? e.message : '加载失败') } finally { if (current === version.current) setLoading(false) }
   }
+  const emptyMessage = (title: string) => failedGroups.includes(title) ? '暂时无法加载，请重试。' : loading ? '正在搜索…' : `没有相关${title}`
+  return <div className="page search-page"><header className="standalone-header"><Link to="/" className="back-link" aria-label="返回广场"><ArrowLeft size={20} /></Link><div className="global-search-field"><TextInput label="搜索帖子、任务、活动、社区、用户" isLabelHidden placeholder="搜索帖子、任务、活动、社区、用户" value={query} onChange={setQuery} onEnter={() => void search()} width="100%" hasClear /><Button label="搜索" variant="primary" isDisabled={!query.trim() || loading} clickAction={() => search()} /></div></header>
+    {error && <p className="inline-error" role="alert">{error}</p>}{loading && <p className="loading-line">正在搜索…</p>}
+    {!searched ? <p className="search-hint">输入关键词，搜索帖子、任务、活动、社区、用户。</p> : <div key={searched}>
+      <SearchGroup title="帖子" count={posts.length} hasMore={!!cursors.posts} emptyMessage={emptyMessage('帖子')}>
+        <div className="post-list">{posts.map((post) => <PostCard post={post} key={post.uri} onOpenPost={() => setSelectedPost(post)} />)}</div>
+        {cursors.posts && <Button label="更多帖子" variant="ghost" isDisabled={loading} clickAction={() => more('posts')} />}
+      </SearchGroup>
+      <SearchGroup title="任务" count={tasks.length} hasMore={!!cursors.tasks} emptyMessage={emptyMessage('任务')}>
+        <div className="task-list">{tasks.map((task) => <TaskCard task={task} key={task.id} />)}</div>
+        {cursors.tasks && <Button label="更多任务" variant="ghost" isDisabled={loading} clickAction={() => more('tasks')} />}
+      </SearchGroup>
+      <SearchGroup title="活动" count={events.length} hasMore={!!cursors.events} emptyMessage={emptyMessage('活动')}>
+        <div className="task-list">{events.map((event) => <EventCard event={event} key={event.id} />)}</div>
+        {cursors.events && <Button label="更多活动" variant="ghost" isDisabled={loading} clickAction={() => more('events')} />}
+      </SearchGroup>
+      <SearchGroup title="社区" count={nodes.length} emptyMessage={emptyMessage('社区')}>
+        <div className="node-list">{nodes.map((node) => <NodeCard node={node} onOpen={() => setSelectedNode(node.id)} key={node.id} />)}</div>
+      </SearchGroup>
+      <SearchGroup title="用户" count={users.length} hasMore={!!cursors.users} emptyMessage={emptyMessage('用户')}>
+        <div className="people-list">{users.map((user) => <button type="button" onClick={() => setSelectedUser(user.did)} className="person-row search-person-row" key={user.id}>
+          <span className="person-avatar" aria-hidden="true">{user.avatar ? <img src={user.avatar.url} alt="" /> : (user.nickname || user.handle).slice(0, 1)}</span>
+          <span className="person-copy"><strong>{user.nickname || user.handle}</strong><small>@{user.handle}</small>{user.bio && <p>{user.bio}</p>}</span>
+        </button>)}</div>
+        {cursors.users && <Button label="更多用户" variant="ghost" isDisabled={loading} clickAction={() => more('users')} />}
+      </SearchGroup>
+    </div>}
+    {selectedPost && <PostThreadDialog uri={selectedPost.uri} category={postCategory(selectedPost.record)} focusReply={false} onClose={() => setSelectedPost(null)} />}{selectedNode && <DetailDialog title="社区详情" onClose={() => setSelectedNode(null)}><NodeDetail nodeId={selectedNode} /></DetailDialog>}
+    {selectedUser && <DetailDialog title="个人主页" onClose={() => setSelectedUser(null)}><UserProfilePage actor={selectedUser} embedded /></DetailDialog>}
+  </div>
+}
 
-  useEffect(() => {
-    const marker = loadMoreMarker.current
-    if (!marker || !hasMore || isLoading || isLoadingMore) return
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) void loadMore()
-      },
-      { rootMargin: '240px 0px' },
-    )
-    observer.observe(marker)
-    return () => observer.disconnect()
-  }, [hasMore, isLoading, isLoadingMore, items.length])
-
-  return (
-    <div className="page search-page">
-      <header className="standalone-header">
-        <Link to="/" className="back-link" aria-label="返回广场">
-          <ArrowLeft size={18} aria-hidden="true" />
-        </Link>
-        <div className="global-search-field">
-          <TextInput
-            label="全局搜索"
-            isLabelHidden
-            value={query}
-            onChange={setQuery}
-            onEnter={() => void search()}
-            placeholder="搜索帖子或任务"
-            hasAutoFocus
-            hasClear
-            width="100%"
-          />
-          <IconButton
-            label="提交搜索"
-            icon={<Search size={17} aria-hidden="true" />}
-            variant="primary"
-            clickAction={() => void search()}
-            isLoading={isLoading}
-            isDisabled={!query.trim()}
-          />
-        </div>
-      </header>
-
-      <div className="global-search-tabs filter-buttons" role="group" aria-label="搜索范围">
-        {([
-          ['all', '全部'],
-          ['posts', '帖子'],
-          ['tasks', '任务'],
-        ] as const).map(([value, label]) => (
-          <Button
-            label={label}
-            variant="ghost"
-            size="sm"
-            className={scope === value ? 'active' : undefined}
-            aria-pressed={scope === value}
-            onClick={() => {
-              setScope(value)
-              if (hasSearched && value !== scope) void search(value)
-            }}
-            key={value}
-          />
-        ))}
-      </div>
-
-      {error ? <div className="form-error">{error}</div> : null}
-      {isLoading ? <div className="loading-line">正在搜索…</div> : null}
-      {hasSearched ? (
-        <>
-          {items.length ? (
-            <section className="search-results" aria-label="搜索结果" aria-busy={isLoadingMore}>
-              <div className="post-list search-stream">
-                {items.map((item) => item.kind === 'post' ? (
-                  <PostCard
-                    post={item.post}
-                    onPostDeleted={(uri) => setItems((current) => current.filter(
-                      (result) => result.kind !== 'post' || result.post.uri !== uri,
-                    ))}
-                    key={`post:${item.post.reason?.uri ?? item.post.uri}`}
-                  />
-                ) : (
-                  <TaskCard task={item.task} key={`task:${item.task.id}`} />
-                ))}
-              </div>
-            </section>
-          ) : null}
-          {!isLoading && !error && !items.length ? (
-            <p className="search-hint">没有找到相关内容，换一个关键词试试。</p>
-          ) : null}
-          <div ref={loadMoreMarker} className="search-load-marker" aria-hidden="true" />
-          {isLoadingMore ? <div className="loading-line">正在加载更早的结果…</div> : null}
-        </>
-      ) : (
-        <p className="search-hint">输入关键词，查找帖子和任务。</p>
-      )}
-    </div>
-  )
+function SearchGroup({ title, count, hasMore, emptyMessage, children }: { title: string; count: number; hasMore?: boolean; emptyMessage: string; children: ReactNode }) {
+  return <details className="business-section search-result-group" open>
+    <summary><h2>{title} · {count}{hasMore ? '+' : ''}</h2><span className="search-group-toggle"><span className="search-group-collapse">收起</span><span className="search-group-expand">展开</span><ChevronDown size={18} aria-hidden="true" /></span></summary>
+    {count ? children : <p className="search-group-empty">{emptyMessage}</p>}
+  </details>
 }

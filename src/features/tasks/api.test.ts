@@ -21,3 +21,7 @@ describe('task list query', () => {
     })
   })
 })
+
+it('asks Rice to filter by real community and applicant eligibility', () => {
+  expect(Object.fromEntries(new URLSearchParams(buildTaskListQuery({ nodeId: 'node-1', available: true })))).toEqual({ node_id: 'node-1', available: 'true' })
+})

@@ -1,4 +1,4 @@
-import type { RicePublicUser } from '~/lib/models'
+import type { RicePublicUser, RiceAttachment } from '~/lib/models'
 
 export type TaskStatus =
   | 'draft'
@@ -38,9 +38,15 @@ export type TaskSubmission = {
 }
 
 export type RiceTask = {
+  attachments?: RiceAttachment[]
   id: string
   title: string
   description: string
+  node?: { id: string; name: string; logo: RiceAttachment | null }
+  requirement?: string
+  execution_deadline?: string | null
+  application_closed?: boolean
+  overdue?: boolean
   status: TaskStatus
   creator: RicePublicUser
   assignee: RicePublicUser | null
@@ -70,7 +76,7 @@ export type RiceTask = {
 
 export const taskStatusLabel: Record<TaskStatus, string> = {
   draft: '草稿',
-  open: '可领取',
+  open: '招募中',
   in_progress: '进行中',
   under_review: '待验收',
   completed: '已完成',
@@ -80,13 +86,29 @@ export const taskStatusLabel: Record<TaskStatus, string> = {
 
 export const taskApplicationStatusLabel: Record<TaskApplication['status'], string> = {
   pending: '申请中',
-  appointed: '已获任命',
-  not_selected: '未获任命',
+  appointed: '已入选',
+  not_selected: '未入选',
   cancelled: '任务已取消',
   expired: '任务已失效',
 }
 
 export function taskEventLabel(event: TaskEvent) {
-  if (event.from_status === null) return `记录为${taskStatusLabel[event.to_status]}`
-  return `${taskStatusLabel[event.from_status]} → ${taskStatusLabel[event.to_status]}`
+  if (event.from_status === event.to_status) return '更新任务进展'
+  switch (event.to_status) {
+    case 'draft': return '创建任务草稿'
+    case 'open': return '发布任务'
+    case 'in_progress': return event.from_status === 'under_review' ? '退回修改' : '选定承接者'
+    case 'under_review': return '提交成果'
+    case 'completed': return '验收通过，任务完成'
+    case 'cancelled': return '任务取消'
+    case 'expired': return '任务已结束'
+  }
+}
+
+export type TaskGroup = 'pending' | 'applying' | 'in_progress' | 'under_review' | 'ended' | 'open' | 'draft'
+export function myTaskGroup(task: RiceTask, isPublisher: boolean): TaskGroup {
+  if (task.status === 'draft') return 'draft'
+  if (['completed', 'cancelled', 'expired'].includes(task.status) || (!isPublisher && task.my_application_status === 'not_selected')) return 'ended'
+  if (task.status === 'open') return isPublisher ? task.application_count === 0 ? 'open' : 'pending' : 'applying'
+  return task.status === 'under_review' ? 'under_review' : 'in_progress'
 }

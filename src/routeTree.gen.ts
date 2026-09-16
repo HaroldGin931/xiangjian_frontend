@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ComposeRouteImport } from './routes/compose'
+import { Route as EventsRouteImport } from './routes/events'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MeRouteImport } from './routes/me'
@@ -20,6 +21,7 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as MeIndexRouteImport } from './routes/me.index'
+import { Route as MeEventsRouteImport } from './routes/me.events'
 import { Route as MeGrainsRouteImport } from './routes/me.grains'
 import { Route as MePostsRouteImport } from './routes/me.posts'
 import { Route as MeSettingsRouteImport } from './routes/me.settings'
@@ -43,6 +45,11 @@ const IndexRoute = IndexRouteImport.update({
 const ComposeRoute = ComposeRouteImport.update({
   id: '/compose',
   path: '/compose',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EventsRoute = EventsRouteImport.update({
+  id: '/events',
+  path: '/events',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -88,6 +95,11 @@ const TasksRoute = TasksRouteImport.update({
 const MeIndexRoute = MeIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => MeRoute,
+} as any)
+const MeEventsRoute = MeEventsRouteImport.update({
+  id: '/events',
+  path: '/events',
   getParentRoute: () => MeRoute,
 } as any)
 const MeGrainsRoute = MeGrainsRouteImport.update({
@@ -164,6 +176,7 @@ const ProfileActorFollowingRoute = ProfileActorFollowingRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/compose': typeof ComposeRoute
+  '/events': typeof EventsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/me': typeof MeRouteWithChildren
@@ -172,6 +185,7 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
   '/tasks': typeof TasksRouteWithChildren
+  '/me/events': typeof MeEventsRoute
   '/me/grains': typeof MeGrainsRoute
   '/me/posts': typeof MePostsRoute
   '/me/settings': typeof MeSettingsRouteWithChildren
@@ -191,12 +205,14 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/compose': typeof ComposeRoute
+  '/events': typeof EventsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/notifications': typeof NotificationsRoute
   '/post': typeof PostRoute
   '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
+  '/me/events': typeof MeEventsRoute
   '/me/grains': typeof MeGrainsRoute
   '/me/posts': typeof MePostsRoute
   '/me/tasks': typeof MeTasksRoute
@@ -215,6 +231,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/compose': typeof ComposeRoute
+  '/events': typeof EventsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/me': typeof MeRouteWithChildren
@@ -223,6 +240,7 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
   '/tasks': typeof TasksRouteWithChildren
+  '/me/events': typeof MeEventsRoute
   '/me/grains': typeof MeGrainsRoute
   '/me/posts': typeof MePostsRoute
   '/me/settings': typeof MeSettingsRouteWithChildren
@@ -244,6 +262,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/compose'
+    | '/events'
     | '/forgot-password'
     | '/login'
     | '/me'
@@ -252,6 +271,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/search'
     | '/tasks'
+    | '/me/events'
     | '/me/grains'
     | '/me/posts'
     | '/me/settings'
@@ -271,12 +291,14 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/compose'
+    | '/events'
     | '/forgot-password'
     | '/login'
     | '/notifications'
     | '/post'
     | '/register'
     | '/search'
+    | '/me/events'
     | '/me/grains'
     | '/me/posts'
     | '/me/tasks'
@@ -294,6 +316,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/compose'
+    | '/events'
     | '/forgot-password'
     | '/login'
     | '/me'
@@ -302,6 +325,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/search'
     | '/tasks'
+    | '/me/events'
     | '/me/grains'
     | '/me/posts'
     | '/me/settings'
@@ -322,6 +346,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ComposeRoute: typeof ComposeRoute
+  EventsRoute: typeof EventsRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   MeRoute: typeof MeRouteWithChildren
@@ -347,6 +372,13 @@ declare module '@tanstack/react-router' {
       path: '/compose'
       fullPath: '/compose'
       preLoaderRoute: typeof ComposeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/events': {
+      id: '/events'
+      path: '/events'
+      fullPath: '/events'
+      preLoaderRoute: typeof EventsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -410,6 +442,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/me/'
       preLoaderRoute: typeof MeIndexRouteImport
+      parentRoute: typeof MeRoute
+    }
+    '/me/events': {
+      id: '/me/events'
+      path: '/events'
+      fullPath: '/me/events'
+      preLoaderRoute: typeof MeEventsRouteImport
       parentRoute: typeof MeRoute
     }
     '/me/grains': {
@@ -530,6 +569,7 @@ const MeSettingsRouteWithChildren = MeSettingsRoute._addFileChildren(
 )
 
 interface MeRouteChildren {
+  MeEventsRoute: typeof MeEventsRoute
   MeGrainsRoute: typeof MeGrainsRoute
   MePostsRoute: typeof MePostsRoute
   MeSettingsRoute: typeof MeSettingsRouteWithChildren
@@ -538,6 +578,7 @@ interface MeRouteChildren {
 }
 
 const MeRouteChildren: MeRouteChildren = {
+  MeEventsRoute: MeEventsRoute,
   MeGrainsRoute: MeGrainsRoute,
   MePostsRoute: MePostsRoute,
   MeSettingsRoute: MeSettingsRouteWithChildren,
@@ -580,6 +621,7 @@ const ProfileActorRouteWithChildren = ProfileActorRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ComposeRoute: ComposeRoute,
+  EventsRoute: EventsRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   MeRoute: MeRouteWithChildren,

@@ -32,3 +32,10 @@ export const getGrainTransfers = createServerFn({ method: 'POST' })
       headers: { Authorization: `Bearer ${data.token}` },
     })
   })
+
+export type WalletEntry = { id: string; kind: 'reserved' | 'refunded' | 'grant' | 'gift' | 'reward' | 'task_reward' | 'event_fee'; amount: number; subject_uri: string | null; inserted_at: string; from_user: Pick<RicePublicUser, 'id' | 'nickname' | 'handle'> | null; to_user: Pick<RicePublicUser, 'id' | 'nickname' | 'handle'> | null }
+export type RiceWallet = { balance: number; frozen: number; earned: number; entries: WalletEntry[]; next_cursor?: string | null }
+export const getWallet = createServerFn({ method: 'POST' })
+  .validator((data: { token: string; before?: string }) => data)
+  .handler(async ({ data }) => (await requestJson<{ data: RiceWallet }>(`${BACKEND_BASE}/api/wallet${data.before ? `?before=${encodeURIComponent(data.before)}` : ''}`, { headers: { Authorization: `Bearer ${data.token}` } })).data)
+export function walletEntryIncoming(entry: WalletEntry, userId: string) { return entry.kind === 'refunded' || (entry.kind !== 'reserved' && entry.to_user?.id === userId) }

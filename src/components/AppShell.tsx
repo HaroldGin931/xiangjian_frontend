@@ -1,5 +1,5 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import { Plus, Search } from 'lucide-react'
+import { Bell, Plus, Search } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 
 import {
@@ -7,10 +7,13 @@ import {
   getTaskNotifications,
   NOTIFICATIONS_READ_EVENT,
 } from '~/features/notifications/api'
+import { DetailDialog } from './DetailDialog'
+import { ComposePanel, type ComposeKind } from '~/features/feed/ComposePanel'
 import { useStoredSession } from '~/features/session/session'
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { session } = useStoredSession()
+  const [compose, setCompose] = useState<ComposeKind | null>(null)
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false)
   const pathname = useRouterState({ select: (state) => state.location.pathname })
   const isStandalone =
@@ -28,7 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           : null
 
   useEffect(() => {
-    if (!session || pathname.startsWith('/notifications')) {
+    if (!session) {
       setHasUnreadNotifications(false)
       return
     }
@@ -63,6 +66,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className={`app-shell ${isStandalone ? 'standalone-shell' : ''}`}>
+      <div className="test-environment">测试环境 · 仅使用测试稻米</div>
       {!isStandalone ? <header className="topbar">
         <div className="topbar-inner">
           {sectionTitle ? (
@@ -72,30 +76,15 @@ export function AppShell({ children }: { children: ReactNode }) {
               <span>乡建</span><small>DAO</small>
             </Link>
           )}
-          {pathname === '/' ? (
-            <div className="topbar-actions">
-              <Link className="header-publish" to="/compose" search={{ kind: undefined }}>
-                <Plus size={18} aria-hidden="true" />
-                发布
-              </Link>
-              <Link to="/search" className="header-search" aria-label="搜索">
-                <Search size={22} aria-hidden="true" />
-              </Link>
-            </div>
-          ) : pathname === '/tasks' ? (
-            <div className="topbar-actions">
-              <Link to="/compose" search={{ kind: 'task' }} className="header-publish">
-                <Plus size={18} aria-hidden="true" /> 发布
-              </Link>
-              <Link to="/search" className="header-search" aria-label="搜索">
-                <Search size={22} aria-hidden="true" />
-              </Link>
-            </div>
-          ) : null}
+          <div className="topbar-actions">
+            {['/', '/tasks', '/events'].includes(pathname) && <button type="button" className="header-publish" onClick={() => setCompose(pathname === '/tasks' ? 'task' : pathname === '/events' ? 'activity' : 'post')}><Plus size={18} aria-hidden="true" /> 发布</button>}
+            <Link to="/search" className="header-search" aria-label="搜索帖子、任务、活动、社区、用户"><Search size={22} aria-hidden="true" /></Link>
+            <Link to="/notifications" className="header-search notification-trigger" aria-label={hasUnreadNotifications ? '通知，有新消息' : '通知'}><Bell size={22} aria-hidden="true" />{hasUnreadNotifications && <i className="notification-dot" aria-hidden="true" />}</Link>
+          </div>
         </div>
       </header> : null}
 
-      <main className="page-frame">{children}</main>
+      <main key={session?.user.id ?? 'guest'} className="page-frame">{children}</main>
 
       {!isStandalone ? <nav className="bottom-nav" aria-label="主要导航">
         <Link to="/" className="bottom-link" activeProps={{ className: 'bottom-link active' }}>
@@ -108,17 +97,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           任务
         </Link>
-        <Link
-          to="/notifications"
-          className="bottom-link"
-          activeProps={{ className: 'bottom-link active' }}
-          aria-label={hasUnreadNotifications ? '消息，有新通知' : '消息'}
-        >
-          <span className="bottom-link-label">
-            消息
-            {hasUnreadNotifications ? <i className="notification-dot" aria-hidden="true" /> : null}
-          </span>
-        </Link>
+        <Link to="/events" className="bottom-link" activeProps={{ className: 'bottom-link active' }}>活动</Link>
         <Link
           to="/me"
           className="bottom-link"
@@ -127,6 +106,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           我的
         </Link>
       </nav> : null}
+      {compose && <DetailDialog title="发布" onClose={() => setCompose(null)}><ComposePanel key={session?.user.id ?? 'guest'} initialKind={compose} onPublished={() => setCompose(null)} /></DetailDialog>}
     </div>
   )
 }

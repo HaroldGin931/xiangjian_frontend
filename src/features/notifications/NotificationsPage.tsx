@@ -3,6 +3,10 @@ import { Link } from '@tanstack/react-router'
 import { Bell } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
+import { DetailDialog } from '~/components/DetailDialog'
+import { EventDetail } from '../events/EventDetail'
+import { NodeDetail } from '../nodes/NodesPanel'
+import { TaskDetailPage } from '../tasks/TaskDetailPage'
 import { authorDisplayName, formatTimestamp } from '~/lib/format'
 import type { NotificationView } from '~/lib/models'
 
@@ -34,11 +38,14 @@ const reasonCopy: Record<string, { label: string; action: string }> = {
 }
 
 function notificationTitle(notification: NotificationView) {
+  if (notification.subjectType && notification.subjectType !== 'task') return notification.text || '有新的业务通知'
   return `${authorDisplayName(notification.author)} ${reasonCopy[notification.reason]?.action || '与你有新的互动'}`
 }
 
 export function NotificationsPage() {
   const { session, isReady } = useStoredSession()
+  const [selected, setSelected] = useState<NotificationView | null>(null)
+  const [marking, setMarking] = useState(false)
   const [notifications, setNotifications] = useState<NotificationView[]>([])
   const [isLoading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -69,24 +76,22 @@ export function NotificationsPage() {
         const failures = [social, tasks].filter((result) => result.status === 'rejected')
         if (failures.length > 0) setError('部分通知暂时无法加载，请稍后重试。')
 
-        const markRead = []
-        if (social.status === 'fulfilled' && social.value.some((item) => !item.isRead)) {
-          markRead.push(markNotificationsRead({ data: accessJwt }))
-        }
-        if (tasks.status === 'fulfilled' && tasks.value.some((item) => !item.isRead)) {
-          markRead.push(markTaskNotificationsRead({ data: riceToken }))
-        }
-        if (markRead.length > 0) {
-          void Promise.allSettled(markRead).then(() => {
-            window.dispatchEvent(new Event(NOTIFICATIONS_READ_EVENT))
-          })
-        }
+
       })
       .finally(() => {
         if (active) setLoading(false)
       })
     return () => { active = false }
   }, [accessJwt, isReady, reloadKey, riceToken])
+
+  const markAll = async () => {
+    if (!accessJwt || !riceToken || marking) return
+    setMarking(true); setError('')
+    const results = await Promise.allSettled([markNotificationsRead({ data: accessJwt }), markTaskNotificationsRead({ data: riceToken })])
+    if (results.every((r) => r.status === 'fulfilled')) { setNotifications((rows) => rows.map((n) => ({ ...n, isRead: true }))); window.dispatchEvent(new Event(NOTIFICATIONS_READ_EVENT)) }
+    else { setError('部分通知未能标记已读，请重试。'); setReloadKey((v) => v + 1) }
+    setMarking(false)
+  }
 
   if (isReady && !session) {
     return (
@@ -101,6 +106,7 @@ export function NotificationsPage() {
 
   return (
     <div className="page notifications-page">
+      <div className="business-heading"><h1>通知</h1><Button label="全部已读" variant="ghost" isDisabled={marking || !notifications.some((n) => !n.isRead)} clickAction={markAll} /></div>
       {error ? (
         <div className="inline-error" role="alert">
           <span>{error}</span>
@@ -112,7 +118,7 @@ export function NotificationsPage() {
         <section className="notification-empty-state">
           <Bell size={28} aria-hidden="true" />
           <strong>暂时没有通知</strong>
-          <p>点赞、转发和评论等真实互动会显示在这里。</p>
+          <p>任务、活动、社区申请与帖子互动会显示在这里。</p>
         </section>
       ) : (
         <section className="notification-list" aria-label="通知列表">
@@ -122,17 +128,13 @@ export function NotificationsPage() {
               key={`${notification.uri}-${notification.reason}`}
             >
               <span className={`notification-reason reason-${notification.reason}`}>
-                {reasonCopy[notification.reason]?.label || '互动'}
+                {notification.subjectType === 'event' ? '活动' : notification.subjectType === 'node' ? '社区' : reasonCopy[notification.reason]?.label || '互动'}
               </span>
               <div className="notification-body">
                 <strong>
-                  {notification.taskId ? (
-                    <Link to="/tasks/$taskId" params={{ taskId: notification.taskId }}>
-                      {notificationTitle(notification)}
-                    </Link>
-                  ) : notificationTitle(notification)}
+                  {notification.taskId || notification.subjectId ? <button type="button" className="text-button" onClick={() => setSelected(notification)}>{notificationTitle(notification)}</button> : notificationTitle(notification)}
                 </strong>
-                {notification.text ? <p>{notification.text}</p> : null}
+                {notification.text && notification.text !== notificationTitle(notification) ? <p>{notification.text}</p> : null}
                 <time>{formatTimestamp(notification.indexedAt)}</time>
               </div>
             </article>
@@ -140,6 +142,7 @@ export function NotificationsPage() {
         </section>
       )}
       {isLoading ? <p className="loading-line" aria-live="polite">正在加载通知…</p> : null}
+      {selected && <DetailDialog title="通知详情" onClose={() => setSelected(null)}>{selected.subjectType === 'event' ? <EventDetail eventId={selected.subjectId!} /> : selected.subjectType === 'node' ? <NodeDetail nodeId={selected.subjectId!} /> : <TaskDetailPage taskId={selected.taskId || selected.subjectId!} embedded />}</DetailDialog>}
     </div>
   )
 }

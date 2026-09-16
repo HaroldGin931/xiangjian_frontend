@@ -1,130 +1,53 @@
 import { Button } from '@astryxdesign/core/Button'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ChevronRight, LogOut, Pencil, UserRound } from 'lucide-react'
+import { ArrowRight, LogOut, Pencil, UserRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
-
+import { DetailDialog } from '~/components/DetailDialog'
 import { publicAttachmentUrl } from '~/lib/attachments'
 import type { RiceUser } from '~/lib/models'
-
 import { getCurrentUser, logoutRice } from '../session/api'
 import { useStoredSession } from '../session/session'
+import { NodesPanel } from '../nodes/NodesPanel'
+import { MyTasksPage } from '../tasks/MyTasksPage'
+import { EventsPage } from '../events/EventsPage'
+import { GrainHistoryPage } from '../grains/GrainHistoryPage'
+import { getWallet, type RiceWallet } from '../grains/api'
+import { UserProfilePage } from '../social/UserProfilePage'
+import { ProfileEditPage } from '../account/ProfileEditPage'
+import { MyPostsPage } from './MyPostsPage'
 
+type Panel = 'identity' | 'tasks' | 'events' | 'posts' | 'alliance' | 'nodes' | 'wallet' | 'profile' | 'edit'
+const titles: Record<Panel, string> = { identity: '社区身份', tasks: '我的任务', events: '我的活动', posts: '我的帖子', alliance: '联盟与治理', nodes: '节点目录', wallet: '稻米明细', profile: '我的主页', edit: '编辑资料' }
 export function ProfilePage() {
   const { session, isReady, saveSession } = useStoredSession()
   const [user, setUser] = useState<RiceUser | null>(null)
+  const [wallet, setWallet] = useState<RiceWallet | null>(null)
   const [error, setError] = useState('')
+  const [panel, setPanel] = useState<Panel | null>(null)
+  const [version, setVersion] = useState(0)
   const navigate = useNavigate()
-
+  useEffect(() => { const refresh = () => setVersion((v) => v + 1); window.addEventListener('rice-changed', refresh); return () => window.removeEventListener('rice-changed', refresh) }, [])
   useEffect(() => {
-    if (!session) {
-      setUser(null)
-      return
-    }
-    setError('')
-    void getCurrentUser({ data: session.token })
-      .then(setUser)
-      .catch((reason) => {
-        setError(reason instanceof Error ? reason.message : '账号信息暂时无法加载')
-      })
-  }, [session])
-
-  const handleLogout = async () => {
-    if (session) await logoutRice({ data: session.token }).catch(() => undefined)
-    saveSession(null)
-    await navigate({ to: '/login' })
-  }
-
-  if (isReady && !session) {
-    return (
-      <div className="page profile-page signed-out-state">
-        <UserRound size={34} aria-hidden="true" />
-        <strong>还没有登录</strong>
-        <p>登录后查看身份、稻米和个人内容。</p>
-        <Link to="/login" className="primary-link">前往登录</Link>
-      </div>
-    )
-  }
-
+    if (!session) { setUser(null); setWallet(null); return }
+    let active = true; setError(''); setUser(null); setWallet(null)
+    void Promise.all([getCurrentUser({ data: session.token }), getWallet({ data: { token: session.token } })]).then(([profile, money]) => { if (active) { setUser(profile); setWallet(money) } }).catch((e) => { if (active) setError(e.message) })
+    return () => { active = false }
+  }, [session?.token, version])
+  const logout = async () => { if (session) await logoutRice({ data: session.token }).catch(() => undefined); saveSession(null); await navigate({ to: '/' }) }
+  if (isReady && !session) return <div className="page profile-page signed-out-state"><UserRound size={34} /><strong>还没有登录</strong><p>登录后查看社区身份、稻米和个人内容。</p><Link to="/login" className="primary-link">前往登录</Link></div>
   const profile = user ?? session?.user
-  const profileActor = profile?.did ?? session?.pds.did
-  return (
-    <div className="page profile-page">
-      <section className="profile-identity">
-        <Link
-          to="/me/settings/profile"
-          className="profile-identity-edit"
-          aria-label="编辑资料"
-          title="编辑资料"
-        >
-          <Pencil size={20} aria-hidden="true" />
-        </Link>
-        {profileActor ? (
-          <Link
-            to="/profile/$actor"
-            params={{ actor: profileActor }}
-            className="profile-public-link"
-            aria-label="查看我的公开主页"
-          >
-            <ProfileIdentity profile={profile} />
-          </Link>
-        ) : (
-          <div className="profile-public-link"><ProfileIdentity profile={profile} /></div>
-        )}
-      </section>
-
-      {error ? <div className="inline-error" role="alert">{error}</div> : null}
-
-      <section className="grain-card">
-        <header>
-          <span>我的稻米</span>
-          <Button
-            label="查看流水"
-            variant="ghost"
-            size="sm"
-            clickAction={() => navigate({ to: '/me/grains' })}
-          >查看流水 →</Button>
-        </header>
-        <strong>{profile?.grain_balance ?? '—'}</strong>
-        <div className="grain-metrics">
-          <div><b>{profile?.grain_balance ?? '—'}</b><span>可用</span></div>
-          <div><b>{profile?.grain_frozen_balance ?? 0}</b><span>冻结</span></div>
-          <div className="unavailable"><b>—</b><span>累计获得</span></div>
-        </div>
-      </section>
-
-      <nav className="profile-menu" aria-label="个人中心功能">
-        <Link to="/me/tasks" className="profile-menu-row">
-          <span><strong>我的任务</strong><small>承作 / 发布 / 申请</small></span>
-          <ChevronRight size={18} aria-hidden="true" />
-        </Link>
-        <Link to="/me/posts" className="profile-menu-row">
-          <span><strong>我的帖子</strong><small>在广场发布的真实内容</small></span>
-          <ChevronRight size={18} aria-hidden="true" />
-        </Link>
-        <Link to="/me/settings" className="profile-menu-row">
-          <span><strong>设置</strong><small>账号与个人资料</small></span>
-          <ChevronRight size={18} aria-hidden="true" />
-        </Link>
-      </nav>
-
-      <div className="logout-button">
-        <Button label="退出登录" icon={<LogOut size={16} aria-hidden="true" />} variant="ghost" clickAction={handleLogout} />
-      </div>
-    </div>
-  )
-}
-
-function ProfileIdentity({ profile }: { profile?: RiceUser }) {
-  return (
-    <>
-      <div className="profile-avatar" aria-hidden="true">
-        {profile?.avatar ? (
-          <img src={publicAttachmentUrl(profile.avatar.url)} alt="" />
-        ) : <UserRound size={28} />}
-      </div>
-      <h1>{profile?.nickname || profile?.handle?.split('.')[0] || '正在加载'}</h1>
-      <p>Rice + AT Protocol · @{profile?.handle || '—'}</p>
-      <span>{profile?.node_member ? '节点成员' : '社区成员'}</span>
-    </>
-  )
+  return <div className="page profile-page">
+    <section className="profile-identity"><button type="button" className="profile-identity-edit" aria-label="编辑资料" onClick={() => setPanel('edit')}><Pencil size={20} /></button>
+      <div className="profile-avatar" aria-hidden="true">{profile?.avatar ? <img src={publicAttachmentUrl(profile.avatar.url)} alt="" /> : <UserRound size={28} />}</div><h1>{profile?.nickname || profile?.handle || '正在加载'}</h1><p>@{profile?.handle || '—'}</p>{profile?.bio && <p>{profile.bio}</p>}<div className="profile-public-action"><Button label="查看主页" variant="secondary" onClick={() => setPanel('profile')} /></div>
+    </section>
+    {error && <p className="inline-error" role="alert">{error}</p>}
+    <section className="grain-card"><header><span>我的测试稻米</span><Button label="查看流水" variant="ghost" onClick={() => setPanel('wallet')}>查看流水 →</Button></header><strong>{wallet ? wallet.balance + wallet.frozen : '—'}</strong><div className="grain-metrics"><div><b>{wallet?.balance ?? '—'}</b><span>可用</span></div><div><b>{wallet?.frozen ?? '—'}</b><span>冻结</span></div><div><b>{wallet?.earned ?? '—'}</b><span>累计获得</span></div></div></section>
+    <nav className="profile-menu" aria-label="个人中心功能">{([['identity', '我在各社区的身份'], ['tasks', '申请中 · 进行中 · 审核中 · 已结束'], ['events', '我申请 / 主办的活动']] as const).map(([value, copy]) => <button type="button" className="profile-menu-row" key={value} onClick={() => setPanel(value)}><span><strong>{titles[value]}</strong><small>{copy}</small></span><ArrowRight size={18} /></button>)}
+      <button type="button" className="profile-menu-row" onClick={() => setPanel('posts')}><span><strong>我的帖子</strong><small>在广场发布过的内容</small></span><ArrowRight size={18} /></button>
+      <button type="button" className="profile-menu-row" onClick={() => setPanel('alliance')}><span><strong>联盟与治理</strong><small>浏览联盟中的社区节点</small></span><ArrowRight size={18} /></button>
+    </nav><div className="logout-button"><Button label="退出登录" icon={<LogOut size={16} />} variant="ghost" clickAction={logout} /></div>
+    {panel && <DetailDialog title={titles[panel]} onClose={() => { setPanel(null); setVersion((v) => v + 1) }}>
+      {panel === 'identity' ? <NodesPanel identity /> : panel === 'nodes' ? <NodesPanel /> : panel === 'tasks' ? <MyTasksPage embedded /> : panel === 'events' ? <EventsPage mine embedded /> : panel === 'posts' ? <MyPostsPage embedded /> : panel === 'wallet' ? <GrainHistoryPage embedded /> : panel === 'profile' ? <UserProfilePage actor={profile?.did ?? session?.pds.did ?? ''} onEdit={() => setPanel('edit')} /> : panel === 'edit' ? <ProfileEditPage onSaved={() => { setPanel(null); setVersion((v) => v + 1) }} /> : <div className="page business-panel"><h1>联盟与治理</h1><button type="button" className="profile-menu-row node-card" onClick={() => setPanel('nodes')}><span><strong>节点目录</strong><small>查看联盟中的社区</small></span><ArrowRight size={18} /></button></div>}
+    </DetailDialog>}
+  </div>
 }

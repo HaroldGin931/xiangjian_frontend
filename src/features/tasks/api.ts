@@ -11,6 +11,8 @@ export type TaskListInput = {
   participantDid?: string
   creatorDid?: string
   q?: string
+  nodeId?: string
+  available?: boolean
   sort?: 'published'
   limit?: number
   before?: string
@@ -26,6 +28,8 @@ const authHeaders = (token?: string) =>
 
 export function buildTaskListQuery(data: TaskListInput) {
   const query = new URLSearchParams()
+  if (data.nodeId) query.set('node_id', data.nodeId)
+  if (data.available) query.set('available', 'true')
   if (data.mine) query.set('mine', data.mine)
   if (data.status) query.set('status', data.status)
   if (data.participantDid) query.set('participant_did', data.participantDid)
@@ -70,6 +74,11 @@ export const createTask = createServerFn({ method: 'POST' })
     status: 'draft' | 'open'
     applicationDeadline?: string
     rewardAmount: number
+    nodeId?: string
+    requirement?: string
+    executionDeadline?: string | null
+    clientRequestId?: string
+    attachmentIds?: string[]
   }) => data)
   .handler(async ({ data }) => {
     const body = await requestJson<{ data: RiceTask }>(`${BACKEND_BASE}/api/tasks`, {
@@ -81,6 +90,11 @@ export const createTask = createServerFn({ method: 'POST' })
         status: data.status,
         application_deadline: data.applicationDeadline,
         reward_amount: data.rewardAmount,
+        node_id: data.nodeId,
+        requirement: data.requirement,
+        execution_deadline: data.executionDeadline,
+        client_request_id: data.clientRequestId,
+        attachment_ids: data.attachmentIds,
       }),
     })
     return body.data
@@ -94,6 +108,11 @@ export const updateTaskDraft = createServerFn({ method: 'POST' })
     description: string
     applicationDeadline: string | null
     rewardAmount: number
+    nodeId?: string
+    requirement?: string
+    executionDeadline?: string | null
+    clientRequestId?: string
+    attachmentIds?: string[]
   }) => data)
   .handler(async ({ data }) => {
     const body = await requestJson<{ data: RiceTask }>(`${BACKEND_BASE}/api/tasks/${data.taskId}`, {
@@ -104,6 +123,11 @@ export const updateTaskDraft = createServerFn({ method: 'POST' })
         description: data.description,
         application_deadline: data.applicationDeadline,
         reward_amount: data.rewardAmount,
+        node_id: data.nodeId,
+        requirement: data.requirement,
+        execution_deadline: data.executionDeadline,
+        client_request_id: data.clientRequestId,
+        attachment_ids: data.attachmentIds,
       }),
     })
     return body.data

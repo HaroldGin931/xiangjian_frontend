@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 
 import { ACTIVITY_PARTICIPATION_TEXT, postCategory } from '~/features/feed/tags'
 import { BACKEND_BASE, requestJson } from '~/lib/http'
-import type { PostView, SocialConnectionPage, SocialProfile } from '~/lib/models'
+import type { PostView, RicePublicUser, SocialConnectionPage, SocialProfile } from '~/lib/models'
 import { createPdsRecord, deletePdsRecord, recordKeyFromUri } from '~/lib/pds'
 
 export type SocialConnectionKind = 'followers' | 'following'
@@ -11,6 +11,23 @@ export type ActivityParticipation = {
   activity: PostView
   participatedAt: string
 }
+
+export type UserSearchPage = {
+  data: RicePublicUser[]
+  meta: { next_cursor: string | null }
+}
+
+export async function loadUserSearch(data: { q: string; before?: string }) {
+  const q = data.q.trim()
+  if (!q) return { data: [], meta: { next_cursor: null } } satisfies UserSearchPage
+  const params = new URLSearchParams({ q, limit: '10' })
+  if (data.before) params.set('before', data.before)
+  return requestJson<UserSearchPage>(`${BACKEND_BASE}/api/users/search?${params}`)
+}
+
+export const searchUsers = createServerFn({ method: 'POST' })
+  .validator((data: { q: string; before?: string }) => data)
+  .handler(({ data }) => loadUserSearch(data))
 
 const authHeaders = (accessJwt?: string) =>
   accessJwt ? { Authorization: `Bearer ${accessJwt}` } : undefined
@@ -50,11 +67,17 @@ export function normalizeSocialProfile(value: unknown): SocialProfile {
 
 export async function loadSocialProfile(actor: string, accessJwt?: string) {
   const params = new URLSearchParams({ actor })
-  const body = await requestJson<unknown>(
-    `${BACKEND_BASE}/pds/xrpc/app.bsky.actor.getProfile?${params}`,
-    { headers: authHeaders(accessJwt) },
-  )
-  return normalizeSocialProfile(body)
+  const [pds, rice] = await Promise.allSettled([
+    requestJson<unknown>(`${BACKEND_BASE}/pds/xrpc/app.bsky.actor.getProfile?${params}`, { headers: authHeaders(accessJwt) }),
+    requestJson<{ data: RicePublicUser }>(`${BACKEND_BASE}/api/users/${encodeURIComponent(actor)}/profile`),
+  ])
+  const social = pds.status === 'fulfilled' ? normalizeSocialProfile(pds.value) : null
+  if (rice.status === 'fulfilled') {
+    const profile = rice.value.data
+    return { ...(social ?? { followersCount: 0, followsCount: 0, postsCount: 0 }), socialAvailable: Boolean(social), did: profile.did, handle: profile.handle, displayName: profile.nickname ?? undefined, description: profile.bio ?? undefined, avatar: profile.avatar?.url } satisfies SocialProfile
+  }
+  if (social) return social
+  throw new Error('用户资料暂时无法显示')
 }
 
 export async function loadSocialConnections(data: {

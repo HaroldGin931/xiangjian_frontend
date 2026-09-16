@@ -43,6 +43,36 @@ export type RiceSession = {
 
 export type PostCategory = 'post' | 'activity' | 'product'
 
+export type PostImage = {
+  src: string
+  fullsize?: string
+  alt: string
+  width?: number
+  height?: number
+}
+
+export type PdsImage = {
+  image: {
+    $type: 'blob'
+    ref: { $link: string }
+    mimeType: string
+    size: number
+  }
+  alt: string
+  aspectRatio?: { width: number; height: number }
+}
+
+type PostImageEmbed = {
+  $type: string
+  images?: Array<PdsImage | {
+    thumb: string
+    fullsize: string
+    alt: string
+    aspectRatio?: { width: number; height: number }
+  }>
+}
+type PostEmbed = PostImageEmbed & { media?: PostImageEmbed }
+
 export type PostView = {
   uri: string
   cid: string
@@ -56,11 +86,14 @@ export type PostView = {
     text: string
     createdAt: string
     xjdaoCategory?: PostCategory
+    embed?: PostEmbed
     reply?: {
       root: { uri: string; cid: string }
       parent: { uri: string; cid: string }
     }
   }
+  embed?: PostEmbed
+  images?: PostImage[]
   replyCount: number
   repostCount: number
   likeCount: number
@@ -101,9 +134,12 @@ export type NotificationView = {
   isRead: boolean
   indexedAt: string
   taskId?: string
+  subjectType?: string
+  subjectId?: string
 }
 
 export type SocialProfile = {
+  socialAvailable?: boolean
   did: string
   handle: string
   displayName?: string

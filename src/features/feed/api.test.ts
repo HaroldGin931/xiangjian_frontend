@@ -1,17 +1,20 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import type { RiceSession } from '~/lib/models'
-import { recordKeyFromUri } from '~/lib/pds'
+import type { PdsImage, RiceSession } from '~/lib/models'
+import { MAX_POST_IMAGE_BYTES, newPostRecordKey, pdsBlobUrl, recordKeyFromUri, uploadPdsImage } from '~/lib/pds'
 
 import {
   clearCachedFeed,
   createdPostView,
+  createTextPostRecord,
   deleteOwnPostRecord,
   hideDeletedPost,
   isPostHidden,
   loadPostPage,
+  loadPostThread,
   loadPosts,
   normalizePostFeed,
+  normalizePostImages,
   normalizePostThread,
   prependCachedPost,
   readCachedFeed,
@@ -41,7 +44,132 @@ const post = {
   likeCount: 0,
 }
 
+const image: PdsImage = { image: { $type: 'blob', ref: { $link: 'bafkreib5testimage' }, mimeType: 'image/png', size: 20 }, alt: '公共客厅' }
+
+describe('post images', () => {
+  it('uploads image bytes to the fixed PDS endpoint using the PDS token', async () => {
+    const bytes = Buffer.from([137, 80, 78, 71])
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ blob: image.image })))
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(uploadPdsImage('pds-token', bytes.toString('base64'), 'image/png')).resolves.toEqual(image.image)
+    const [url, init] = fetchMock.mock.calls[0]
+    expect(url).toContain('/pds/xrpc/com.atproto.repo.uploadBlob')
+    expect(init.headers).toEqual({ Authorization: 'Bearer pds-token', 'Content-Type': 'image/png' })
+    expect(init.body).toEqual(bytes)
+  })
+
+  it('rejects unsupported and oversized uploads before calling PDS', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(uploadPdsImage('pds-token', 'eA==', 'image/svg+xml')).rejects.toThrow('JPG')
+    await expect(uploadPdsImage('pds-token', Buffer.alloc(MAX_POST_IMAGE_BYTES + 1).toString('base64'), 'image/png')).rejects.toThrow('1 MB')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('surfaces failed image uploads instead of treating them as empty attachments', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify({ message: '图片上传失败' }), { status: 500 })))
+    await expect(uploadPdsImage('pds-token', 'eA==', 'image/png')).rejects.toThrow('图片上传失败')
+  })
+
+  it('stores ordered standard image embeds and supports an image-only post', async () => {
+    const second = { ...image, image: { ...image.image, ref: { $link: 'bafkreisecondimage' } }, alt: '门口' }
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ uri: post.uri, cid: 'created' })))
+    vi.stubGlobal('fetch', fetchMock)
+    const created = await createTextPostRecord({ did: 'did:example', accessJwt: 'pds-token', text: '', category: 'post', rkey: 'recordkey', createdAt: post.indexedAt, images: [image, second] })
+    const record = JSON.parse(fetchMock.mock.calls[0][1].body).record
+    expect(record.embed).toEqual({ $type: 'app.bsky.embed.images', images: [image, second] })
+    expect(created.images).toEqual([image, second])
+    expect(record.text).toBe('')
+  })
+
+  it('blocks more than four images and invalid blob sizes before creating a post', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const input = { did: 'did:example', accessJwt: 'pds-token', text: '', category: 'post' as const, rkey: 'recordkey', createdAt: post.indexedAt }
+    await expect(createTextPostRecord({ ...input, images: Array(5).fill(image) })).rejects.toThrow('4 张图片')
+    await expect(createTextPostRecord({ ...input, images: [{ ...image, image: { ...image.image, size: MAX_POST_IMAGE_BYTES + 1 } }] })).rejects.toThrow('图片信息无效')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('does not accept an altered image set as an already successful retry', async () => {
+    const oldImage = { ...image, image: { ...image.image, ref: { $link: 'bafkreioldimage' } } }
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValueOnce(new Error('response lost')).mockResolvedValueOnce(new Response(JSON.stringify({ uri: post.uri, cid: 'stored', value: { text: post.record.text, createdAt: post.indexedAt, xjdaoCategory: 'post', embed: { $type: 'app.bsky.embed.images', images: [oldImage] } } }))))
+    await expect(createTextPostRecord({ did: 'did:example', accessJwt: 'pds-token', text: post.record.text, category: 'post', rkey: 'recordkey', createdAt: post.indexedAt, images: [image] })).rejects.toThrow('上次提交的帖子已发布')
+  })
+
+  it('normalizes raw repo embeds for feeds and detail without an arbitrary URL proxy', () => {
+    const raw = { ...post, record: { ...post.record, embed: { $type: 'app.bsky.embed.images', images: [image] } } }
+    const expected = [{ src: pdsBlobUrl(post.author.did, image.image.ref.$link), alt: image.alt }]
+    expect(normalizePostFeed({ posts: [raw] }).posts[0].images).toEqual(expected)
+    expect(normalizePostThread({ thread: { post: raw } }).post.images).toEqual(expected)
+    expect(normalizePostImages({ ...post, embed: { $type: 'app.bsky.embed.images#view', images: [{ thumb: 'javascript:alert(1)', fullsize: 'data:text/html,test', alt: '' }] } }).images).toBeUndefined()
+  })
+
+  it('preserves trusted AppView image URLs and uses raw blobs for isolated AppView hostnames', () => {
+    const viewed = { ...post, record: { ...post.record, embed: { $type: 'app.bsky.embed.images', images: [image] } }, embed: { $type: 'app.bsky.embed.images#view', images: [{ thumb: 'https://cdn.bsky.app/thumb.jpg', fullsize: 'https://cdn.bsky.app/full.jpg', alt: image.alt }] } }
+    expect(normalizePostImages(viewed).images).toEqual([{ src: 'https://cdn.bsky.app/thumb.jpg', fullsize: 'https://cdn.bsky.app/full.jpg', alt: image.alt }])
+    viewed.embed.images[0].thumb = 'https://bsky.localhost/img/thumb.jpg'
+    viewed.embed.images[0].fullsize = 'https://bsky.localhost/img/full.jpg'
+    const src = pdsBlobUrl(post.author.did, image.image.ref.$link)
+    expect(normalizePostImages(viewed).images).toEqual([{ src, fullsize: src, alt: image.alt }])
+  })
+})
+
 describe('feed data', () => {
+  it.each([undefined, '真实帖子'])('uses local author names in list/search and preserves external authors (query=%s)', async (query) => {
+    const external = { ...post, uri: `${post.uri}-external`, author: { did: 'did:external', handle: 'outside.test', displayName: '外部作者' } }
+    const fetchMock = vi.fn(async (input: string | URL) => {
+      const url = String(input)
+      if (url.includes('/post/api/posts/')) return new Response(JSON.stringify({ posts: [post, { ...post, uri: `${post.uri}-second` }, external] }))
+      if (url.includes('/api/users/did%3Aexample/profile')) return new Response(JSON.stringify({ data: { did: post.author.did, nickname: '测试参与者 B' } }))
+      return new Response(JSON.stringify({ error: 'not_found' }), { status: 404 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const page = await loadPostPage({ query })
+    expect(page.posts.filter((item) => item.author.did === post.author.did).map((item) => item.author.displayName)).toEqual(['测试参与者 B', '测试参与者 B'])
+    expect(page.posts.find((item) => item.author.did === 'did:external')?.author).toEqual(external.author)
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/api/users/'))).toHaveLength(2)
+    expect(page.posts[0].record).toEqual(post.record)
+  })
+
+  it('uses the same local name for thread author and replies with one profile read per DID', async () => {
+    const localReply = { ...post, uri: `${post.uri}-reply` }
+    const externalReply = { ...post, uri: `${post.uri}-external`, author: { did: 'did:external', handle: 'outside.test', displayName: '外部作者' } }
+    const fetchMock = vi.fn(async (input: string | URL) => {
+      const url = String(input)
+      if (url.includes('getPostThread')) return new Response(JSON.stringify({ thread: { post, replies: [{ post: localReply }, { post: externalReply }] } }))
+      if (url.includes('listRecords')) return new Response(JSON.stringify({ records: [] }))
+      if (url.includes('/api/users/did%3Aexample/profile')) return new Response(JSON.stringify({ data: { did: post.author.did, nickname: '测试参与者 B' } }))
+      return new Response(JSON.stringify({ error: 'not_found' }), { status: 404 })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const thread = await loadPostThread({ uri: post.uri, did: 'did:viewer', accessJwt: 'pds-token' })
+    expect(thread.post.author.displayName).toBe('测试参与者 B')
+    expect(thread.replies[0].post.author.displayName).toBe('测试参与者 B')
+    expect(thread.replies[1].post.author).toEqual(externalReply.author)
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/api/users/'))).toHaveLength(2)
+  })
+
+  it('reuses the post key when a successful publish response was lost', async () => {
+    const rkey = newPostRecordKey()
+    expect(rkey).toMatch(/^[234567abcdefghij][234567abcdefghijklmnopqrstuvwxyz]{12}$/)
+    expect(newPostRecordKey() > rkey).toBe(true)
+    const input = { did: 'did:alice', accessJwt: 'pds-token', text: '一起种花 #社区', category: 'post' as const, rkey, createdAt: '2026-09-15T01:00:00.000Z' }
+    const uri = `at://${input.did}/app.bsky.feed.post/${rkey}`
+    const fetchMock = vi.fn().mockRejectedValueOnce(new Error('response lost')).mockResolvedValueOnce(new Response(JSON.stringify({ uri, cid: 'stored-cid', value: { text: input.text, createdAt: input.createdAt, xjdaoCategory: 'post' } })))
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(createTextPostRecord(input)).resolves.toMatchObject({ uri, cid: 'stored-cid' })
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).rkey).toBe(rkey)
+    expect(String(fetchMock.mock.calls[1][0])).toContain(`rkey=${rkey}`)
+    expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe('Bearer pds-token')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not replace an already published post with a changed retry payload', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValueOnce(new Error('already exists')).mockResolvedValueOnce(new Response(JSON.stringify({ value: { text: '已发布内容', createdAt: '2026-09-15T01:00:00.000Z', xjdaoCategory: 'post' } }))))
+    await expect(createTextPostRecord({ did: 'did:alice', accessJwt: 'pds-token', text: '编辑后的内容', category: 'post', rkey: newPostRecordKey(), createdAt: '2026-09-15T01:00:00.000Z' })).rejects.toThrow('上次提交的帖子已发布')
+  })
+
   it('keeps category independent from exact searchable tags', () => {
     const text = '赶集信息\n#乡村 #商品 #活动'
     const productRecord = { ...post.record, text, xjdaoCategory: 'product' as const }

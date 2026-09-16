@@ -13,7 +13,7 @@ import { updateCurrentUser, uploadRiceAttachment } from './api'
 
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
 
-export function ProfileEditPage() {
+export function ProfileEditPage({ onSaved }: { onSaved?: () => void }) {
   const { session, saveSession } = useStoredSession()
   const navigate = useNavigate()
   const [nickname, setNickname] = useState(session?.user.nickname || '')
@@ -60,7 +60,7 @@ export function ProfileEditPage() {
         },
       })
       saveSession({ ...session, user })
-      await navigate({ to: '/me' })
+      if (onSaved) onSaved(); else await navigate({ to: '/me' })
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '资料保存失败')
     } finally {
@@ -72,7 +72,7 @@ export function ProfileEditPage() {
 
   return (
     <div className="page narrow-page profile-edit-page">
-      <Link to="/me/settings" className="back-link"><ArrowLeft size={16} /> 设置</Link>
+      {!onSaved && <Link to="/me/settings" className="back-link"><ArrowLeft size={16} /> 设置</Link>}
       <h1>个人资料</h1>
       <section className="form-card">
         <div className="avatar-preview">

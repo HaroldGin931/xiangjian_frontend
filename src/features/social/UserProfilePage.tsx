@@ -11,7 +11,7 @@ import { useStoredSession } from '../session/session'
 import { getSocialProfile, toggleFollow } from './api'
 import { PublicProfileContent } from './PublicProfileContent'
 
-export function UserProfilePage({ actor }: { actor: string }) {
+export function UserProfilePage({ actor, onEdit, embedded = false }: { actor: string; onEdit?: () => void; embedded?: boolean }) {
   const { session, isReady } = useStoredSession()
   const navigate = useNavigate()
   const [profile, setProfile] = useState<SocialProfile | null>(null)
@@ -71,18 +71,18 @@ export function UserProfilePage({ actor }: { actor: string }) {
 
   return (
     <div className="page social-profile-page">
-      <header className="standalone-header social-page-header">
+      {!onEdit && !embedded && <header className="standalone-header social-page-header">
         <Link to="/" className="back-link" aria-label="返回广场">
           <ArrowLeft size={18} aria-hidden="true" />
         </Link>
         <strong>用户主页</strong>
-      </header>
+      </header>}
 
       {error ? <div className="form-error" role="alert">{error}</div> : null}
       {profile ? (
         <>
           <section className="social-profile-card">
-            {ownProfile ? (
+            {ownProfile && onEdit ? <button type="button" className="profile-edit-link" aria-label="编辑资料" onClick={onEdit}><Pencil size={20} /></button> : ownProfile ? (
               <Link
                 to="/me/settings/profile"
                 className="profile-edit-link"
@@ -108,7 +108,7 @@ export function UserProfilePage({ actor }: { actor: string }) {
               <span className="follows-you">也关注了你</span>
             ) : null}
 
-            {!ownProfile ? (
+            {!ownProfile && profile.socialAvailable !== false ? (
               <div className="social-profile-actions">
                 <Button
                   label={session ? (profile.viewer?.following ? '已关注' : '关注') : '登录后关注'}
@@ -122,7 +122,7 @@ export function UserProfilePage({ actor }: { actor: string }) {
             {followError ? <div className="social-follow-error" role="alert">{followError}</div> : null}
           </section>
 
-          <nav className="social-counts" aria-label="关注关系">
+          {profile.socialAvailable !== false && <nav className="social-counts" aria-label="关注关系">
             <Link to="/profile/$actor/following" params={{ actor: profile.did }}>
               <strong>{profile.followsCount}</strong>
               <span>关注</span>
@@ -131,7 +131,7 @@ export function UserProfilePage({ actor }: { actor: string }) {
               <strong>{profile.followersCount}</strong>
               <span>粉丝</span>
             </Link>
-          </nav>
+          </nav>}
 
           <PublicProfileContent actor={profile.did} />
         </>

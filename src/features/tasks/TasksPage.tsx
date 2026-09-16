@@ -1,126 +1,50 @@
 import { Button } from '@astryxdesign/core/Button'
 import { Link } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
-
+import { DetailDialog } from '~/components/DetailDialog'
+import { getNodes, type CommunityNode } from '../nodes/api'
+import { NodeDetail } from '../nodes/NodesPanel'
 import { useStoredSession } from '../session/session'
 import { getTaskPage } from './api'
+import { MyTasksPage } from './MyTasksPage'
 import { TaskCard } from './TaskCard'
-import type { RiceTask, TaskListStatus } from './types'
+import { TaskDetailPage } from './TaskDetailPage'
+import type { RiceTask } from './types'
 
-const filters: Array<{ label: string; status?: TaskListStatus }> = [
-  { label: '全部' },
-  { label: '可领取', status: 'open' },
-  { label: '进行中', status: 'in_progress' },
-  { label: '待验收', status: 'under_review' },
-  { label: '已完成', status: 'completed' },
-  { label: '已结束', status: 'closed' },
-]
-
-export function TasksPage() {
-  const { session } = useStoredSession()
+export function TasksPage({ nodeId, embedded = false }: { nodeId?: string; embedded?: boolean }) {
+  const { session, isReady } = useStoredSession()
   const [tasks, setTasks] = useState<RiceTask[]>([])
-  const [status, setStatus] = useState<TaskListStatus | undefined>()
+  const [nodes, setNodes] = useState<CommunityNode[]>([])
+  const [filter, setFilter] = useState('all')
+  const [myTasks, setMyTasks] = useState(false)
+  const [selectedTask, setSelectedTask] = useState<string | null>(null)
+  const [selectedCommunity, setSelectedCommunity] = useState<string | null>(null)
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState('')
-  const requestVersion = useRef(0)
-
+  const [version, setVersion] = useState(0)
+  const request = useRef(0)
+  const loadedScope = useRef('')
+  const input = { token: session?.token, nodeId: nodeId ?? (filter === 'all' || filter === 'available' ? undefined : filter), available: filter === 'available', limit: 12 }
+  useEffect(() => { const refresh = () => setVersion((v) => v + 1); window.addEventListener('rice-changed', refresh); return () => window.removeEventListener('rice-changed', refresh) }, [])
+  useEffect(() => { let active = true; void getNodes({ data: {} }).then((rows) => { if (active) setNodes(rows) }).catch(() => undefined); return () => { active = false } }, [])
   useEffect(() => {
-    let active = true
-    const version = ++requestVersion.current
-    setLoading(true)
-    setNextCursor(null)
-    setError('')
-    void getTaskPage({
-      data: { token: session?.token, status, limit: 12 },
-    })
-      .then((page) => {
-        if (!active || version !== requestVersion.current) return
-        setTasks(page.data)
-        setNextCursor(page.meta.next_cursor)
-      })
-      .catch((reason) => {
-        if (active) setError(reason instanceof Error ? reason.message : '任务暂时无法加载')
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-    return () => {
-      active = false
-    }
-  }, [session?.token, status])
-
-  const loadMore = async () => {
-    if (!nextCursor || loadingMore) return
-    const version = requestVersion.current
-    setLoadingMore(true)
-    setError('')
-    try {
-      const page = await getTaskPage({
-        data: {
-          token: session?.token,
-          status,
-          limit: 12,
-          before: nextCursor,
-        },
-      })
-      if (version !== requestVersion.current) return
-      setTasks((current) => [...current, ...page.data])
-      setNextCursor(page.meta.next_cursor)
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '更多任务暂时无法加载')
-    } finally {
-      setLoadingMore(false)
-    }
-  }
-
-  return (
-    <div className="page task-page">
-      <section className="task-hero">
-        <span>TASKS · COMMUNITY COLLABORATION</span>
-        <h1>一起把事情<br />真正做完</h1>
-        <p>从申请领取到提交与验收，任务进展都在同一条可追踪的链路中。</p>
-        {session ? <Link to="/me/tasks">我的任务</Link> : <Link to="/login">登录后参与</Link>}
-      </section>
-
-      <div className="task-filters filter-buttons" role="group" aria-label="任务筛选">
-        {filters.map((filter) => (
-          <Button
-            label={filter.label}
-            variant="ghost"
-            size="sm"
-            className={status === filter.status ? 'active' : undefined}
-            aria-pressed={status === filter.status}
-            onClick={() => setStatus(filter.status)}
-            key={filter.label}
-          />
-        ))}
-      </div>
-
-      {error ? <div className="inline-error" role="alert">{error}</div> : null}
-      {loading && tasks.length === 0 ? <div className="loading-line">正在加载任务…</div> : null}
-      {tasks.length ? (
-        <section className="task-list" aria-label="任务列表" aria-busy={loading}>
-          {tasks.map((task) => <TaskCard task={task} key={task.id} />)}
-        </section>
-      ) : null}
-      {!loading && !error && !tasks.length ? (
-        <section className="task-empty-state" aria-live="polite">
-          <strong>暂时没有任务</strong>
-          <p>这里会显示 Rice 中真实发布的任务。</p>
-        </section>
-      ) : null}
-      {nextCursor ? (
-        <div className="task-load-more">
-          <Button
-            label={loadingMore ? '正在加载…' : '加载更多'}
-            variant="secondary"
-            isDisabled={loadingMore}
-            clickAction={loadMore}
-          />
-        </div>
-      ) : null}
-    </div>
-  )
+    if (!isReady) return
+    let active = true; ++request.current
+    const scope = JSON.stringify([session?.token, filter, nodeId])
+    setLoading(true); setError('')
+    if (scope !== loadedScope.current) { setTasks([]); setNextCursor(null); loadedScope.current = scope }
+    void getTaskPage({ data: input }).then((page) => { if (active) { setTasks(page.data); setNextCursor(page.meta.next_cursor) } }).catch((e) => { if (active) setError(e.message) }).finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [isReady, session?.token, filter, nodeId, version])
+  const more = async () => { if (!nextCursor || loading) return; const current = request.current; setLoading(true); try { const page = await getTaskPage({ data: { ...input, before: nextCursor } }); if (current === request.current) { setTasks((r) => [...r, ...page.data]); setNextCursor(page.meta.next_cursor) } } catch (e) { if (current === request.current) setError(e instanceof Error ? e.message : '加载失败') } finally { if (current === request.current) setLoading(false) } }
+  return <div className="page task-page">
+    {!embedded && <section className="task-hero"><span>TASKS · COMMUNITY COLLABORATION</span><h1>一起把事情<br />真正做完</h1><p>申请、交付、验收与稻米结算，任务进展都在这里。</p>{session ? <button type="button" className="hero-action" onClick={() => setMyTasks(true)}>我的任务</button> : <Link to="/login">登录后参与</Link>}</section>}
+    <div className="business-heading"><h2>{embedded ? '社区任务' : '全部任务'}</h2>{!nodeId && <select aria-label="任务筛选" value={filter} onChange={(e) => setFilter(e.target.value)}><option value="all">全部</option><option value="available">可申请</option>{nodes.map((n) => <option value={n.id} key={n.id}>{n.name}</option>)}</select>}</div>
+    {error && <p className="inline-error" role="alert">{error}</p>}{loading && !tasks.length && <p className="loading-line">正在加载任务…</p>}<section className="task-list">{tasks.map((task) => <TaskCard task={task} key={task.id} onOpen={() => setSelectedTask(task.id)} onOpenCommunity={setSelectedCommunity} />)}</section>
+    {!loading && !error && !tasks.length && <p className="search-hint">暂时没有任务。</p>}{nextCursor && <Button label="加载更多" variant="secondary" isDisabled={loading} clickAction={more} />}
+    {myTasks && <DetailDialog title="我的任务" onClose={() => setMyTasks(false)}><MyTasksPage embedded /></DetailDialog>}
+    {selectedTask && <DetailDialog title="任务详情" onClose={() => setSelectedTask(null)}><TaskDetailPage taskId={selectedTask} embedded /></DetailDialog>}
+    {selectedCommunity && <DetailDialog title="社区详情" onClose={() => setSelectedCommunity(null)}><NodeDetail nodeId={selectedCommunity} /></DetailDialog>}
+  </div>
 }

@@ -15,6 +15,8 @@ export function normalizeNotifications(payload: unknown): NotificationView[] {
       isRead?: unknown
       indexedAt?: unknown
       taskId?: unknown
+      subjectType?: unknown
+      subjectId?: unknown
     }>
   }
   return (body.notifications ?? [])
@@ -46,6 +48,8 @@ export function normalizeNotifications(payload: unknown): NotificationView[] {
           typeof notification.indexedAt === 'string'
             ? notification.indexedAt
             : new Date(0).toISOString(),
+        ...(typeof notification.subjectType === 'string' ? { subjectType: notification.subjectType } : {}),
+        ...(typeof notification.subjectId === 'string' ? { subjectId: notification.subjectId } : {}),
         ...(typeof notification.taskId === 'string'
           ? { taskId: notification.taskId }
           : {}),
@@ -66,7 +70,7 @@ export const getNotifications = createServerFn({ method: 'POST' })
 export const getTaskNotifications = createServerFn({ method: 'POST' })
   .validator((token: string) => token)
   .handler(async ({ data: token }) => {
-    const body = await requestJson<unknown>(`${BACKEND_BASE}/api/task_notifications`, {
+    const body = await requestJson<unknown>(`${BACKEND_BASE}/api/notifications`, {
       headers: { Authorization: `Bearer ${token}` },
     })
     return normalizeNotifications(body)
@@ -88,7 +92,7 @@ export const markNotificationsRead = createServerFn({ method: 'POST' })
 export const markTaskNotificationsRead = createServerFn({ method: 'POST' })
   .validator((token: string) => token)
   .handler(async ({ data: token }) => {
-    await requestJson(`${BACKEND_BASE}/api/task_notifications/read`, {
+    await requestJson(`${BACKEND_BASE}/api/notifications/read`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     })

@@ -1,125 +1,47 @@
 import { Button } from '@astryxdesign/core/Button'
 import { Link } from '@tanstack/react-router'
-import { ArrowLeft } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
-
+import { useEffect, useState } from 'react'
+import { DetailDialog } from '~/components/DetailDialog'
 import { useStoredSession } from '../session/session'
 import { getTaskPage } from './api'
 import { TaskCard } from './TaskCard'
-import type { RiceTask, TaskMine } from './types'
+import { TaskDetailPage } from './TaskDetailPage'
+import { myTaskGroup, type TaskGroup as Group, type RiceTask, type TaskMine } from './types'
 
-const tabs: Array<{ value: TaskMine; label: string }> = [
-  { value: 'assigned', label: '我承作的' },
-  { value: 'created', label: '我发布的' },
-  { value: 'applied', label: '我的申请' },
-]
-
-export function MyTasksPage() {
-  const { session } = useStoredSession()
-  const [mine, setMine] = useState<TaskMine>('assigned')
+export function MyTasksPage({ embedded = false }: { embedded?: boolean }) {
+  const { session, isReady } = useStoredSession()
   const [tasks, setTasks] = useState<RiceTask[]>([])
-  const [nextCursor, setNextCursor] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [loadingMore, setLoadingMore] = useState(false)
+  const [group, setGroup] = useState<Group | null>(null)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const requestVersion = useRef(0)
-
+  const [version, setVersion] = useState(0)
+  const [selectedTask, setSelectedTask] = useState<string | null>(null)
+  useEffect(() => { const refresh = () => setVersion((v) => v + 1); window.addEventListener('rice-changed', refresh); return () => window.removeEventListener('rice-changed', refresh) }, [])
   useEffect(() => {
-    if (!session) return
-    let active = true
-    const version = ++requestVersion.current
-    setLoading(true)
-    setNextCursor(null)
-    setError('')
-    void getTaskPage({ data: { token: session.token, mine, limit: 12 } })
-      .then((page) => {
-        if (!active || version !== requestVersion.current) return
-        setTasks(page.data)
-        setNextCursor(page.meta.next_cursor)
-      })
-      .catch((reason) => {
-        if (active) setError(reason instanceof Error ? reason.message : '任务暂时无法加载')
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
-    return () => {
-      active = false
+    if (!isReady || !session) { setLoading(false); return }
+    let active = true; setLoading(true); setError('')
+    const load = async () => {
+      const mine: TaskMine[] = ['created', 'applied', 'assigned']
+      // ponytail: fetch the small personal history for accurate tabs; add server counts if history grows large.
+      const groups = await Promise.all(mine.map(async (value) => {
+        const rows: RiceTask[] = []; let before: string | undefined
+        do { const page = await getTaskPage({ data: { token: session.token, mine: value, limit: 100, before } }); rows.push(...page.data); before = page.meta.next_cursor ?? undefined } while (before && active)
+        return rows
+      }))
+      if (active) setTasks([...new Map(groups.flat().map((t) => [t.id, t])).values()])
     }
-  }, [mine, session])
-
-  const loadMore = async () => {
-    if (!session || !nextCursor || loadingMore) return
-    const version = requestVersion.current
-    setLoadingMore(true)
-    setError('')
-    try {
-      const page = await getTaskPage({
-        data: { token: session.token, mine, limit: 12, before: nextCursor },
-      })
-      if (version !== requestVersion.current) return
-      setTasks((current) => [...current, ...page.data])
-      setNextCursor(page.meta.next_cursor)
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '更多任务暂时无法加载')
-    } finally {
-      setLoadingMore(false)
-    }
-  }
-
-  if (!session) {
-    return (
-      <div className="page signed-out-state">
-        <strong>登录后查看我的任务</strong>
-        <Link to="/login" className="primary-link">前往登录</Link>
-      </div>
-    )
-  }
-
-  return (
-    <div className="page my-tasks-page">
-      <Link to="/me" className="back-link"><ArrowLeft size={16} /> 我的</Link>
-      <h1>我的任务</h1>
-      <div className="filter-buttons" role="group" aria-label="我的任务分类">
-        {tabs.map((tab) => (
-          <Button
-            label={tab.label}
-            variant="ghost"
-            size="sm"
-            className={mine === tab.value ? 'active' : undefined}
-            aria-pressed={mine === tab.value}
-            onClick={() => {
-              setTasks([])
-              setNextCursor(null)
-              setMine(tab.value)
-            }}
-            key={tab.value}
-          />
-        ))}
-      </div>
-      {error ? <div className="inline-error" role="alert">{error}</div> : null}
-      {loading && tasks.length === 0 ? <div className="loading-line">正在加载任务…</div> : null}
-      {tasks.length ? (
-        <section className="task-list" aria-busy={loading}>
-          {tasks.map((task) => <TaskCard task={task} key={task.id} />)}
-        </section>
-      ) : null}
-      {!loading && !error && !tasks.length ? (
-        <section className="task-empty-state">
-          <strong>这里还没有任务</strong>
-          <p>{mine === 'assigned' ? '完成后的任务也会一直保留在这里。' : '产生记录后会显示在这里。'}</p>
-        </section>
-      ) : null}
-      {nextCursor ? (
-        <div className="task-load-more">
-          <Button
-            label={loadingMore ? '正在加载…' : '加载更多'}
-            variant="secondary"
-            isDisabled={loadingMore}
-            clickAction={loadMore}
-          />
-        </div>
-      ) : null}
-    </div>
-  )
+    void load().catch((e) => { if (active) setError(e.message) }).finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [isReady, session?.token, version])
+  useEffect(() => { setGroup(null); setTasks([]); setSelectedTask(null) }, [session?.token])
+  if (isReady && !session) return <div className="page"><Link to="/login" className="primary-link">登录后查看我的任务</Link></div>
+  const own = (task: RiceTask) => task.creator.id === session?.user.id
+  const groupOf = (task: RiceTask) => myTaskGroup(task, own(task))
+  const publisher = tasks.some(own)
+  const tabs: Array<[Group, string]> = [...(publisher ? [['pending', '待审批']] as Array<[Group, string]> : []), ...(!publisher || tasks.some((t) => groupOf(t) === 'applying') ? [['applying', '申请中']] as Array<[Group, string]> : []), ['in_progress', '进行中'], ['under_review', '审核中'], ['ended', '已结束'], ...(publisher ? [['open', '招募中'], ['draft', '草稿']] as Array<[Group, string]> : [])]
+  const selected = group && tabs.some(([value]) => value === group) ? group : tabs[0][0]
+  return <div className="page business-panel">{!embedded && <Link to="/me" className="back-link">返回我的</Link>}<h1>我的任务</h1><div className="filter-buttons my-task-tabs">{tabs.map(([value, label]) => <Button key={value} label={`${label} ${tasks.filter((t) => groupOf(t) === value).length}`} variant="ghost" className={selected === value ? 'active' : undefined} aria-pressed={selected === value} onClick={() => setGroup(value)} />)}</div>
+    {error && <p className="inline-error" role="alert">{error}</p>}{loading && !tasks.length && <p className="loading-line">正在加载任务…</p>}<section className="task-list">{tasks.filter((t) => groupOf(t) === selected).map((task) => <TaskCard task={task} compact key={task.id} onOpen={() => setSelectedTask(task.id)} />)}</section>{!loading && !error && !tasks.some((t) => groupOf(t) === selected) && <p className="search-hint">这里还没有任务。</p>}
+    {selectedTask && <DetailDialog title="任务详情" onClose={() => setSelectedTask(null)}><TaskDetailPage taskId={selectedTask} embedded /></DetailDialog>}
+  </div>
 }

@@ -4,6 +4,12 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
+  server: {
+    proxy: {
+      '/api/attachments': process.env.XIANGJIAN_BACKEND_URL ?? 'http://localhost:19006',
+      '/pds/xrpc/com.atproto.sync.getBlob': process.env.XIANGJIAN_BACKEND_URL ?? 'http://localhost:19006',
+    },
+  },
   build: {
     cssCodeSplit: false,
   },

@@ -4,6 +4,7 @@ import { Repeat2 } from 'lucide-react'
 import { useState } from 'react'
 
 import { ContentCardHeader } from '~/components/ContentCardHeader'
+import { ImageCover } from '~/components/ContentImages'
 import { PostText } from '~/components/PostText'
 import { PostActions, type RepostChange } from '~/components/PostActions'
 import { isPostHidden } from '~/features/feed/api'
@@ -32,7 +33,7 @@ export function PostList({
       <div className="empty-panel">
         <EmptyState
           title="这里还没有帖子"
-          description="页面没有填充任何演示内容；登录后发布的真实帖子会出现在这里。"
+          description="分享见闻、想法和近况，让社区里的人看到。"
         />
       </div>
     )
@@ -109,6 +110,7 @@ export function PostCard({
       >
         <PostText text={postDisplayText(post.record.text, category)} />
       </p>
+      {post.images?.length ? <button type="button" className="post-image-link" onClick={openPost} aria-label="查看帖子图片"><ImageCover images={post.images} /></button> : null}
       <PostActions
         post={post}
         onOpenComments={onOpenPost ? () => onOpenPost(post, true) : undefined}

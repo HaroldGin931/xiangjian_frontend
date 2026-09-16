@@ -7,11 +7,13 @@ import { getPosts } from '~/features/feed/api'
 import { getTasks } from '~/features/tasks/api'
 import { TaskCard } from '~/features/tasks/TaskCard'
 import type { RiceTask } from '~/features/tasks/types'
-import { formatTimestamp } from '~/lib/format'
+import { getEvents, type RiceEvent } from '../events/api'
+import { EventCard } from '../events/EventsPage'
+import { PostThreadDialog } from '../feed/PostThreadDialog'
+import { postCategory } from '../feed/tags'
 import type { PostView } from '~/lib/models'
 
 import { useStoredSession } from '../session/session'
-import { getActivityParticipations, type ActivityParticipation } from './api'
 
 type ProfileTab = 'tasks' | 'activities' | 'posts'
 
@@ -49,6 +51,7 @@ export function PublicProfileContent({ actor }: { actor: string }) {
 
 function PublicPosts({ actor }: { actor: string }) {
   const { session } = useStoredSession()
+  const [selected, setSelected] = useState<PostView | null>(null)
   const [posts, setPosts] = useState<PostView[] | null>(null)
   const [error, setError] = useState('')
 
@@ -73,7 +76,7 @@ function PublicPosts({ actor }: { actor: string }) {
   if (error || !posts || posts.length === 0) {
     return <ProfileContentState error={error} items={posts} empty="还没有发布帖子" />
   }
-  return <PostList posts={posts} />
+  return <><PostList posts={posts.filter((p) => postCategory(p.record) === 'post')} onOpenPost={(post) => setSelected(post)} />{selected && <PostThreadDialog uri={selected.uri} category="post" focusReply={false} onClose={() => setSelected(null)} />}</>
 }
 
 function PublicTasks({ actor }: { actor: string }) {
@@ -118,35 +121,18 @@ function PublicTasks({ actor }: { actor: string }) {
 }
 
 function PublicActivities({ actor }: { actor: string }) {
-  const [items, setItems] = useState<ActivityParticipation[] | null>(null)
+  const { session } = useStoredSession()
+  const [items, setItems] = useState<RiceEvent[] | null>(null)
   const [error, setError] = useState('')
-
   useEffect(() => {
-    let active = true
-    setItems(null)
-    setError('')
-    void getActivityParticipations({ data: { actor } })
-      .then((result) => { if (active) setItems(result) })
-      .catch((reason) => {
-        if (active) setError(reason instanceof Error ? reason.message : '活动记录暂时无法显示')
-      })
+    let active = true; setItems(null); setError('')
+    void Promise.all([getEvents({ data: { token: session?.token, creatorDid: actor } }), getEvents({ data: { token: session?.token, participantDid: actor } })]).then(([created, participated]) => {
+      if (active) setItems([...new Map([...created.data, ...participated.data].map((event) => [event.id, event])).values()])
+    }).catch((e) => { if (active) setError(e.message) })
     return () => { active = false }
-  }, [actor])
-
-  if (error || !items || items.length === 0) {
-    return <ProfileContentState error={error} items={items} empty="还没有参与活动" />
-  }
-
-  return (
-    <section className="activity-history public-profile-list">
-      {items.map((item) => (
-        <div className="activity-history-item" key={item.activity.uri}>
-          <small>于 {formatTimestamp(item.participatedAt)} 参与</small>
-          <PostList posts={[item.activity]} />
-        </div>
-      ))}
-    </section>
-  )
+  }, [actor, session?.token])
+  if (error || !items || !items.length) return <ProfileContentState error={error} items={items} empty="还没有活动记录" />
+  return <section className="task-list public-profile-list">{items.map((event) => <EventCard event={event} key={event.id} />)}</section>
 }
 
 function ProfileContentState<T>({

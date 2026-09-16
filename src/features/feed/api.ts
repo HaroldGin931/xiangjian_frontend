@@ -1,8 +1,8 @@
 import { createServerFn } from '@tanstack/react-start'
 
 import { BACKEND_BASE, requestJson } from '~/lib/http'
-import type { PostCategory, PostFeed, PostThread, PostView, RiceSession } from '~/lib/models'
-import { createPdsRecord, deletePdsRecord, recordKeyFromUri } from '~/lib/pds'
+import type { PdsImage, PostCategory, PostFeed, PostImage, PostThread, PostView, RicePublicUser, RiceSession } from '~/lib/models'
+import { createPdsRecord, deletePdsRecord, MAX_POST_IMAGE_BYTES, MAX_POST_IMAGES, pdsBlobUrl, POST_IMAGE_TYPES, recordKeyFromUri, uploadPdsImage } from '~/lib/pds'
 
 import { hasPostTag, postCategory } from './tags'
 
@@ -66,6 +66,7 @@ export function createdPostView(
     text: string
     createdAt: string
     category?: PostCategory
+    images?: PdsImage[]
   },
   session: RiceSession,
   reply?: PostView['record']['reply'],
@@ -84,7 +85,9 @@ export function createdPostView(
       createdAt: created.createdAt,
       ...(created.category ? { xjdaoCategory: created.category } : {}),
       ...(reply ? { reply } : {}),
+      ...(created.images?.length ? { embed: { $type: 'app.bsky.embed.images', images: created.images } } : {}),
     },
+    ...(created.images?.length ? { images: created.images.map((item) => ({ src: pdsBlobUrl(session.pds.did, item.image.ref.$link), alt: item.alt, ...item.aspectRatio })) } : {}),
     replyCount: 0,
     repostCount: 0,
     likeCount: 0,
@@ -131,6 +134,57 @@ async function hydrateViewerRecords(
   }
 }
 
+async function hydrateAuthorNames(posts: PostView[]) {
+  const authors = posts.flatMap((post) => post.reason ? [post.author, post.reason.by] : [post.author])
+  const names = new Map<string, string | undefined>()
+  await Promise.all([...new Set(authors.map((author) => author.did))].map(async (did) => {
+    const profile = await requestJson<{ data: RicePublicUser }>(`${BACKEND_BASE}/api/users/${encodeURIComponent(did)}/profile`).catch(() => null)
+    if (profile?.data?.did === did) names.set(did, profile.data.nickname ?? undefined)
+  }))
+  const authorName = (author: PostView['author']) => names.has(author.did)
+    ? { ...author, displayName: names.get(author.did) }
+    : author
+  return posts.map((post) => ({
+    ...post,
+    author: authorName(post.author),
+    ...(post.reason ? { reason: { ...post.reason, by: authorName(post.reason.by) } } : {}),
+  }))
+}
+
+export function normalizePostImages(post: PostView): PostView {
+  const imageEmbed = (value: unknown) => {
+    const embed = value as { $type?: string; images?: unknown[]; media?: unknown } | undefined
+    if (embed?.$type === 'app.bsky.embed.recordWithMedia#view' || embed?.$type === 'app.bsky.embed.recordWithMedia') return embed.media as typeof embed
+    return embed
+  }
+  const view = imageEmbed(post.embed)
+  const record = imageEmbed(post.record.embed)
+  const source = Array.isArray(view?.images) && view.images.length ? view : record
+  if (!Array.isArray(source?.images) || !source.images.length) return post
+  const images = source.images.slice(0, MAX_POST_IMAGES).flatMap((value, index): PostImage[] => {
+    if (!value || typeof value !== 'object') return []
+    const item = value as { thumb?: unknown; fullsize?: unknown; alt?: unknown; image?: { ref?: { $link?: unknown }; cid?: unknown }; aspectRatio?: { width?: number; height?: number } }
+    const httpUrl = (url: unknown) => typeof url === 'string' && /^https?:\/\//i.test(url) ? url : undefined
+    const original = record?.images?.[index] as typeof item | undefined
+    const cid = item.image?.ref?.$link ?? item.image?.cid ?? original?.image?.ref?.$link ?? original?.image?.cid
+    const blobUrl = typeof cid === 'string' && /^[a-z0-9]+$/i.test(cid) ? pdsBlobUrl(post.author.did, cid) : undefined
+    const viewUrl = (value: unknown) => {
+      const url = httpUrl(value)
+      if (!url) return undefined
+      try {
+        // The isolated AppView advertises its Docker/TLS hostname; serve that
+        // record's blob through our fixed PDS gateway instead.
+        return ['bsky.localhost', 'bsky'].includes(new URL(url).hostname) ? blobUrl : url
+      } catch { return undefined }
+    }
+    const fullsize = viewUrl(item.fullsize)
+    const src = viewUrl(item.thumb) ?? fullsize ?? blobUrl
+    if (!src) return []
+    return [{ src, ...(fullsize ? { fullsize } : {}), alt: typeof item.alt === 'string' ? item.alt : '', ...item.aspectRatio }]
+  })
+  return images.length ? { ...post, images } : post
+}
+
 export function normalizePostFeed(payload: unknown): PostFeed {
   const body = (payload ?? {}) as {
     posts?: Array<
@@ -154,6 +208,7 @@ export function normalizePostFeed(payload: unknown): PostFeed {
         !post.record.reply,
       ),
     )
+    .map(normalizePostImages)
 
   return { posts }
 }
@@ -204,8 +259,8 @@ export function normalizePostThread(payload: unknown): PostThread {
       (reply): reply is PostView =>
         Boolean(reply?.uri && reply.record?.text !== undefined),
     )
-    .map((reply) => ({ post: reply }))
-  return { post, replies }
+    .map((reply) => ({ post: normalizePostImages(reply) }))
+  return { post: normalizePostImages(post), replies }
 }
 
 export type GetPostsInput = {
@@ -252,7 +307,7 @@ export async function loadPostPage(data: GetPostsInput) {
   )
   const body = payload as { cursor?: unknown }
   return {
-    posts: await hydrateViewerRecords(posts, data.did, data.accessJwt),
+    posts: await hydrateAuthorNames(await hydrateViewerRecords(posts, data.did, data.accessJwt)),
     cursor: query && typeof body.cursor === 'string' && body.cursor
       ? body.cursor
       : null,
@@ -272,9 +327,8 @@ export const getPostPage = createServerFn({ method: 'POST' })
   .validator((data: GetPostsInput) => data)
   .handler(({ data }) => loadPostPage(data))
 
-export const getPostThread = createServerFn({ method: 'POST' })
-  .validator((data: { uri: string; accessJwt: string; did: string }) => data)
-  .handler(async ({ data }) => {
+type PostThreadInput = { uri: string; accessJwt: string; did: string }
+export async function loadPostThread(data: PostThreadInput): Promise<PostThread> {
     const params = new URLSearchParams({
       uri: data.uri,
       depth: '1',
@@ -290,38 +344,66 @@ export const getPostThread = createServerFn({ method: 'POST' })
       data.did,
       data.accessJwt,
     )
-    return { ...thread, post }
-  })
+    const [namedPost, ...replies] = await hydrateAuthorNames([post, ...thread.replies.map((reply) => reply.post)])
+    return { post: namedPost, replies: replies.map((reply) => ({ post: reply })) }
+}
 
-export const createTextPost = createServerFn({ method: 'POST' })
-  .validator((data: {
+export const getPostThread = createServerFn({ method: 'POST' })
+  .validator((data: PostThreadInput) => data)
+  .handler(({ data }) => loadPostThread(data))
+
+type TextPostInput = {
     did: string
     accessJwt: string
     text: string
     category: PostCategory
-  }) => data)
-  .handler(async ({ data }) => {
+    rkey: string
+    createdAt: string
+    images?: PdsImage[]
+}
+
+export const uploadPostImage = createServerFn({ method: 'POST' })
+  .validator((data: { accessJwt: string; base64: string; contentType: string }) => data)
+  .handler(({ data }) => uploadPdsImage(data.accessJwt, data.base64, data.contentType))
+
+export async function createTextPostRecord(data: TextPostInput) {
     const text = data.text.trim()
-    if (!text) throw new Error('帖子内容不能为空')
-    if (text.length > 300) throw new Error('首版文字帖最多 300 个字符')
+    const images = data.images ?? []
+    if (!Array.isArray(images)) throw new Error('图片信息无效，请重新添加。')
+    if (!text && !images.length) throw new Error('请填写帖子内容或添加图片')
+    if (text.length > 300) throw new Error('帖子内容最多 300 个字符')
+    if (images.length > MAX_POST_IMAGES) throw new Error('帖子最多添加 4 张图片。')
+    if (images.some((item) => item.image?.$type !== 'blob' || !item.image.ref?.$link || !POST_IMAGE_TYPES.includes(item.image.mimeType) || !Number.isFinite(item.image.size) || item.image.size <= 0 || item.image.size > MAX_POST_IMAGE_BYTES || typeof item.alt !== 'string')) throw new Error('图片信息无效，请重新添加。')
     if (!['post', 'activity', 'product'].includes(data.category)) {
       throw new Error('内容分类无效')
     }
 
-    const createdAt = new Date().toISOString()
-    const body = await createPdsRecord(data.accessJwt, {
+    const createdAt = data.createdAt
+    const record = {
+      $type: 'app.bsky.feed.post', text, langs: ['zh'], xjdaoCategory: data.category, createdAt,
+      ...(images.length ? { embed: { $type: 'app.bsky.embed.images', images } } : {}),
+    }
+    let body: { uri: string; cid: string }
+    try { body = await createPdsRecord(data.accessJwt, {
       repo: data.did,
       collection: 'app.bsky.feed.post',
-      record: {
-        $type: 'app.bsky.feed.post',
-        text,
-        langs: ['zh'],
-        xjdaoCategory: data.category,
-        createdAt,
-      },
-    })
-    return { uri: body.uri, cid: body.cid, text, createdAt, category: data.category }
-  })
+      rkey: data.rkey,
+      record,
+    }) } catch (error) {
+      // A create may have succeeded before its response was lost. Read the same key;
+      // never retry by creating another record or overwrite the published one.
+      const query = new URLSearchParams({ repo: data.did, collection: 'app.bsky.feed.post', rkey: data.rkey })
+      const existing = await requestJson<{ uri: string; cid: string; value: typeof record }>(`${BACKEND_BASE}/pds/xrpc/com.atproto.repo.getRecord?${query}`, { headers: { Authorization: `Bearer ${data.accessJwt}` } }).catch(() => { throw error })
+      const imageIdentity = (embed: typeof record.embed) => (embed?.images ?? []).map((item) => [item.image.ref.$link, item.alt, item.aspectRatio?.width, item.aspectRatio?.height])
+      if (existing.value.text !== text || existing.value.createdAt !== createdAt || existing.value.xjdaoCategory !== data.category || JSON.stringify(imageIdentity(existing.value.embed)) !== JSON.stringify(imageIdentity(record.embed))) throw new Error('上次提交的帖子已发布。请关闭发布窗口后查看，再发布新内容。')
+      body = existing
+    }
+    return { uri: body.uri, cid: body.cid, text, createdAt, category: data.category, ...(images.length ? { images } : {}) }
+}
+
+export const createTextPost = createServerFn({ method: 'POST' })
+  .validator((data: TextPostInput) => data)
+  .handler(({ data }) => createTextPostRecord(data))
 
 type DeletePostInput = {
   did: string
