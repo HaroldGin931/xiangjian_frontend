@@ -21,6 +21,7 @@ vi.mock('../routeTree.gen', async () => {
     getParentRoute: () => parent, path: '/',
     loader: options.loader,
     loaderDeps: options.loaderDeps,
+    beforeLoad: options.beforeLoad,
     staleTime: options.staleTime,
     preloadStaleTime: options.preloadStaleTime,
     ssr: options.ssr,
@@ -129,6 +130,26 @@ describe('private profile route cache', () => {
     await router.navigate({ to: '/me' })
     expect(api.wallet).toHaveBeenCalledTimes(3)
     expect(api.wallet).toHaveBeenLastCalledWith({ data: { token: 'new-token-a' } })
+  })
+
+  it('keeps the same-session successful snapshot and error after a failed refresh then reopening', async () => {
+    const router = await readyRouter()
+    await router.navigate({ to: '/me' })
+    api.wallet.mockRejectedValueOnce(new Error('钱包服务暂时不可用'))
+    await router.invalidate({ filter: (match) => match.routeId === '/me/' })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ initialData: { accountId: 'a', wallet: { balance: 100 } }, error: '钱包服务暂时不可用' })
+
+    await router.navigate({ to: '/' })
+    await router.navigate({ to: '/me' })
+    expect(api.wallet).toHaveBeenCalledTimes(2)
+    expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ initialData: { accountId: 'a', wallet: { balance: 100 } }, error: '钱包服务暂时不可用' })
+
+    await router.navigate({ to: '/' })
+    state.session = session('a', 'new-token-a')
+    api.wallet.mockRejectedValueOnce(new Error('新会话请求失败'))
+    await router.navigate({ to: '/me' })
+    expect(router.state.matches.at(-1)?.loaderData).toEqual({ initialData: null, error: '新会话请求失败' })
   })
 
   it('discards a response that finishes after the user changes account', async () => {

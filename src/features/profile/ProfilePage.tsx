@@ -1,7 +1,7 @@
 import { Button } from '@astryxdesign/core/Button'
 import { useNavigate, useRouter } from '@tanstack/react-router'
 import { ArrowRight, LogOut, Pencil, UserRound } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { DetailDialog } from '~/components/DetailDialog'
 import { publicAttachmentUrl } from '~/lib/attachments'
 import type { RiceUser } from '~/lib/models'
@@ -22,19 +22,13 @@ export type ProfileInitialData = { accountId: string; sessionToken: string; user
 
 export function ProfilePage({ initialData = null, initialError = '' }: { initialData?: ProfileInitialData | null; initialError?: string }) {
   const { session, isReady, saveSession } = useStoredSession()
-  const [data, setData] = useState<ProfileInitialData | null>(initialData)
   const [panel, setPanel] = useState<Panel | null>(null)
   const [directoryOpen, setDirectoryOpen] = useState(false)
   const navigate = useNavigate()
   const router = useRouter()
-  // Keep the last successful snapshot if a background refresh fails.
-  useEffect(() => {
-    if (initialData) setData(initialData)
-  }, [initialData])
   const logout = async () => { if (session) await logoutRice({ data: session.token }).catch(() => undefined); saveSession(null); await navigate({ to: '/' }) }
   if (!isReady || !session) return null
-  const snapshot = initialData ?? data
-  const current = snapshot?.accountId === session.user.id && snapshot.sessionToken === session.token ? snapshot : null
+  const current = initialData?.accountId === session.user.id && initialData.sessionToken === session.token ? initialData : null
   const profile = current?.user ?? session.user
   const wallet = current?.wallet
   return <div className="page profile-page">

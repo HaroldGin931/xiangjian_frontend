@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { ProfilePage } from '~/features/profile/ProfilePage'
+import { ProfilePage, type ProfileInitialData } from '~/features/profile/ProfilePage'
 import { getCurrentUser } from '~/features/session/api'
 import { readStoredSession } from '~/features/session/session'
 import { getWallet } from '~/features/grains/api'
@@ -14,7 +14,11 @@ export const Route = createFileRoute('/me/')({
     // Client-only cache identity; never a search parameter or URL.
     return { accountId: session?.user.id ?? null, token: session?.token ?? null }
   },
-  loader: { staleReloadMode: 'background', handler: async ({ deps }) => {
+  beforeLoad: ({ matches }): { previousData: ProfileInitialData | null } => {
+    const previous = matches.find((match) => match.routeId === '/me/')?.loaderData as { initialData: ProfileInitialData | null } | undefined
+    return { previousData: previous?.initialData ?? null }
+  },
+  loader: { staleReloadMode: 'background', handler: async ({ deps, context }) => {
     const empty = { initialData: null, error: '' }
     if (!deps.token || !deps.accountId) return empty
     const isCurrentSession = () => {
@@ -28,7 +32,9 @@ export const Route = createFileRoute('/me/')({
       return { initialData: { user, wallet, accountId: deps.accountId, sessionToken: deps.token }, error: '' }
     } catch (error) {
       if (!isCurrentSession()) return empty
-      return { initialData: null, error: error instanceof Error ? error.message : '个人资料暂时无法加载，请稍后重试。' }
+      const previous = context.previousData
+      const initialData = previous?.accountId === deps.accountId && previous.sessionToken === deps.token ? previous : null
+      return { initialData, error: error instanceof Error ? error.message : '个人资料暂时无法加载，请稍后重试。' }
     }
   } },
   component: () => { const { initialData, error } = Route.useLoaderData(); return <ProfilePage initialData={initialData} initialError={error} /> },
