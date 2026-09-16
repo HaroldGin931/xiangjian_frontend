@@ -76,6 +76,6 @@ function EventEditor({ onPublished, active, managedNodes }: { onPublished?: () =
     <TextInput label="参与名额" value={fields.capacity} onChange={(v) => set('capacity', v.replace(/\D/g, '').slice(0, 6))} width="100%" isRequired />
     <TextInput label="每人报名费（测试稻米，0 为免费）" value={fields.fee_amount} onChange={(v) => set('fee_amount', v.replace(/\D/g, '').slice(0, 9))} width="100%" isRequired />
     {error && <p className="form-error" role="alert">{error}</p>}{notice && <p className="form-notice" role="status">{notice}</p>}
-    <div className="button-row"><Button label="保存草稿" variant="secondary" isDisabled={disabled} clickAction={() => submit('draft')} /><Button label="发布活动" variant="primary" isDisabled={disabled} clickAction={() => submit('open')} /></div>
+    <div className="form-actions"><Button label="保存草稿" variant="secondary" isDisabled={disabled} clickAction={() => submit('draft')} /><Button label="发布活动" variant="primary" isDisabled={disabled} clickAction={() => submit('open')} /></div>
   </section>
 }

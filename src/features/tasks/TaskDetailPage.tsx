@@ -162,7 +162,7 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
                   width="100%"
                   isOptional
                 />
-                <div className="button-row">
+                <div className="form-actions">
                   <Button label="取消" variant="secondary" onClick={() => setApplyOpen(false)} />
                   <Button
                     label="提交申请"
@@ -206,19 +206,21 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
                 <article key={application.id}>
                   <strong>{application.user.nickname || application.user.handle}</strong>
                   <p>{application.reason || '没有填写申请理由'}</p>
-                  <Button
-                    label="选定此人"
-                    variant="primary"
-                    isDisabled={busy}
-                    clickAction={() => run(() => appointTaskApplication({
-                      data: {
-                        token,
-                        taskId,
-                        applicationId: application.id,
-                        appointmentReason,
-                      },
-                    }))}
-                  />
+                  <div className="form-actions">
+                    <Button
+                      label="选定此人"
+                      variant="primary"
+                      isDisabled={busy}
+                      clickAction={() => run(() => appointTaskApplication({
+                        data: {
+                          token,
+                          taskId,
+                          applicationId: application.id,
+                          appointmentReason,
+                        },
+                      }))}
+                    />
+                  </div>
                 </article>
               ))}
             </div>
@@ -235,7 +237,7 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
                   <CircleAlert size={18} />
                   <div><strong>确认取消这个任务？</strong><p>取消后任务保留记录，不能再申请；{task.reward_amount} 稻米报酬将退回。</p></div>
                 </div>
-                <div className="button-row">
+                <div className="form-actions">
                   <Button label="保留任务" variant="secondary" onClick={() => setCancelOpen(false)} />
                   <Button
                     label="确认取消"
@@ -261,12 +263,14 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
               width="100%"
               isRequired
             />
-            <Button
-              label="提交结果"
-              variant="primary"
-              isDisabled={!result.trim() || busy}
-              clickAction={() => run(() => submitTaskResult({ data: { token, taskId, body: result } }))}
-            />
+            <div className="form-actions">
+              <Button
+                label="提交结果"
+                variant="primary"
+                isDisabled={!result.trim() || busy}
+                clickAction={() => run(() => submitTaskResult({ data: { token, taskId, body: result } }))}
+              />
+            </div>
           </section>
         ) : null}
 
@@ -283,7 +287,7 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
               rows={4}
               width="100%"
             />
-            <div className="button-row">
+            <div className="form-actions">
               <Button
                 label="退回修改"
                 variant="destructive"
@@ -294,7 +298,7 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
               />
               <Button label="验收并发放" variant="primary" isDisabled={busy} onClick={() => setApproveOpen(true)} />
             </div>
-            {approveOpen && <section className="business-confirm"><h3>确认验收并发放</h3><p>向 {task.assignee?.nickname || task.assignee?.handle} 发放 {task.reward_amount} 稻米，任务将完成。</p><div className="button-row"><Button label="返回" variant="secondary" onClick={() => setApproveOpen(false)} /><Button label="确认验收并发放" variant="primary" isDisabled={busy} clickAction={() => run(() => approveTaskResult({ data: { token, taskId, submissionId: pendingSubmission.id } }))} /></div></section>}
+            {approveOpen && <section className="business-confirm"><h3>确认验收并发放</h3><p>向 {task.assignee?.nickname || task.assignee?.handle} 发放 {task.reward_amount} 稻米，任务将完成。</p><div className="form-actions"><Button label="返回" variant="secondary" onClick={() => setApproveOpen(false)} /><Button label="确认验收并发放" variant="primary" isDisabled={busy} clickAction={() => run(() => approveTaskResult({ data: { token, taskId, submissionId: pendingSubmission.id } }))} /></div></section>}
           </section>
         ) : null}
 

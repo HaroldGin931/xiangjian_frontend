@@ -70,15 +70,16 @@ export function ForgotPasswordPage() {
         />
         {notice ? <div className="form-notice">{notice}</div> : null}
         {error ? <div className="form-error" role="alert">{error}</div> : null}
-        <Button
-          label="重置密码"
-          variant="primary"
-          size="lg"
-          width="100%"
-          clickAction={submit}
-          isLoading={busy}
-          isDisabled={!contact.trim() || !code.trim() || password.length < 8}
-        />
+        <div className="form-actions">
+          <Button
+            label="重置密码"
+            variant="primary"
+            size="lg"
+            clickAction={submit}
+            isLoading={busy}
+            isDisabled={!contact.trim() || !code.trim() || password.length < 8}
+          />
+        </div>
       </section>
     </div>
   )

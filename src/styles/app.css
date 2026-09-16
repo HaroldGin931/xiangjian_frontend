@@ -417,7 +417,7 @@ button.notification-row:focus-visible { outline: 2px solid var(--xj-green, #1b60
 .reply-section h2 { margin: 16px 0 8px; display: flex; align-items: center; gap: 6px; font-size: var(--xj-font-body-strong); }
 .reply-section h2 span { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; display: inline-grid; place-items: center; background: var(--xj-surface-soft); color: var(--xj-muted); font-size: var(--xj-font-caption); }
 .reply-composer { margin: 12px 0 8px; padding: 14px; border: 1px solid var(--xj-line); border-radius: 15px; background: var(--xj-surface); box-shadow: 0 4px 16px rgba(21, 54, 41, .05); }
-.reply-composer-footer { min-height: 38px; display: flex; align-items: center; justify-content: space-between; gap: var(--xj-form-inline-gap); color: var(--xj-muted); font-size: var(--xj-font-small); }
+.reply-composer-notice { margin: 0; color: var(--xj-muted); font-size: var(--xj-font-small); }
 .reply-list { border-top: 1px solid var(--xj-line); }
 .reply-row { padding: 12px 8px; border-bottom: 1px solid var(--xj-line); }
 .reply-row p { margin: 9px 0; font-size: var(--xj-font-body); }
@@ -477,8 +477,10 @@ button.notification-row:focus-visible { outline: 2px solid var(--xj-green, #1b60
 .account-entry-page { padding: 18px 12px 72px; }
 .form-card { padding: 20px 16px; border: 1px solid var(--xj-line); border-radius: 18px; background: var(--xj-surface); }
 .form-card h2 { margin: 0; font-size: var(--xj-font-lead); }
-.button-row { display: flex; justify-content: flex-end; gap: var(--xj-form-inline-gap); }
-.button-row > * { min-width: 112px; }
+.button-row, .form-actions { display: flex; justify-content: flex-end; gap: var(--xj-form-inline-gap); }
+.button-row > *, .form-actions > * { min-width: 112px; }
+.form-actions > button { justify-content: center; }
+.form-actions > button:only-child { width: 100%; }
 .code-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: var(--xj-form-inline-gap); }
 .form-notice { padding: 10px 12px; border-radius: 10px; background: #e8f2e2; color: #41653f; font-size: var(--xj-font-small); }
 .settings-page, .account-security-page, .profile-edit-page { max-width: 760px; }
@@ -634,7 +636,7 @@ button.content-card-author { padding: 0; border: 0; background: transparent; col
   .business-dialog { width: calc(100% - 20px); border: 1px solid var(--xj-line); border-radius: 18px; height: auto; max-height: 92dvh; }
   .business-dialog .post-dialog-shell { max-height: 92dvh; }
   .business-counts { gap: 16px; }
-  .button-row { flex-wrap: wrap; }
+  .button-row, .form-actions { flex-wrap: wrap; }
 }
 .business-dialog .profile-edit-page { padding: 24px; }
 .business-dialog .social-profile-page { padding: 16px; }

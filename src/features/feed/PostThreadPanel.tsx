@@ -209,8 +209,8 @@ function PostThreadContent({
                   placeholder="写下你的评论…"
                   hasAutoFocus={focusReply}
                 />
-                <div className="reply-composer-footer">
-                  <span role="status">{replyNotice}</span>
+                {replyNotice && <p className="reply-composer-notice" role="status">{replyNotice}</p>}
+                <div className="form-actions">
                   <Button
                     label="发布评论"
                     variant="primary"

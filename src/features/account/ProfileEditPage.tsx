@@ -104,14 +104,15 @@ export function ProfileEditPage({ onSaved }: { onSaved?: () => void }) {
           width="100%"
         />
         {error ? <div className="form-error" role="alert">{error}</div> : null}
-        <Button
-          label="保存"
-          variant="primary"
-          size="lg"
-          width="100%"
-          clickAction={save}
-          isLoading={busy}
-        />
+        <div className="form-actions">
+          <Button
+            label="保存"
+            variant="primary"
+            size="lg"
+            clickAction={save}
+            isLoading={busy}
+          />
+        </div>
       </section>
     </div>
   )

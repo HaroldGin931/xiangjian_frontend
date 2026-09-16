@@ -148,7 +148,7 @@ export function AccountSecurityPage() {
             <TextInput label="验证码" value={phoneCode} onChange={setPhoneCode} width="100%" />
             <Button label="获取验证码" variant="secondary" size="lg" clickAction={() => sendContactCode('sms', phone)} />
           </div>
-          <div className="button-row">
+          <div className="form-actions">
             <Button label="取消" variant="secondary" onClick={() => setEditing(null)} />
             <Button label="确认更换" variant="primary" clickAction={() => changeContact('sms')} isLoading={busy} isDisabled={!phone.trim() || !phoneCode.trim()} />
           </div>
@@ -163,7 +163,7 @@ export function AccountSecurityPage() {
             <TextInput label="验证码" value={emailCode} onChange={setEmailCode} width="100%" />
             <Button label="获取验证码" variant="secondary" size="lg" clickAction={() => sendContactCode('email', email)} />
           </div>
-          <div className="button-row">
+          <div className="form-actions">
             <Button label="取消" variant="secondary" onClick={() => setEditing(null)} />
             <Button label="确认更换" variant="primary" clickAction={() => changeContact('email')} isLoading={busy} isDisabled={!email.trim() || !emailCode.trim()} />
           </div>
@@ -193,7 +193,9 @@ export function AccountSecurityPage() {
               <TextInput label="验证码" value={deleteCode} onChange={setDeleteCode} width="100%" />
               <Button label="获取验证码" variant="secondary" size="lg" clickAction={sendDeleteCode} />
             </div>
-            <Button label="确认注销账号" variant="destructive" clickAction={removeAccount} isLoading={busy} isDisabled={!deleteCode.trim()} />
+            <div className="form-actions">
+              <Button label="确认注销账号" variant="destructive" clickAction={removeAccount} isLoading={busy} isDisabled={!deleteCode.trim()} />
+            </div>
           </div>
         ) : null}
       </section>

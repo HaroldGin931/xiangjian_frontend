@@ -83,15 +83,16 @@ export function RegisterPage() {
               onSent={() => setNotice('验证码已发送，请检查短信或邮箱。')}
             />
             {notice ? <div className="form-notice">{notice}</div> : null}
-            <Button
-              label="下一步"
-              variant="primary"
-              size="lg"
-              width="100%"
-              clickAction={verify}
-              isLoading={busy}
-              isDisabled={!contact.trim() || !code.trim()}
-            />
+            <div className="form-actions">
+              <Button
+                label="下一步"
+                variant="primary"
+                size="lg"
+                clickAction={verify}
+                isLoading={busy}
+                isDisabled={!contact.trim() || !code.trim()}
+              />
+            </div>
           </>
         ) : (
           <>
@@ -110,16 +111,17 @@ export function RegisterPage() {
               description="至少 8 位。密码由 PDS 管理，Rice 不保存密码。"
               width="100%"
             />
-            <Button
-              label="完成注册"
-              variant="primary"
-              size="lg"
-              width="100%"
-              clickAction={register}
-              isLoading={busy}
-              isDisabled={!handle.trim() || password.length < 8}
-            />
-            <Button label="返回修改联系方式" variant="ghost" onClick={() => setTicket('')} />
+            <div className="form-actions">
+              <Button label="返回修改联系方式" variant="ghost" onClick={() => setTicket('')} />
+              <Button
+                label="完成注册"
+                variant="primary"
+                size="lg"
+                clickAction={register}
+                isLoading={busy}
+                isDisabled={!handle.trim() || password.length < 8}
+              />
+            </div>
           </>
         )}
         {error ? <div className="form-error" role="alert">{error}</div> : null}

@@ -67,13 +67,14 @@ export function LoginPage() {
           onEnter={submit}
         />
         {error ? <div className="form-error">{error}</div> : null}
-        <Button
-          label="登录"
-          variant="primary"
-          size="lg"
-          width="100%"
-          clickAction={submit}
-        />
+        <div className="form-actions">
+          <Button
+            label="登录"
+            variant="primary"
+            size="lg"
+            clickAction={submit}
+          />
+        </div>
         <div className="login-links">
           <Link to="/register">创建账号</Link>
           <Link to="/forgot-password">忘记密码？</Link>

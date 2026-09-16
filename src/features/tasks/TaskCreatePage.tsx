@@ -98,6 +98,6 @@ function TaskCreateForm({ embedded, onPublished, active, managedNodes }: { embed
     <label className="native-field">交付截止时间<input type="datetime-local" value={executionDeadline} min={applicationDeadline || localDateTimeValue()} onChange={(e) => setExecutionDeadline(e.target.value)} /></label>
     <TextInput label="任务报酬（测试稻米）" value={rewardAmount} onChange={(v) => setRewardAmount(v.replace(/\D/g, '').slice(0, 9))} width="100%" isRequired />
     {error && <p className="form-error" role="alert">{error}</p>}{notice && <p className="form-notice" role="status">{notice}</p>}
-    <div className="button-row"><Button label="保存草稿" variant="secondary" isDisabled={disabled} isLoading={submitting === 'draft'} clickAction={() => submit('draft')} /><Button label="发布任务" variant="primary" isDisabled={disabled} isLoading={submitting === 'open'} clickAction={() => submit('open')} /></div>
+    <div className="form-actions"><Button label="保存草稿" variant="secondary" isDisabled={disabled} isLoading={submitting === 'draft'} clickAction={() => submit('draft')} /><Button label="发布任务" variant="primary" isDisabled={disabled} isLoading={submitting === 'open'} clickAction={() => submit('open')} /></div>
   </section>
 }
