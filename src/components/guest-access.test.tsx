@@ -30,10 +30,11 @@ describe('guest access', () => {
     expect(html).toContain('正在加载…')
   })
 
-  it('keeps the current heading and navigation selected while the next route loads', () => {
+  it('keeps the shared brand and current navigation selected while the next route loads', () => {
     state.pathname = '/events'; state.resolvedPathname = '/tasks'; state.isLoading = true
     const html = renderToStaticMarkup(<AppShell><p>current tasks</p></AppShell>)
-    expect(html).toContain('class="section-title">任务')
+    expect(html).toContain('<span>乡建</span><small>DAO</small>')
+    expect(html).not.toContain('class="section-title"')
     expect(html).toContain('href="/tasks" class="bottom-link active"')
     expect(html).toContain('href="/events" class="bottom-link"')
     expect(html).toContain('正在加载页面…')

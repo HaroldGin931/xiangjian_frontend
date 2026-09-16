@@ -31,15 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     ['/login', '/register', '/forgot-password', '/post', '/search', '/compose'].includes(pathname) ||
     pathname.startsWith('/tasks/') ||
     pathname.startsWith('/profile/')
-  const sectionTitle = pathname.startsWith('/tasks')
-    ? '任务'
-    : pathname.startsWith('/notifications')
-      ? '消息'
-      : pathname === '/me/posts'
-        ? '我的帖子'
-        : pathname.startsWith('/me')
-          ? '我的'
-          : null
+
 
   useEffect(() => {
     setNotificationsOpen(false)
@@ -78,20 +70,16 @@ export function AppShell({ children }: { children: ReactNode }) {
       window.clearInterval(timer)
       window.removeEventListener(NOTIFICATIONS_READ_EVENT, clear)
     }
-  }, [pathname, session])
+  }, [session?.token, session?.pds?.access_jwt])
 
   return (
     <div className={`app-shell ${isStandalone ? 'standalone-shell' : ''}`}>
       <div className="test-environment">测试环境 · 仅使用测试稻米</div>
       {!isStandalone ? <header className="topbar">
         <div className="topbar-inner">
-          {sectionTitle ? (
-            <strong className="section-title">{sectionTitle}</strong>
-          ) : (
-            <Link to="/" className="brand" aria-label="返回乡建 DAO 广场">
-              <span>乡建</span><small>DAO</small>
-            </Link>
-          )}
+          <Link to="/" className="brand" aria-label="返回乡建 DAO 广场">
+            <span>乡建</span><small>DAO</small>
+          </Link>
           <div className="topbar-actions">
             {!isReady && <span className="session-placeholder" aria-hidden="true" />}
             {isReady && session && ['/', '/tasks', '/events'].includes(pathname) && <button type="button" className="header-publish" onClick={() => setCompose(pathname === '/tasks' ? 'task' : pathname === '/events' ? 'activity' : 'post')}>发布</button>}
