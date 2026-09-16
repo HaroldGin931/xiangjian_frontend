@@ -12,12 +12,12 @@ import { useStoredSession } from '../session/session'
 import { getEvents, saveEvent } from './api'
 
 const emptyFields = { node_id: '', title: '', description: '', location: '', application_deadline: '', starts_at: '', ends_at: '', fee_amount: '0', capacity: '' }
-export function EventCreateForm({ onPublished, active = true }: { onPublished?: () => void; active?: boolean }) {
+export function EventCreateForm({ onPublished, active = true, managedNodes }: { onPublished?: () => void; active?: boolean; managedNodes?: CommunityNode[] }) {
   const { session } = useStoredSession()
-  return <EventEditor key={session?.token ?? 'guest'} active={active} onPublished={onPublished} />
+  return <EventEditor key={session?.token ?? 'guest'} active={active} onPublished={onPublished} managedNodes={managedNodes} />
 }
 
-function EventEditor({ onPublished, active }: { onPublished?: () => void; active: boolean }) {
+function EventEditor({ onPublished, active, managedNodes }: { onPublished?: () => void; active: boolean; managedNodes?: CommunityNode[] }) {
   const { session, isReady } = useStoredSession()
   const navigate = useNavigate()
   const mounted = useRef(false)
@@ -38,7 +38,7 @@ function EventEditor({ onPublished, active }: { onPublished?: () => void; active
     if (!isReady) return
     if (!session) { setLoading(false); return }
     let active = true
-    void Promise.all([getNodes({ data: { token: session.token, mine: 'managed' } }), getEvents({ data: { token: session.token, mine: 'created', status: 'draft' } })]).then(([managed, page]) => {
+    void Promise.all([managedNodes ?? getNodes({ data: { token: session.token, mine: 'managed' } }), getEvents({ data: { token: session.token, mine: 'created', status: 'draft' } })]).then(([managed, page]) => {
       if (!active) return
       setNodes(managed)
       const draft = page.data[0]
@@ -46,7 +46,7 @@ function EventEditor({ onPublished, active }: { onPublished?: () => void; active
       else setFields((f) => ({ ...f, node_id: managed[0]?.id ?? '' }))
     }).catch((e) => { if (active) setError(e.message) }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [session?.token, isReady, restoreImages])
+  }, [session?.token, isReady, restoreImages, managedNodes])
   if (!isReady || loading) return <p className="loading-line">正在恢复草稿…</p>
   if (!session) return <Link to="/login" className="primary-link">登录后发布活动</Link>
   if (!nodes.length) return <div className="form-card"><p>只有社区管理员可以发布活动。</p>{error && <p className="inline-error" role="alert">{error}</p>}<Button label="发布活动" variant="primary" isDisabled /></div>

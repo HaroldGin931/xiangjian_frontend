@@ -5,7 +5,9 @@ import { getTaskPage } from '~/features/tasks/api'
 import { getNodes } from '~/features/nodes/api'
 
 export const Route = createFileRoute('/tasks/')({
-  loader: { staleReloadMode: 'blocking', handler: async () => {
+  staleTime: 30_000,
+  preloadStaleTime: 30_000,
+  loader: { staleReloadMode: 'background', handler: async () => {
     const [page, nodes] = await Promise.all([getTaskPage({ data: { limit: 12 } }), getNodes({ data: {} })])
     return { page, nodes }
   } },

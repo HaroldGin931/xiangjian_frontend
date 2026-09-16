@@ -11,12 +11,12 @@ import { useStoredSession } from '../session/session'
 import { applicationStatusLabel, eventAction, eventStatusLabel, getEvent, type RiceEvent } from './api'
 
 const historyLabels: Record<string, string> = { applied: '提交申请', completed: '活动结束', application_completed: '完成参与记录', application_cancelled: '报名已取消', created: '创建活动', published: '发布活动', application_created: '提交申请', application_approved: '通过申请', application_rejected: '拒绝申请', application_removed: '移除报名', started: '活动开始', finished: '活动结束', cancelled: '活动取消', application_not_selected: '申请未入选' }
-export function EventDetail({ eventId }: { eventId: string }) {
+export function EventDetail({ eventId, loadEvent }: { eventId: string; loadEvent?: (token?: string) => Promise<RiceEvent> }) {
   const { session } = useStoredSession()
-  return <EventDetails key={`${eventId}:${session?.user.id ?? 'guest'}`} eventId={eventId} />
+  return <EventDetails key={`${eventId}:${session?.user.id ?? 'guest'}`} eventId={eventId} loadEvent={loadEvent} />
 }
 
-function EventDetails({ eventId }: { eventId: string }) {
+function EventDetails({ eventId, loadEvent }: { eventId: string; loadEvent?: (token?: string) => Promise<RiceEvent> }) {
   const { session, isReady } = useStoredSession()
   const [event, setEvent] = useState<RiceEvent | null>(null)
   const [error, setError] = useState('')
@@ -28,9 +28,9 @@ function EventDetails({ eventId }: { eventId: string }) {
     if (!isReady) return
     let active = true
     setError('')
-    void getEvent({ data: { id: eventId, token: session?.token } }).then((value) => { if (active) setEvent(value) }).catch((e) => { if (active) setError(e.message) })
+    void (loadEvent ? loadEvent(session?.token) : getEvent({ data: { id: eventId, token: session?.token } })).then((value) => { if (active) setEvent(value) }).catch((e) => { if (active) setError(e.message) })
     return () => { active = false }
-  }, [isReady, session?.token, eventId])
+  }, [isReady, session?.token, eventId, loadEvent])
   const run = async (action: 'apply' | 'approve' | 'reject' | 'remove' | 'finish' | 'cancel', applicationId?: string) => {
     if (!session) return
     setBusy(true); setError('')

@@ -1,6 +1,7 @@
 import { IconButton } from '@astryxdesign/core/IconButton'
 import { X } from 'lucide-react'
 import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { LoadingProgress } from './LoadingProgress'
 
 const PanelReadiness = createContext<((id: string, pending: boolean) => void) | null>(null)
 
@@ -45,7 +46,7 @@ export function DetailDialog({ title, onClose, children, className = 'post-dialo
     return () => document.removeEventListener('keydown', cancel, true)
   }, [opened, onClose])
   return <PanelReadiness.Provider value={register}>
-    {!opened && <div className="panel-opening" role="status"><span>正在打开{title}…</span><button type="button" onClick={onClose}>取消</button></div>}
+    {!opened && <LoadingProgress label={`正在准备${title}，按 Escape 取消`} onCancel={onClose} />}
     <dialog ref={ref} className={className} aria-labelledby={titleId}
     onCancel={(event) => {
       if (event.target !== event.currentTarget) return

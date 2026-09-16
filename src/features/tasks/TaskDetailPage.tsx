@@ -26,12 +26,12 @@ import {
   type TaskSubmission,
 } from './types'
 
-export function TaskDetailPage({ taskId, embedded = false }: { taskId: string; embedded?: boolean }) {
+export function TaskDetailPage({ taskId, embedded = false, loadTask }: { taskId: string; embedded?: boolean; loadTask?: (token?: string) => Promise<RiceTask> }) {
   const { session } = useStoredSession()
-  return <TaskDetails key={`${taskId}:${session?.user.id ?? 'guest'}`} taskId={taskId} embedded={embedded} />
+  return <TaskDetails key={`${taskId}:${session?.user.id ?? 'guest'}`} taskId={taskId} embedded={embedded} loadTask={loadTask} />
 }
 
-function TaskDetails({ taskId, embedded }: { taskId: string; embedded: boolean }) {
+function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded: boolean; loadTask?: (token?: string) => Promise<RiceTask> }) {
   const { session, isReady } = useStoredSession()
   const [task, setTask] = useState<RiceTask | null>(null)
   const [error, setError] = useState('')
@@ -51,12 +51,12 @@ function TaskDetails({ taskId, embedded }: { taskId: string; embedded: boolean }
     let active = true
     setLoading(true)
     setError('')
-    void getTask({ data: { id: taskId, token: session?.token } })
+    void (loadTask ? loadTask(session?.token) : getTask({ data: { id: taskId, token: session?.token } }))
       .then((next) => { if (active) setTask(next) })
       .catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : '任务暂时无法加载') })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [isReady, session?.token, taskId])
+  }, [isReady, session?.token, taskId, loadTask])
 
   const pendingSubmission = useMemo(
     () => task?.submissions?.find((submission) => submission.status === 'pending') ?? null,

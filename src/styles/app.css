@@ -644,9 +644,10 @@ button.content-card-author { padding: 0; border: 0; background: transparent; col
 .business-dialog .grain-transfer-row { grid-template-columns: minmax(0, 1fr) auto; }
 .business-dialog .grain-transfer-row > div { min-width: 0; }
 
-/* Loading feedback stays out of the document flow, so existing content keeps its place. */
+/* Short requests stay silent; slow requests do not add a popup or move content. */
 .session-placeholder { display: inline-block; width: 88px; height: 44px; }
 .initial-loading { min-height: 55vh; color: var(--xj-text-soft); }
-.navigation-progress, .refresh-status, .panel-opening { position: fixed; z-index: 100; left: 50%; bottom: 104px; transform: translateX(-50%); width: max-content; max-width: calc(100vw - 32px); margin: 0; padding: 10px 16px; border: 1px solid var(--xj-line); border-radius: 12px; background: var(--xj-surface); color: var(--xj-text-soft); box-shadow: 0 4px 20px #173d2c18; font-size: 16px; }
-.panel-opening { display: flex; align-items: center; gap: 18px; }
-.panel-opening button { border: 0; padding: 4px 8px; background: transparent; color: var(--xj-accent); font: inherit; cursor: pointer; }
+.loading-progress { position: fixed; z-index: 100; top: 0; inset-inline: 0; height: 2px; background: var(--xj-accent); visibility: hidden; animation: reveal-loading .01s .8s forwards; pointer-events: none; }
+.loading-cancel { position: absolute; top: 4px; right: 12px; padding: 8px 12px; min-height: 44px; border: 0; background: var(--xj-surface); color: var(--xj-accent); font: inherit; font-size: 16px; pointer-events: auto; cursor: pointer; }
+@keyframes reveal-loading { to { visibility: visible; } }
+.visually-hidden, .refresh-status { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }

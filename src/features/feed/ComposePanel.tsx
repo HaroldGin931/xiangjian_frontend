@@ -8,7 +8,7 @@ import { readFileBase64 } from '~/lib/images'
 import type { PdsImage } from '~/lib/models'
 import { MAX_POST_IMAGE_BYTES, MAX_POST_IMAGES, newPostRecordKey } from '~/lib/pds'
 import { LoginPage } from '../session/LoginPage'
-import { getNodes } from '../nodes/api'
+import { getNodes, type CommunityNode } from '../nodes/api'
 import { EventCreateForm } from '../events/EventCreateForm'
 import { TaskCreatePage } from '../tasks/TaskCreatePage'
 import { useStoredSession } from '../session/session'
@@ -16,29 +16,36 @@ import { createTextPost, createdPostView, prependCachedPost, uploadPostImage } f
 
 export type ComposeKind = 'post' | 'activity' | 'task'
 export const composeKinds: Array<{ value: ComposeKind; label: string }> = [{ value: 'post', label: '发帖' }, { value: 'task', label: '发任务' }, { value: 'activity', label: '发活动' }]
-export function ComposePanel({ initialKind = 'post', onPublished }: { initialKind?: ComposeKind; onPublished?: () => void }) {
+type ComposePanelProps = { initialKind?: ComposeKind; onPublished?: () => void }
+export function ComposePanel(props: ComposePanelProps) {
+  const { session } = useStoredSession()
+  return <ComposeContent key={session?.user.id ?? 'guest'} {...props} />
+}
+
+function ComposeContent({ initialKind = 'post', onPublished }: ComposePanelProps) {
   const { session, isReady } = useStoredSession()
   const navigate = useNavigate()
   const mounted = useRef(false)
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   const [kind, setKind] = useState(initialKind)
-  const [canPublishCommunity, setCanPublishCommunity] = useState<boolean | null>(null)
-  usePanelReady(isReady && (!session || canPublishCommunity !== null))
+  const [visitedKinds, setVisitedKinds] = useState<ComposeKind[]>([initialKind])
+  const [managedNodes, setManagedNodes] = useState<CommunityNode[] | null>(null)
+  usePanelReady(isReady && (!session || managedNodes !== null))
   useEffect(() => {
     if (!session) return
     let active = true
-    setCanPublishCommunity(null)
+    setManagedNodes(null)
     // Managed nodes use the same owner check as task and activity creation.
     void getNodes({ data: { token: session.token, mine: 'managed' } })
       .then((nodes) => {
         if (!active) return
         const allowed = nodes.length > 0
-        setCanPublishCommunity(allowed)
+        setManagedNodes(nodes)
         if (!allowed) setKind('post')
       })
       .catch((reason) => {
         if (!active) return
-        setCanPublishCommunity(false)
+        setManagedNodes([])
         setKind('post')
         setError(reason instanceof Error ? reason.message : '暂时无法加载发布选项')
       })
@@ -80,11 +87,13 @@ export function ComposePanel({ initialKind = 'post', onPublished }: { initialKin
   }
   if (!isReady) return <p className="loading-line">正在加载…</p>
   if (!session) return <LoginPage />
-  if (canPublishCommunity === null) return <p className="loading-line">正在加载发布选项…</p>
+  if (managedNodes === null) return <p className="loading-line">正在加载发布选项…</p>
+  const canPublishCommunity = managedNodes.length > 0
   const availableKinds = composeKinds.filter((item) => item.value === 'post' || canPublishCommunity)
-  return <div className="page compose-page"><div className="compose-type-tabs filter-buttons" role="group" aria-label="发布类型">{availableKinds.map((item) => <Button label={item.label} variant="ghost" className={kind === item.value ? 'active' : undefined} aria-pressed={kind === item.value} onClick={() => setKind(item.value)} key={item.value} />)}</div>
+  const selectKind = (value: ComposeKind) => { setKind(value); setVisitedKinds((visited) => visited.includes(value) ? visited : [...visited, value]) }
+  return <div className="page compose-page"><div className="compose-type-tabs filter-buttons" role="group" aria-label="发布类型">{availableKinds.map((item) => <Button label={item.label} variant="ghost" className={kind === item.value ? 'active' : undefined} aria-pressed={kind === item.value} onClick={() => selectKind(item.value)} key={item.value} />)}</div>
     <div hidden={kind !== 'post'}><h2>发布帖子</h2><TextArea label="想分享什么" value={text} onChange={setText} rows={7} placeholder="分享社区里的见闻、想法或近况… 输入 #话题" width="100%" /><p className="compose-character-count">{text.trim().length}/300</p><ImagePicker images={previews} onSelect={(selected) => setFiles((current) => [...current, ...selected])} onRemove={(index) => setFiles((current) => current.filter((_, i) => i !== index))} disabled={busy} maxImages={MAX_POST_IMAGES} maxBytes={MAX_POST_IMAGE_BYTES} />{error && <p className="form-error" role="alert">{error}</p>}<Button label="发布帖子" variant="primary" width="100%" isLoading={busy} isDisabled={!session || (!text.trim() && !files.length) || text.trim().length > 300 || busy} clickAction={submit} /></div>
-    {canPublishCommunity && <div hidden={kind !== 'activity'}><h2>发布活动</h2><EventCreateForm active={kind === 'activity'} onPublished={onPublished} /></div>}
-    {canPublishCommunity && <div hidden={kind !== 'task'}><h2>发布任务</h2><TaskCreatePage active={kind === 'task'} embedded onPublished={onPublished} /></div>}
+    {canPublishCommunity && visitedKinds.includes('activity') && <div hidden={kind !== 'activity'}><h2>发布活动</h2><EventCreateForm managedNodes={managedNodes} active={kind === 'activity'} onPublished={onPublished} /></div>}
+    {canPublishCommunity && visitedKinds.includes('task') && <div hidden={kind !== 'task'}><h2>发布任务</h2><TaskCreatePage managedNodes={managedNodes} active={kind === 'task'} embedded onPublished={onPublished} /></div>}
   </div>
 }

@@ -12,6 +12,7 @@ vi.mock('@tanstack/react-router', () => ({
 
 import { ProfilePage, type ProfileInitialData } from './ProfilePage'
 import { MyTasksPage } from '../tasks/MyTasksPage'
+import { GrainHistoryPage } from '../grains/GrainHistoryPage'
 
 const user = { id: 'member', did: 'did:example:member', handle: 'member.test', nickname: '当前用户', bio: '个人简介', avatar: null } as RiceUser
 const initialData: ProfileInitialData = { accountId: user.id, user, wallet: { balance: 123, frozen: 7, earned: 140, entries: [] } }
@@ -37,4 +38,14 @@ it('does not guess task role tabs or zero counts before the personal history has
   expect(html).toContain('正在加载任务')
   expect(html).not.toContain('my-task-tabs')
   expect(html).not.toContain('这里还没有任务')
+})
+
+it('opens wallet history from the current account snapshot without an empty loading state', () => {
+  const html = renderToStaticMarkup(<GrainHistoryPage embedded initialData={initialData} />)
+  expect(html).toContain('<strong>130</strong>')
+  expect(html).not.toContain('正在加载明细')
+  expect(html).toContain('还没有资金记录')
+  const otherAccount = renderToStaticMarkup(<GrainHistoryPage embedded initialData={{ ...initialData, accountId: 'other' }} />)
+  expect(otherAccount).not.toContain('<strong>130</strong>')
+  expect(otherAccount).toContain('正在加载明细')
 })

@@ -8,6 +8,7 @@ vi.mock('~/features/session/session', () => ({ useStoredSession: () => ({ sessio
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, to, className, 'aria-label': label }: { children: ReactNode; to: string; className?: string; 'aria-label'?: string }) => <a href={to} className={className} aria-label={label}>{children}</a>,
   useNavigate: () => vi.fn(),
+  useRouter: () => ({ invalidate: vi.fn() }),
   useRouterState: ({ select }: { select: (state: { location: { pathname: string; href: string }; resolvedLocation: { pathname: string; href: string }; isLoading: boolean }) => unknown }) => select({ location: { pathname: state.pathname, href: state.pathname }, resolvedLocation: { pathname: state.resolvedPathname || state.pathname, href: state.resolvedPathname || state.pathname }, isLoading: state.isLoading }),
 }))
 vi.mock('~/features/notifications/api', () => ({ getNotifications: vi.fn(), getTaskNotifications: vi.fn(), NOTIFICATIONS_READ_EVENT: 'read' }))
@@ -36,6 +37,8 @@ describe('guest access', () => {
     expect(html).toContain('href="/tasks" class="bottom-link active"')
     expect(html).toContain('href="/events" class="bottom-link"')
     expect(html).toContain('正在加载页面…')
+    expect(html).toContain('class="loading-progress"')
+    expect(html).not.toContain('class="navigation-progress"')
   })
 
   it.each(['/', '/tasks', '/events'])('shows login and public navigation without publishing or notifications on %s', (pathname) => {

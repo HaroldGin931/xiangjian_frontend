@@ -15,7 +15,7 @@ export function MyTasksPage({ embedded = false }: { embedded?: boolean }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [version, setVersion] = useState(0)
-  const [selectedTask, setSelectedTask] = useState<string | null>(null)
+  const [selectedTask, setSelectedTask] = useState<{ id: string; load: (token?: string) => Promise<RiceTask> } | null>(null)
   useEffect(() => { const refresh = () => setVersion((v) => v + 1); window.addEventListener('rice-changed', refresh); return () => window.removeEventListener('rice-changed', refresh) }, [])
   useEffect(() => {
     if (!isReady) return
@@ -45,7 +45,7 @@ export function MyTasksPage({ embedded = false }: { embedded?: boolean }) {
   const tabs: Array<[Group, string]> = [...(publisher ? [['pending', '待审批']] as Array<[Group, string]> : []), ...(!publisher || tasks.some((t) => groupOf(t) === 'applying') ? [['applying', '申请中']] as Array<[Group, string]> : []), ['in_progress', '进行中'], ['under_review', '审核中'], ['ended', '已结束'], ...(publisher ? [['open', '招募中'], ['draft', '草稿']] as Array<[Group, string]> : [])]
   const selected = group && tabs.some(([value]) => value === group) ? group : tabs[0][0]
   return <div className="page business-panel list-panel" aria-busy={loading}>{!embedded && <Link to="/me" className="back-link">返回我的</Link>}<h1>我的任务</h1><div className="filter-buttons my-task-tabs">{tabs.map(([value, label]) => <Button key={value} label={`${label} ${tasks.filter((t) => groupOf(t) === value).length}`} variant="ghost" className={selected === value ? 'active' : undefined} aria-pressed={selected === value} onClick={() => setGroup(value)} />)}</div>
-    {error && <p className="inline-error" role="alert">{error}</p>}<section className="task-list">{tasks.filter((t) => groupOf(t) === selected).map((task) => <TaskCard task={task} compact key={task.id} onOpen={() => setSelectedTask(task.id)} />)}</section>{!error && !tasks.some((t) => groupOf(t) === selected) && <p className="search-hint">这里还没有任务。</p>}
-    {selectedTask && <DetailDialog title="任务详情" onClose={() => setSelectedTask(null)}><TaskDetailPage taskId={selectedTask} embedded /></DetailDialog>}
+    {error && <p className="inline-error" role="alert">{error}</p>}<section className="task-list">{tasks.filter((t) => groupOf(t) === selected).map((task) => <TaskCard task={task} compact key={task.id} onOpen={(load) => setSelectedTask({ id: task.id, load })} />)}</section>{!error && !tasks.some((t) => groupOf(t) === selected) && <p className="search-hint">这里还没有任务。</p>}
+    {selectedTask && <DetailDialog key={selectedTask.id} title="任务详情" onClose={() => setSelectedTask(null)}><TaskDetailPage taskId={selectedTask.id} loadTask={selectedTask.load} embedded /></DetailDialog>}
   </div>
 }

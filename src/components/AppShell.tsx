@@ -1,4 +1,4 @@
-import { Link, useRouterState } from '@tanstack/react-router'
+import { Link, useRouter, useRouterState } from '@tanstack/react-router'
 import { Bell, Search } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 
@@ -9,10 +9,12 @@ import {
 } from '~/features/notifications/api'
 import { NotificationsPage } from '~/features/notifications/NotificationsPage'
 import { DetailDialog } from './DetailDialog'
+import { LoadingProgress } from './LoadingProgress'
 import { ComposePanel, type ComposeKind } from '~/features/feed/ComposePanel'
 import { useStoredSession } from '~/features/session/session'
 
 export function AppShell({ children }: { children: ReactNode }) {
+  const router = useRouter()
   const { session, isReady } = useStoredSession()
   const [compose, setCompose] = useState<ComposeKind | null>(null)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
@@ -20,6 +22,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = useRouterState({ select: (state) => (state.resolvedLocation ?? state.location).pathname })
   const navigating = useRouterState({ select: (state) => state.isLoading && state.location.href !== state.resolvedLocation?.href })
   const href = useRouterState({ select: (state) => state.location.href })
+  useEffect(() => {
+    const refresh = () => { void router.invalidate({ filter: (match) => match.routeId === '/tasks/' || match.routeId === '/events' }) }
+    window.addEventListener('rice-changed', refresh)
+    return () => window.removeEventListener('rice-changed', refresh)
+  }, [router])
   const isStandalone =
     ['/login', '/register', '/forgot-password', '/post', '/search', '/compose'].includes(pathname) ||
     pathname.startsWith('/tasks/') ||
@@ -96,7 +103,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </header> : null}
 
       <main key={session?.user.id ?? 'guest'} className="page-frame">{isReady ? children : <div className="page initial-loading" role="status">正在加载…</div>}</main>
-      {navigating && <div className="navigation-progress" role="status">正在加载页面…</div>}
+      {navigating && <LoadingProgress label="正在加载页面…" />}
 
       {!isStandalone ? <nav className="bottom-nav" aria-label="主要导航">
         <Link to="/" activeProps={{}} className={`bottom-link${pathname === '/' ? ' active' : ''}`}>

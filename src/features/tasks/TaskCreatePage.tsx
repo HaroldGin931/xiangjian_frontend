@@ -11,12 +11,12 @@ import { getNodes, type CommunityNode } from '../nodes/api'
 import { useStoredSession } from '../session/session'
 import { createTask, getTask, getTasks, publishTask, updateTaskDraft } from './api'
 
-export function TaskCreatePage({ embedded = false, onPublished, active = true }: { embedded?: boolean; onPublished?: () => void; active?: boolean }) {
+export function TaskCreatePage({ embedded = false, onPublished, active = true, managedNodes }: { embedded?: boolean; onPublished?: () => void; active?: boolean; managedNodes?: CommunityNode[] }) {
   const { session } = useStoredSession()
-  return <TaskCreateForm key={session?.token ?? 'guest'} embedded={embedded} active={active} onPublished={onPublished} />
+  return <TaskCreateForm key={session?.token ?? 'guest'} embedded={embedded} active={active} onPublished={onPublished} managedNodes={managedNodes} />
 }
 
-function TaskCreateForm({ embedded, onPublished, active }: { embedded: boolean; onPublished?: () => void; active: boolean }) {
+function TaskCreateForm({ embedded, onPublished, active, managedNodes }: { embedded: boolean; onPublished?: () => void; active: boolean; managedNodes?: CommunityNode[] }) {
   const { session, isReady } = useStoredSession()
   const navigate = useNavigate()
   const mounted = useRef(false)
@@ -42,13 +42,13 @@ function TaskCreateForm({ embedded, onPublished, active }: { embedded: boolean; 
     if (!isReady) return
     if (!session) { setDraftLoading(false); return }
     let active = true; setDraftLoading(true)
-    void Promise.all([getNodes({ data: { token: session.token, mine: 'managed' } }), getTasks({ data: { token: session.token, mine: 'created', status: 'draft', limit: 1 } })]).then(([managed, [draft]]) => {
+    void Promise.all([managedNodes ?? getNodes({ data: { token: session.token, mine: 'managed' } }), getTasks({ data: { token: session.token, mine: 'created', status: 'draft', limit: 1 } })]).then(([managed, [draft]]) => {
       if (!active) return
       setNodes(managed); setNodeId(draft?.node?.id ?? managed[0]?.id ?? '')
       if (draft) { setEditingDraftId(draft.id); restoreImages(draft.attachments ?? []); setTitle(draft.title); setDescription(draft.description); setRequirement(draft.requirement ?? ''); setApplicationDeadline(draft.application_deadline ? localDateTimeValue(draft.application_deadline) : ''); setExecutionDeadline(draft.execution_deadline ? localDateTimeValue(draft.execution_deadline) : ''); setRewardAmount(String(draft.reward_amount)) }
     }).catch((e) => { if (active) setError(e.message) }).finally(() => { if (active) setDraftLoading(false) })
     return () => { active = false }
-  }, [isReady, session?.token, restoreImages])
+  }, [isReady, session?.token, restoreImages, managedNodes])
   if (!isReady || draftLoading) return <p className="loading-line">正在恢复草稿…</p>
   if (!session) return <Link to="/login" className="primary-link">登录后发布任务</Link>
   if (!nodes.length) return <div className="form-card"><p>只有社区管理员可以发布任务。</p>{error && <p className="inline-error" role="alert">{error}</p>}<Button label="发布任务" variant="primary" isDisabled /></div>
