@@ -7,14 +7,27 @@ import { getWallet } from '~/features/grains/api'
 
 export const Route = createFileRoute('/me/')({
   ssr: false,
-  preloadStaleTime: 0,
-  loader: { staleReloadMode: 'blocking', handler: async () => {
+  staleTime: 30_000,
+  preloadStaleTime: 30_000,
+  loaderDeps: () => {
     const session = readStoredSession()
-    if (!session) return { initialData: null, error: '' }
+    // Client-only cache identity; never a search parameter or URL.
+    return { accountId: session?.user.id ?? null, token: session?.token ?? null }
+  },
+  loader: { staleReloadMode: 'background', handler: async ({ deps }) => {
+    const empty = { initialData: null, error: '' }
+    if (!deps.token || !deps.accountId) return empty
+    const isCurrentSession = () => {
+      const current = readStoredSession()
+      return current?.user.id === deps.accountId && current.token === deps.token
+    }
+    if (!isCurrentSession()) return empty
     try {
-      const [user, wallet] = await Promise.all([getCurrentUser({ data: session.token }), getWallet({ data: { token: session.token } })])
-      return { initialData: { user, wallet, accountId: session.user.id }, error: '' }
+      const [user, wallet] = await Promise.all([getCurrentUser({ data: deps.token }), getWallet({ data: { token: deps.token } })])
+      if (!isCurrentSession()) return empty
+      return { initialData: { user, wallet, accountId: deps.accountId, sessionToken: deps.token }, error: '' }
     } catch (error) {
+      if (!isCurrentSession()) return empty
       return { initialData: null, error: error instanceof Error ? error.message : '个人资料暂时无法加载，请稍后重试。' }
     }
   } },

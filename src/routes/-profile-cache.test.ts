@@ -1,0 +1,150 @@
+import { createMemoryHistory, type AnyRoute } from '@tanstack/react-router'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { RiceSession } from '~/lib/models'
+
+const state = vi.hoisted(() => ({ session: null as RiceSession | null }))
+const api = vi.hoisted(() => ({ user: vi.fn(), wallet: vi.fn() }))
+vi.mock('~/features/session/session', () => ({ readStoredSession: () => state.session }))
+vi.mock('~/features/session/api', () => ({ getCurrentUser: api.user }))
+vi.mock('~/features/grains/api', () => ({ getWallet: api.wallet }))
+vi.mock('~/features/profile/ProfilePage', () => ({ ProfilePage: () => null }))
+
+// Exercise the actual private route's loader and cache with only network calls mocked.
+vi.mock('../routeTree.gen', async () => {
+  const { createRootRoute, createRoute } = await import('@tanstack/react-router')
+  const { Route } = await import('./me.index')
+  const options: AnyRoute['options'] = Route.options
+  const root = createRootRoute()
+  const home = createRoute({ getParentRoute: () => root, path: '/' })
+  const parent = createRoute({ getParentRoute: () => root, path: '/me' })
+  const profile = createRoute({
+    getParentRoute: () => parent, path: '/',
+    loader: options.loader,
+    loaderDeps: options.loaderDeps,
+    staleTime: options.staleTime,
+    preloadStaleTime: options.preloadStaleTime,
+    ssr: options.ssr,
+  })
+  return { routeTree: root.addChildren([home, parent.addChildren([profile])]) }
+})
+
+import { getRouter } from '../router'
+
+function session(accountId: string, token = `token-${accountId}`) {
+  return { token, user: { id: accountId } } as RiceSession
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((done) => { resolve = done })
+  return { promise, resolve }
+}
+
+async function readyRouter() {
+  const router = getRouter()
+  router.update({
+    history: createMemoryHistory({ initialEntries: ['/'] }),
+    isServer: false,
+    origin: 'http://localhost',
+    scrollRestoration: false,
+  })
+  await router.load()
+  return router
+}
+
+beforeEach(() => {
+  vi.useFakeTimers()
+  state.session = session('a')
+  api.user.mockReset().mockResolvedValue({ id: 'a', nickname: '甲' })
+  api.wallet.mockReset().mockResolvedValue({ balance: 100, frozen: 0, earned: 100, entries: [] })
+})
+afterEach(() => { vi.clearAllTimers(); vi.useRealTimers() })
+
+describe('private profile route cache', () => {
+  it('does not reuse guest preloads after login, then reuses the current session on return', async () => {
+    state.session = null
+    const router = await readyRouter()
+    await router.preloadRoute({ to: '/me' })
+    expect(api.wallet).not.toHaveBeenCalled()
+
+    state.session = session('a')
+    await router.preloadRoute({ to: '/me' })
+    await router.navigate({ to: '/me' })
+    await router.navigate({ to: '/' })
+    await router.navigate({ to: '/me' })
+
+    expect(api.user).toHaveBeenCalledExactlyOnceWith({ data: 'token-a' })
+    expect(api.wallet).toHaveBeenCalledExactlyOnceWith({ data: { token: 'token-a' } })
+    expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ initialData: { accountId: 'a', wallet: { balance: 100 } } })
+  })
+
+  it('keeps the source for first load and keeps cached data during a background refresh', async () => {
+    const router = await readyRouter()
+    const first = deferred<{ balance: number }>()
+    api.wallet.mockReturnValueOnce(first.promise)
+    const navigation = router.navigate({ to: '/me' })
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(router.state.resolvedLocation?.pathname).toBe('/')
+    first.resolve({ balance: 100 })
+    await navigation
+    const previous = router.state.matches.at(-1)?.loaderData
+
+    await router.navigate({ to: '/' })
+    await vi.advanceTimersByTimeAsync(30_001)
+    const refreshed = deferred<{ balance: number }>()
+    api.wallet.mockReturnValueOnce(refreshed.promise)
+    await router.navigate({ to: '/me' })
+    expect(router.state.resolvedLocation?.pathname).toBe('/me')
+    expect(router.state.matches.at(-1)?.loaderData).toBe(previous)
+    refreshed.resolve({ balance: 120 })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ initialData: { wallet: { balance: 120 } } })
+
+    await router.invalidate({ filter: (match) => match.routeId === '/me/' })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(api.wallet).toHaveBeenCalledTimes(3)
+  })
+
+  it('does not share cached data across accounts, logout, or a new login session', async () => {
+    const router = await readyRouter()
+    await router.navigate({ to: '/me' })
+    await router.navigate({ to: '/' })
+    state.session = session('b')
+    const nextWallet = deferred<{ balance: number }>()
+    api.user.mockResolvedValueOnce({ id: 'b', nickname: '乙' })
+    api.wallet.mockReturnValueOnce(nextWallet.promise)
+    const navigation = router.navigate({ to: '/me' })
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(router.state.resolvedLocation?.pathname).toBe('/')
+    nextWallet.resolve({ balance: 9 })
+    await navigation
+    expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ initialData: { accountId: 'b', wallet: { balance: 9 } } })
+
+    await router.navigate({ to: '/' })
+    state.session = null
+    await router.navigate({ to: '/me' })
+    expect(router.state.matches.at(-1)?.loaderData).toEqual({ initialData: null, error: '' })
+    await router.navigate({ to: '/' })
+    state.session = session('a', 'new-token-a')
+    await router.navigate({ to: '/me' })
+    expect(api.wallet).toHaveBeenCalledTimes(3)
+    expect(api.wallet).toHaveBeenLastCalledWith({ data: { token: 'new-token-a' } })
+  })
+
+  it('discards a response that finishes after the user changes account', async () => {
+    const router = await readyRouter()
+    const oldWallet = deferred<{ balance: number }>()
+    api.wallet.mockReturnValueOnce(oldWallet.promise)
+    const preload = router.preloadRoute({ to: '/me' })
+    await vi.advanceTimersByTimeAsync(0)
+    state.session = session('b')
+    api.user.mockResolvedValueOnce({ id: 'b' })
+    api.wallet.mockResolvedValueOnce({ balance: 9 })
+    await router.navigate({ to: '/me' })
+    oldWallet.resolve({ balance: 100 })
+    const oldMatches = await preload
+    await vi.advanceTimersByTimeAsync(0)
+    expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ initialData: { accountId: 'b', wallet: { balance: 9 } } })
+    expect(oldMatches?.at(-1)?.loaderData).toEqual({ initialData: null, error: '' })
+  })
+})

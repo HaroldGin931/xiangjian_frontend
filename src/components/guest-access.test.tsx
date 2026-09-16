@@ -27,7 +27,8 @@ describe('guest access', () => {
     const html = renderToStaticMarkup(<AppShell><p>content</p></AppShell>)
     expect(html).not.toContain('href="/login"')
     expect(html).not.toContain('<p>content</p>')
-    expect(html).toContain('正在加载…')
+    expect(html).toContain('class="visually-hidden" role="status">正在恢复登录状态')
+    expect(html).not.toContain('正在加载…')
   })
 
   it('keeps the shared brand and current navigation selected while the next route loads', () => {
@@ -42,7 +43,7 @@ describe('guest access', () => {
     expect(html).not.toContain('class="navigation-progress"')
   })
 
-  it.each(['/', '/tasks', '/events'])('shows login and public navigation without publishing or notifications on %s', (pathname) => {
+  it.each(['/', '/tasks', '/events', '/me'])('shows login and public navigation without publishing or notifications on %s', (pathname) => {
     state.pathname = pathname
     const html = renderToStaticMarkup(<AppShell><p>public content</p></AppShell>)
     expect(html).toContain('href="/login"')
@@ -52,7 +53,8 @@ describe('guest access', () => {
     expect(html).not.toContain('notification-trigger')
   })
 
-  it('keeps the authenticated publish label text-only', () => {
+  it.each(['/', '/tasks', '/events', '/me'])('keeps the authenticated publish control in the shared header on %s', (pathname) => {
+    state.pathname = pathname
     state.session = { user: { id: 'member' } } as RiceSession
     const html = renderToStaticMarkup(<AppShell>{null}</AppShell>)
     expect(html).toContain('class="header-publish">发布</button>')

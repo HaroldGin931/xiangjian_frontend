@@ -8,6 +8,7 @@ vi.mock('../session/session', () => ({ useStoredSession: () => ({ session: state
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, to }: { children: ReactNode; to: string }) => <a href={to}>{children}</a>,
   useNavigate: () => vi.fn(),
+  useRouter: () => ({ invalidate: vi.fn() }),
 }))
 
 import { ProfilePage, type ProfileInitialData } from './ProfilePage'
@@ -15,7 +16,7 @@ import { MyTasksPage } from '../tasks/MyTasksPage'
 import { GrainHistoryPage } from '../grains/GrainHistoryPage'
 
 const user = { id: 'member', did: 'did:example:member', handle: 'member.test', nickname: '当前用户', bio: '个人简介', avatar: null } as RiceUser
-const initialData: ProfileInitialData = { accountId: user.id, user, wallet: { balance: 123, frozen: 7, earned: 140, entries: [] } }
+const initialData: ProfileInitialData = { accountId: user.id, sessionToken: 'token', user, wallet: { balance: 123, frozen: 7, earned: 140, entries: [] } }
 beforeEach(() => { state.session = { token: 'token', user, pds: { did: user.did } } as RiceSession })
 
 it('renders the prefetched profile and balance together on first render', () => {
@@ -30,6 +31,12 @@ it('does not display another account’s prefetched profile or balance', () => {
   const html = renderToStaticMarkup(<ProfilePage initialData={{ ...initialData, accountId: 'other', user: { ...user, nickname: '其他账号' } }} />)
   expect(html).toContain('当前用户')
   expect(html).not.toContain('其他账号')
+  expect(html).not.toContain('<b>123</b>')
+})
+
+it('does not reuse a balance from an earlier login to the same account', () => {
+  const html = renderToStaticMarkup(<ProfilePage initialData={{ ...initialData, sessionToken: 'old-session' }} />)
+  expect(html).toContain('当前用户')
   expect(html).not.toContain('<b>123</b>')
 })
 

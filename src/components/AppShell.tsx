@@ -1,6 +1,6 @@
 import { Link, useRouter, useRouterState } from '@tanstack/react-router'
 import { Bell, Search } from 'lucide-react'
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import {
   getNotifications,
@@ -16,6 +16,7 @@ import { useStoredSession } from '~/features/session/session'
 export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter()
   const { session, isReady } = useStoredSession()
+  const previousSession = useRef<{ accountId?: string; token?: string } | null>(null)
   const [compose, setCompose] = useState<ComposeKind | null>(null)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false)
@@ -23,10 +24,19 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigating = useRouterState({ select: (state) => state.isLoading && state.location.href !== state.resolvedLocation?.href })
   const href = useRouterState({ select: (state) => state.location.href })
   useEffect(() => {
-    const refresh = () => { void router.invalidate({ filter: (match) => match.routeId === '/tasks/' || match.routeId === '/events' }) }
+    const refresh = () => { void router.invalidate({ filter: (match) => ['/tasks/', '/events', '/me/'].includes(match.routeId) }) }
     window.addEventListener('rice-changed', refresh)
     return () => window.removeEventListener('rice-changed', refresh)
   }, [router])
+  useEffect(() => {
+    if (!isReady) return
+    const previous = previousSession.current
+    if (previous && (previous.accountId !== session?.user.id || previous.token !== session?.token)) {
+      router.clearCache({ filter: (match) => match.routeId === '/me/' })
+      void router.invalidate({ filter: (match) => match.routeId === '/me/' })
+    }
+    previousSession.current = { accountId: session?.user.id, token: session?.token }
+  }, [router, isReady, session?.user.id, session?.token])
   const isStandalone =
     ['/login', '/register', '/forgot-password', '/post', '/search', '/compose'].includes(pathname) ||
     pathname.startsWith('/tasks/') ||
@@ -82,7 +92,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
           <div className="topbar-actions">
             {!isReady && <span className="session-placeholder" aria-hidden="true" />}
-            {isReady && session && ['/', '/tasks', '/events'].includes(pathname) && <button type="button" className="header-publish" onClick={() => setCompose(pathname === '/tasks' ? 'task' : pathname === '/events' ? 'activity' : 'post')}>发布</button>}
+            {isReady && session && <button type="button" className="header-publish" onClick={() => setCompose(pathname === '/tasks' ? 'task' : pathname === '/events' ? 'activity' : 'post')}>发布</button>}
             {isReady && !session && <Link to="/login" className="header-publish">登录</Link>}
             <Link to="/search" className="header-search" aria-label="搜索帖子、任务、活动、社区、用户"><Search size={22} aria-hidden="true" /></Link>
             {isReady && session && <button type="button" className="header-search notification-trigger" aria-label={hasUnreadNotifications ? '通知，有新消息' : '通知'} aria-haspopup="dialog" onClick={() => setNotificationsOpen(true)}><Bell size={22} aria-hidden="true" />{hasUnreadNotifications && <i className="notification-dot" aria-hidden="true" />}</button>}
@@ -90,7 +100,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header> : null}
 
-      <main key={session?.user.id ?? 'guest'} className="page-frame">{isReady ? children : <div className="page initial-loading" role="status">正在加载…</div>}</main>
+      <main key={session?.user.id ?? 'guest'} className="page-frame">{isReady ? children : <div className="page initial-loading" aria-busy="true"><span className="visually-hidden" role="status">正在恢复登录状态</span></div>}</main>
       {navigating && <LoadingProgress label="正在加载页面…" />}
 
       {!isStandalone ? <nav className="bottom-nav" aria-label="主要导航">

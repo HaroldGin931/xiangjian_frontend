@@ -6,6 +6,6 @@ export const Route = createFileRoute('/me')({ component: MePage })
 
 function MePage() {
   const { session, isReady } = useStoredSession()
-  if (!isReady) return <p className="loading-line">正在加载…</p>
+  if (!isReady) return null
   return session ? <Outlet /> : <LoginPage />
 }
