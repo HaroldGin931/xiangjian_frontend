@@ -48,14 +48,14 @@ export const verifyRegistration = createServerFn({ method: 'POST' })
   })
 
 export const registerRice = createServerFn({ method: 'POST' })
-  .validator((data: { ticket: string; handle: string; password: string }) => data)
+  .validator((data: { ticket: string; nickname: string; password: string }) => data)
   .handler(async ({ data }) => {
     const body = await requestJson<{ data: RiceSession }>(`${BACKEND_BASE}/api/registrations`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ticket: data.ticket,
-        handle: data.handle.trim().toLowerCase(),
+        nickname: data.nickname.trim(),
         password: data.password,
       }),
     })

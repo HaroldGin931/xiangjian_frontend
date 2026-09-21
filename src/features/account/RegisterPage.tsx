@@ -19,7 +19,7 @@ export function RegisterPage({ returnTo }: { returnTo?: string }) {
   const [contact, setContact] = useState('')
   const [code, setCode] = useState('')
   const [ticket, setTicket] = useState('')
-  const [handle, setHandle] = useState('')
+  const [nickname, setNickname] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -55,7 +55,7 @@ export function RegisterPage({ returnTo }: { returnTo?: string }) {
     setBusy(true)
     setError('')
     try {
-      const session = await registerRice({ data: { ticket, handle, password } })
+      const session = await registerRice({ data: { ticket, nickname, password } })
       saveSession(session)
       await navigate({ href: loginReturnTo(returnTo), replace: true })
     } catch (reason) {
@@ -71,7 +71,7 @@ export function RegisterPage({ returnTo }: { returnTo?: string }) {
       <section className="page-intro">
         <div className="eyebrow">一个身份，走遍全联盟</div>
         <h1>创建账号</h1>
-        <p>先验证手机号或邮箱，再创建 AT Protocol handle。</p>
+        <p>验证联系方式，设置昵称和密码即可加入。</p>
       </section>
       <section className="form-card">
         <div className="login-icon"><UserPlus size={28} /></div>
@@ -109,18 +109,20 @@ export function RegisterPage({ returnTo }: { returnTo?: string }) {
         ) : (
           <>
             <TextInput
-              label="Handle"
-              value={handle}
-              onChange={setHandle}
-              placeholder={`name.${options?.handle_domain ?? ''}`}
+              label="昵称"
+              value={nickname}
+              onChange={setNickname}
+              placeholder="怎么称呼你"
+              description="公开显示，可在个人资料中修改。"
               width="100%"
+              isRequired
             />
             <TextInput
               label="密码"
               type="password"
               value={password}
               onChange={setPassword}
-              description="至少 8 位。密码由 PDS 管理，Rice 不保存密码。"
+              description="至少 8 位。"
               width="100%"
             />
             <div className="form-actions">
@@ -131,7 +133,7 @@ export function RegisterPage({ returnTo }: { returnTo?: string }) {
                 size="lg"
                 clickAction={register}
                 isLoading={busy}
-                isDisabled={!handle.trim() || password.length < 8}
+                isDisabled={!nickname.trim() || password.length < 8}
               />
             </div>
           </>
