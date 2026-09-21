@@ -20,6 +20,7 @@ import { Route as PostRouteImport } from './routes/post'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as TasksRouteImport } from './routes/tasks'
+import { Route as EventsEventIdRouteImport } from './routes/events_.$eventId'
 import { Route as MeIndexRouteImport } from './routes/me.index'
 import { Route as MeEventsRouteImport } from './routes/me.events'
 import { Route as MeGrainsRouteImport } from './routes/me.grains'
@@ -90,6 +91,11 @@ const SearchRoute = SearchRouteImport.update({
 const TasksRoute = TasksRouteImport.update({
   id: '/tasks',
   path: '/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EventsEventIdRoute = EventsEventIdRouteImport.update({
+  id: '/events_/$eventId',
+  path: '/events/$eventId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MeIndexRoute = MeIndexRouteImport.update({
@@ -185,6 +191,7 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
   '/tasks': typeof TasksRouteWithChildren
+  '/events/$eventId': typeof EventsEventIdRoute
   '/me/events': typeof MeEventsRoute
   '/me/grains': typeof MeGrainsRoute
   '/me/posts': typeof MePostsRoute
@@ -212,6 +219,7 @@ export interface FileRoutesByTo {
   '/post': typeof PostRoute
   '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
+  '/events/$eventId': typeof EventsEventIdRoute
   '/me/events': typeof MeEventsRoute
   '/me/grains': typeof MeGrainsRoute
   '/me/posts': typeof MePostsRoute
@@ -240,6 +248,7 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
   '/tasks': typeof TasksRouteWithChildren
+  '/events_/$eventId': typeof EventsEventIdRoute
   '/me/events': typeof MeEventsRoute
   '/me/grains': typeof MeGrainsRoute
   '/me/posts': typeof MePostsRoute
@@ -271,6 +280,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/search'
     | '/tasks'
+    | '/events/$eventId'
     | '/me/events'
     | '/me/grains'
     | '/me/posts'
@@ -298,6 +308,7 @@ export interface FileRouteTypes {
     | '/post'
     | '/register'
     | '/search'
+    | '/events/$eventId'
     | '/me/events'
     | '/me/grains'
     | '/me/posts'
@@ -325,6 +336,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/search'
     | '/tasks'
+    | '/events_/$eventId'
     | '/me/events'
     | '/me/grains'
     | '/me/posts'
@@ -355,6 +367,7 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   SearchRoute: typeof SearchRoute
   TasksRoute: typeof TasksRouteWithChildren
+  EventsEventIdRoute: typeof EventsEventIdRoute
   ProfileActorRoute: typeof ProfileActorRouteWithChildren
 }
 
@@ -435,6 +448,13 @@ declare module '@tanstack/react-router' {
       path: '/tasks'
       fullPath: '/tasks'
       preLoaderRoute: typeof TasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/events_/$eventId': {
+      id: '/events_/$eventId'
+      path: '/events/$eventId'
+      fullPath: '/events/$eventId'
+      preLoaderRoute: typeof EventsEventIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/me/': {
@@ -630,6 +650,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   SearchRoute: SearchRoute,
   TasksRoute: TasksRouteWithChildren,
+  EventsEventIdRoute: EventsEventIdRoute,
   ProfileActorRoute: ProfileActorRouteWithChildren,
 }
 export const routeTree = rootRouteImport

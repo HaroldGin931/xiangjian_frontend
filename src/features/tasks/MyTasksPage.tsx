@@ -23,7 +23,7 @@ export function MyTasksPage({ embedded = false }: { embedded?: boolean }) {
     if (!session) { setData(null); setLoading(false); return }
     let active = true; setLoading(true); setError('')
     const load = async () => {
-      const mine: TaskMine[] = ['created', 'applied', 'assigned']
+      const mine: TaskMine[] = ['managed', 'applied', 'assigned']
       // ponytail: fetch the small personal history for accurate tabs; add server counts if history grows large.
       const groups = await Promise.all(mine.map(async (value) => {
         const rows: RiceTask[] = []; let before: string | undefined
@@ -40,7 +40,7 @@ export function MyTasksPage({ embedded = false }: { embedded?: boolean }) {
   usePanelReady(isReady && (!session || tasks !== null || !!error))
   if (isReady && !session) return <div className="page"><LoginLink className="primary-link">登录后查看我的任务</LoginLink></div>
   if (!tasks) return <div className="page business-panel list-panel">{!embedded && <Link to="/me" className="back-link">返回我的</Link>}<h1>我的任务</h1>{error ? <p className="inline-error" role="alert">{error}</p> : <p className="loading-line">正在加载任务…</p>}</div>
-  const own = (task: RiceTask) => task.creator.id === session?.user.id
+  const own = (task: RiceTask) => task.creator.id === session?.user.id || task.can_manage === true
   const groupOf = (task: RiceTask) => myTaskGroup(task, own(task))
   const publisher = tasks.some(own)
   const tabs: Array<[Group, string]> = [...(publisher ? [['pending', '待审批']] as Array<[Group, string]> : []), ...(!publisher || tasks.some((t) => groupOf(t) === 'applying') ? [['applying', '申请中']] as Array<[Group, string]> : []), ['in_progress', '进行中'], ['under_review', '审核中'], ['ended', '已结束'], ...(publisher ? [['open', '待分配'], ['draft', '草稿']] as Array<[Group, string]> : [])]

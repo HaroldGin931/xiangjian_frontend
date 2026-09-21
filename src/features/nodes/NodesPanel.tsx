@@ -9,7 +9,8 @@ import { formatTimestamp } from '~/lib/format'
 import { useStoredSession } from '../session/session'
 import { TasksPage } from '../tasks/TasksPage'
 import { EventsPage } from '../events/EventsPage'
-import { applyToNode, getNode, getNodes, reviewNodeApplication, type CommunityNode, type NodeMine } from './api'
+import { GrainHistoryPage } from '../grains/GrainHistoryPage'
+import { applyToNode, getNode, getNodes, reviewNodeApplication, updateNodeMemberRole, type CommunityNode, type NodeMine } from './api'
 
 export function NodeCard({ node, onOpen }: { node: CommunityNode; onOpen: () => void }) {
   return <button type="button" className="profile-menu-row node-card" onClick={onOpen}>
@@ -61,6 +62,8 @@ export function NodeDetail({ nodeId }: { nodeId: string }) {
   const [applyOpen, setApplyOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [stream, setStream] = useState<'tasks' | 'events' | null>(null)
+  const [walletOpen, setWalletOpen] = useState(false)
+  const [roleChange, setRoleChange] = useState<{ userId: string; name: string; role: 'admin' | 'member' } | null>(null)
   usePanelReady(node !== null || !!error)
   useEffect(() => {
     let active = true
@@ -68,10 +71,16 @@ export function NodeDetail({ nodeId }: { nodeId: string }) {
     void getNode({ data: { id: nodeId, token: session?.token } }).then((value) => { if (active) setNode(value) }).catch((e) => { if (active) setError(e.message) })
     return () => { active = false }
   }, [nodeId, session?.token])
-  const run = async (action: () => Promise<CommunityNode>) => { setBusy(true); setError(''); try { setNode(await action()); setApplyOpen(false); window.dispatchEvent(new Event('rice-changed')) } catch (e) { setError(e instanceof Error ? e.message : '操作失败') } finally { setBusy(false) } }
+  const run = async (action: () => Promise<CommunityNode>) => { setBusy(true); setError(''); try { setNode(await action()); setApplyOpen(false); setRoleChange(null); window.dispatchEvent(new Event('rice-changed')) } catch (e) { setError(e instanceof Error ? e.message : '操作失败') } finally { setBusy(false) } }
   return <div className="page business-panel">{error && <p className="inline-error" role="alert">{error}</p>}{!node && !error && <p>正在加载社区…</p>}{node && <>
     <h1>{node.name}</h1><p className="business-description">{node.description}</p>
-    <section className="business-section"><h2>社区成员</h2>{node.members?.map(({ user, role }) => <p key={user.id}><Link to="/profile/$actor" params={{ actor: user.did }}>{user.nickname || user.handle}</Link> · {role === 'admin' ? '管理员' : '成员'}</p>)}</section>
+    {node.role === 'admin' && <section className="business-section"><h2>社区账户</h2><p>社区稻米与个人稻米分开记账。</p><Button label="查看社区稻米" variant="secondary" onClick={() => setWalletOpen(true)} /></section>}
+    <section className="business-section"><h2>社区成员</h2>{node.members?.map(({ user, role }) => <div className="candidate" key={user.id}>
+      <div className="business-heading"><p><Link to="/profile/$actor" params={{ actor: user.did }}>{user.nickname || user.handle}</Link> · {role === 'admin' ? '管理员' : '成员'}</p>
+        {node.can_manage_members && user.id !== node.owner?.id && <Button label={role === 'admin' ? '撤销管理员' : '设为管理员'} variant="ghost" isDisabled={busy} onClick={() => setRoleChange({ userId: user.id, name: user.nickname || user.handle, role: role === 'admin' ? 'member' : 'admin' })} />}
+      </div>
+      {roleChange?.userId === user.id && session && <div className="form-stack"><p>{roleChange.role === 'admin' ? `确认将 ${roleChange.name} 设为管理员？管理员可管理本社区的任务、活动、申请和社区稻米。` : `确认撤销 ${roleChange.name} 的管理员身份？个人账户和已有业务记录将保留。`}</p><div className="form-actions"><Button label="返回" variant="secondary" isDisabled={busy} onClick={() => setRoleChange(null)} /><Button label="确认修改" variant="primary" isDisabled={busy} clickAction={() => run(() => updateNodeMemberRole({ data: { token: session.token, nodeId, userId: roleChange.userId, role: roleChange.role } }))} /></div></div>}
+    </div>)}</section>
     {node.role ? <p className="task-neutral-note">我的身份：{node.role === 'admin' ? '管理员' : '正式成员'}</p> : node.my_application?.status === 'pending' ? <p className="task-neutral-note">加入申请已提交，等待管理员审批。</p> : node.owner && session ? <section className="business-section">
       {node.my_application?.status === 'rejected' && <p>上次加入申请未通过，可重新申请。{node.my_application.review_reason}</p>}
       {applyOpen ? <div className="form-stack"><TextArea label="加入说明" value={reason} onChange={setReason} rows={3} maxLength={512} width="100%" /><div className="form-actions"><Button label="提交申请" variant="primary" isDisabled={busy} clickAction={() => run(() => applyToNode({ data: { token: session.token, nodeId, reason } }))} /></div></div> : <Button label="申请加入社区" variant="primary" onClick={() => setApplyOpen(true)} />}
@@ -80,5 +89,6 @@ export function NodeDetail({ nodeId }: { nodeId: string }) {
     {node.role === 'admin' && node.applications?.some((a) => a.status !== 'pending') && <details className="business-section"><summary>已处理申请</summary><ul className="business-history">{node.applications.filter((a) => a.status !== 'pending').map((a) => <li key={a.id}><strong>{a.user?.nickname || a.user?.handle} · {a.status === 'approved' ? '已通过' : '未通过'}</strong><p>{a.reason}</p>{a.review_reason && <p>{a.review_reason}</p>}<time>{formatTimestamp(a.reviewed_at || a.inserted_at, true)}</time></li>)}</ul></details>}
     <section className="business-section"><h2>社区动态</h2><div className="button-row"><Button label="社区任务" variant="secondary" onClick={() => setStream('tasks')} /><Button label="社区活动" variant="secondary" onClick={() => setStream('events')} /></div></section>
     {stream && <DetailDialog title={stream === 'tasks' ? '社区任务' : '社区活动'} onClose={() => setStream(null)}>{stream === 'tasks' ? <TasksPage nodeId={nodeId} embedded /> : <EventsPage nodeId={nodeId} embedded />}</DetailDialog>}
+    {walletOpen && node.role === 'admin' && <DetailDialog title="社区稻米" onClose={() => setWalletOpen(false)}><GrainHistoryPage embedded nodeId={nodeId} /></DetailDialog>}
   </>}</div>
 }

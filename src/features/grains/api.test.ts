@@ -6,4 +6,8 @@ it('distinguishes returned frozen funds from settlement direction for both parti
   expect(walletEntryIncoming({ ...entry, kind: 'refunded' }, 'lin')).toBe(true)
   expect(walletEntryIncoming({ ...entry, kind: 'event_fee' }, 'lin')).toBe(false)
   expect(walletEntryIncoming({ ...entry, kind: 'event_fee' }, 'host')).toBe(true)
+  const community = { ...entry, kind: 'community_fund' as const, to_user: null, to_node: { id: 'node', name: '社区' } }
+  expect(walletEntryIncoming(community, 'lin')).toBe(false)
+  expect(walletEntryIncoming(community, 'lin', 'node')).toBe(true)
+  expect(walletEntryIncoming({ ...community, kind: 'task_reward', from_user: null, from_node: community.to_node, to_node: null, to_user: entry.from_user }, 'lin')).toBe(true)
 })

@@ -6,6 +6,7 @@ export type NodeApplication = { id: string; status: 'pending' | 'approved' | 're
 export type CommunityNode = {
   id: string; name: string; description: string | null; position?: number | null; logo: RiceAttachment | null;
   owner: RicePublicUser | null; role: 'admin' | 'member' | null; my_application: NodeApplication | null;
+  can_manage_members?: boolean;
   members?: Array<{ user: RicePublicUser; role: 'admin' | 'member' }>; applications?: NodeApplication[]
 }
 export type NodeMine = 'joined' | 'pending' | 'managed' | 'identity'
@@ -26,3 +27,9 @@ export const applyToNode = createServerFn({ method: 'POST' })
 export const reviewNodeApplication = createServerFn({ method: 'POST' })
   .validator((data: { token: string; nodeId: string; applicationId: string; action: 'approve' | 'reject' }) => data)
   .handler(async ({ data }) => (await requestJson<{ data: CommunityNode }>(`${BACKEND_BASE}/api/nodes/${encodeURIComponent(data.nodeId)}/applications/${encodeURIComponent(data.applicationId)}/${data.action}`, { method: 'POST', headers: { Authorization: `Bearer ${data.token}` } })).data)
+
+export const updateNodeMemberRole = createServerFn({ method: 'POST' })
+  .validator((data: { token: string; nodeId: string; userId: string; role: 'admin' | 'member' }) => data)
+  .handler(async ({ data }) => (await requestJson<{ data: CommunityNode }>(`${BACKEND_BASE}/api/nodes/${encodeURIComponent(data.nodeId)}/members/${encodeURIComponent(data.userId)}`, {
+    method: 'PATCH', headers: { Authorization: `Bearer ${data.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ role: data.role }),
+  })).data)

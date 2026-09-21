@@ -1,4 +1,5 @@
 import { ImageGroup } from '~/components/ContentImages'
+import { ContactField } from '~/components/ContactField'
 import { usePanelReady } from '~/components/DetailDialog'
 import { useTimeBoundary } from '~/components/useTimeBoundary'
 import { attachmentImages } from '~/lib/attachments'
@@ -11,6 +12,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { formatTimestamp } from '~/lib/format'
 
 import { useStoredSession } from '../session/session'
+import { LoginLink } from '../session/LoginLink'
 import {
   applyForTask,
   appointTaskApplication,
@@ -44,6 +46,7 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
   const [cancelOpen, setCancelOpen] = useState(false)
   const [approveOpen, setApproveOpen] = useState(false)
   const [reason, setReason] = useState('')
+  const [contact, setContact] = useState('')
   const [appointmentReason, setAppointmentReason] = useState('')
   const [result, setResult] = useState('')
   const [reviewReason, setReviewReason] = useState('')
@@ -81,6 +84,7 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
       setApplyOpen(false)
       setCancelOpen(false)
       setReason('')
+      setContact('')
       setAppointmentReason('')
       setResult('')
       setReviewReason('')
@@ -107,6 +111,7 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
             <span className={`task-status status-${task.status}`}>{taskDisplayStatus(task, now)}</span>
             <h1>{task.title}</h1>
             <p>{task.node?.name} · {task.creator.nickname || task.creator.handle}发起</p>
+            {task.organizer_contact && <p>组织方联系方式：{task.organizer_contact}</p>}
           </div>
 
         </header>
@@ -122,11 +127,14 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
           <div><strong className="rice-amount" aria-label={`${task.reward_amount} 稻米`}><Sprout size={24} />{task.reward_amount}</strong><span>任务报酬</span></div>
         </section>
 
+        {task.applications?.filter(application => application.status === 'appointed' && application.contact).map(application => <p className="task-neutral-note" key={application.id}>承接者联系方式：{application.contact}</p>)}
+        {task.my_application?.contact && <p className="task-neutral-note">我的联系方式：{task.my_application.contact}</p>}
+
         {task.reward_status === 'settled' ? (
           <div className="task-success-note"><CheckCircle2 size={18} /> 任务奖励已发放给承接者</div>
         ) : null}
         {task.reward_status === 'refunded' ? (
-          <div className="task-neutral-note">任务奖励已退回发布者可用余额。</div>
+          <div className="task-neutral-note">任务奖励已退回{task.funding_node_id ? '社区' : '发布者'}可用余额。</div>
         ) : null}
 
         {task.application_deadline ? (
@@ -143,6 +151,8 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
         {task.status === 'expired' ? <div className="task-neutral-note">该任务已结束。</div> : null}
         {latestRejected && task.status === 'in_progress' ? <ChangesRequested submission={latestRejected} /> : null}
         {error ? <div className="inline-error" role="alert">{error}</div> : null}
+
+        {!session && task.status === 'open' && !task.application_closed && (!task.application_deadline || Date.parse(task.application_deadline) > now) && <section className="task-action-section"><LoginLink className="primary-link" returnTo={`/tasks/${encodeURIComponent(taskId)}`}>登录后申请承接</LoginLink></section>}
 
         {actions.has('publish') && token ? (
           <section className="task-action-section">
@@ -165,13 +175,14 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
                   width="100%"
                   isOptional
                 />
+                <ContactField value={contact} onChange={setContact} disabled={busy} />
                 <div className="form-actions">
                   <Button label="取消" variant="secondary" onClick={() => setApplyOpen(false)} />
                   <Button
                     label="提交申请"
                     variant="primary"
-                    isDisabled={busy}
-                    clickAction={() => run(() => applyForTask({ data: { token, taskId, reason } }))}
+                    isDisabled={busy || !contact.trim() || contact.trim().length > 256}
+                    clickAction={() => run(() => applyForTask({ data: { token, taskId, reason, contact: contact.trim() } }))}
                   />
                 </div>
               </>
@@ -209,6 +220,7 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
                 <article key={application.id}>
                   <strong>{application.user.nickname || application.user.handle}</strong>
                   <p>{application.reason || '没有填写申请理由'}</p>
+                  {application.contact && <p>联系方式：{application.contact}</p>}
                   <div className="form-actions">
                     {actions.has('reject_application') && <Button
                       label="拒绝申请"

@@ -48,6 +48,18 @@ it('keeps an embedded login on the requested personal page', async () => {
   expect(state.navigate).toHaveBeenCalledWith({ href: '/me/tasks', replace: true })
 })
 
+it('returns from a guest detail login to that exact task or event instead of its background list', async () => {
+  for (const destination of ['/tasks/task-7', '/events/event-9']) {
+    state.href = '/search'
+    const html = renderToStaticMarkup(<LoginLink returnTo={destination}>登录后申请</LoginLink>)
+    expect(html).toContain(new URLSearchParams({ returnTo: destination }).toString())
+    state.href = '/login'
+    renderToStaticMarkup(<LoginPage returnTo={destination} />)
+    await state.submit!()
+    expect(state.navigate).toHaveBeenLastCalledWith({ href: destination, replace: true })
+  }
+})
+
 it.each([undefined, 'https://other.test', '//other.test', '/\\other.test', '/\n/other.test', 'javascript:alert(1)', '/login?returnTo=/login'])(
   'rejects unsafe or looping return addresses: %s', (value) => {
     expect(loginReturnTo(value)).toBe('/')

@@ -9,11 +9,12 @@ export type TaskStatus =
   | 'expired'
   | 'cancelled'
 export type TaskListStatus = TaskStatus | 'closed'
-export type TaskMine = 'assigned' | 'created' | 'applied'
+export type TaskMine = 'assigned' | 'created' | 'applied' | 'managed'
 
 export type TaskApplication = {
   id: string
   reason: string
+  contact?: string | null
   status: 'pending' | 'appointed' | 'not_selected' | 'cancelled' | 'expired'
   user: RicePublicUser
   inserted_at: string
@@ -42,6 +43,7 @@ export type RiceTask = {
   id: string
   title: string
   description: string
+  organizer_contact?: string | null
   node?: { id: string; name: string; logo: RiceAttachment | null }
   requirement?: string
   execution_deadline?: string | null
@@ -54,9 +56,12 @@ export type RiceTask = {
   appointed_at: string | null
   appointment_reason: string | null
   reward_amount: number
+  funding_node_id?: string | null
+  can_manage?: boolean
   reward_status: 'none' | 'reserved' | 'settled' | 'refunded'
   application_count: number
   my_application_status: TaskApplication['status'] | null
+  my_application?: TaskApplication | null
   allowed_actions: Array<
     | 'publish'
     | 'apply'

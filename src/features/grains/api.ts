@@ -33,9 +33,16 @@ export const getGrainTransfers = createServerFn({ method: 'POST' })
     })
   })
 
-export type WalletEntry = { id: string; kind: 'reserved' | 'refunded' | 'grant' | 'gift' | 'reward' | 'task_reward' | 'event_fee'; amount: number; subject_uri: string | null; inserted_at: string; from_user: Pick<RicePublicUser, 'id' | 'nickname' | 'handle'> | null; to_user: Pick<RicePublicUser, 'id' | 'nickname' | 'handle'> | null }
+export type WalletEntry = { id: string; kind: 'reserved' | 'refunded' | 'grant' | 'gift' | 'reward' | 'task_reward' | 'event_fee' | 'community_fund'; amount: number; subject_uri: string | null; inserted_at: string; from_user: Pick<RicePublicUser, 'id' | 'nickname' | 'handle'> | null; to_user: Pick<RicePublicUser, 'id' | 'nickname' | 'handle'> | null; from_node?: { id: string; name: string } | null; to_node?: { id: string; name: string } | null }
 export type RiceWallet = { balance: number; frozen: number; earned: number; entries: WalletEntry[]; next_cursor?: string | null }
 export const getWallet = createServerFn({ method: 'POST' })
-  .validator((data: { token: string; before?: string }) => data)
-  .handler(async ({ data }) => (await requestJson<{ data: RiceWallet }>(`${BACKEND_BASE}/api/wallet${data.before ? `?before=${encodeURIComponent(data.before)}` : ''}`, { headers: { Authorization: `Bearer ${data.token}` } })).data)
-export function walletEntryIncoming(entry: WalletEntry, userId: string) { return entry.kind === 'refunded' || (entry.kind !== 'reserved' && entry.to_user?.id === userId) }
+  .validator((data: { token: string; before?: string; nodeId?: string }) => data)
+  .handler(async ({ data }) => (await requestJson<{ data: RiceWallet }>(`${BACKEND_BASE}/api/${data.nodeId ? `nodes/${encodeURIComponent(data.nodeId)}/wallet` : 'wallet'}${data.before ? `?before=${encodeURIComponent(data.before)}` : ''}`, { headers: { Authorization: `Bearer ${data.token}` } })).data)
+export function walletEntryIncoming(entry: WalletEntry, userId: string, nodeId?: string) { return entry.kind === 'refunded' || (entry.kind !== 'reserved' && (nodeId ? entry.to_node?.id === nodeId : entry.to_user?.id === userId)) }
+
+export const fundCommunity = createServerFn({ method: 'POST' })
+  .validator((data: { token: string; nodeId: string; amount: number; clientRequestId: string }) => data)
+  .handler(async ({ data }) => (await requestJson<{ data: RiceWallet }>(`${BACKEND_BASE}/api/nodes/${encodeURIComponent(data.nodeId)}/fund`, {
+    method: 'POST', headers: { Authorization: `Bearer ${data.token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amount: data.amount, client_request_id: data.clientRequestId }),
+  })).data)

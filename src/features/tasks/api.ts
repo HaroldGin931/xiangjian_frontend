@@ -79,6 +79,7 @@ export const createTask = createServerFn({ method: 'POST' })
     executionDeadline?: string | null
     clientRequestId?: string
     attachmentIds?: string[]
+    organizerContact?: string
   }) => data)
   .handler(async ({ data }) => {
     const body = await requestJson<{ data: RiceTask }>(`${BACKEND_BASE}/api/tasks`, {
@@ -95,6 +96,7 @@ export const createTask = createServerFn({ method: 'POST' })
         execution_deadline: data.executionDeadline,
         client_request_id: data.clientRequestId,
         attachment_ids: data.attachmentIds,
+        organizer_contact: data.organizerContact,
       }),
     })
     return body.data
@@ -113,6 +115,7 @@ export const updateTaskDraft = createServerFn({ method: 'POST' })
     executionDeadline?: string | null
     clientRequestId?: string
     attachmentIds?: string[]
+    organizerContact?: string
   }) => data)
   .handler(async ({ data }) => {
     const body = await requestJson<{ data: RiceTask }>(`${BACKEND_BASE}/api/tasks/${data.taskId}`, {
@@ -128,6 +131,7 @@ export const updateTaskDraft = createServerFn({ method: 'POST' })
         execution_deadline: data.executionDeadline,
         client_request_id: data.clientRequestId,
         attachment_ids: data.attachmentIds,
+        organizer_contact: data.organizerContact,
       }),
     })
     return body.data
@@ -150,14 +154,14 @@ export const cancelTask = createServerFn({ method: 'POST' })
   .handler(({ data }) => taskAction(data.token, data.taskId, 'cancel'))
 
 export const applyForTask = createServerFn({ method: 'POST' })
-  .validator((data: { token: string; taskId: string; reason: string }) => data)
+  .validator((data: { token: string; taskId: string; reason: string; contact: string }) => data)
   .handler(async ({ data }) => {
     const body = await requestJson<{ data: RiceTask }>(
       `${BACKEND_BASE}/api/tasks/${data.taskId}/applications`,
       {
         method: 'POST',
         headers: { ...authHeaders(data.token), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: data.reason }),
+        body: JSON.stringify({ reason: data.reason, contact: data.contact }),
       },
     )
     return body.data

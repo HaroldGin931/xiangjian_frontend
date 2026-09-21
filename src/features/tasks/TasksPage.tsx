@@ -4,6 +4,7 @@ import { DetailDialog, usePanelReady } from '~/components/DetailDialog'
 import { getNodes, type CommunityNode } from '../nodes/api'
 import { NodeDetail } from '../nodes/NodesPanel'
 import { useStoredSession } from '../session/session'
+import { LoginLink } from '../session/LoginLink'
 import { getTaskPage, type TaskPage } from './api'
 import { MyTasksPage } from './MyTasksPage'
 import { TaskCard } from './TaskCard'
@@ -45,6 +46,7 @@ export function TasksPage({ nodeId, embedded = false, initialPage, initialNodes,
   useEffect(() => {
     if (!isReady) return
     paginated.current = false
+    if (filter === 'available' && !session) { setTasks([]); setNextCursor(null); setLoading(false); setError(''); return }
     if (initialPage && !nodeId && filter === 'all') { setTasks(initialPage.data); setNextCursor(initialPage.meta.next_cursor); setLoading(false); setError(''); return }
     let active = true; ++request.current
     setLoading(true); setError(''); setNextCursor(null)
@@ -56,7 +58,7 @@ export function TasksPage({ nodeId, embedded = false, initialPage, initialNodes,
     {!embedded && <section className="task-hero"><span>TASKS · COMMUNITY COLLABORATION</span><h1>一起把事情<br />真正做完</h1><p>申请、交付、验收与稻米结算，任务进展都在这里。</p>{session ? <button type="button" className="hero-action" onClick={() => setMyTasks(true)}>我的任务</button> : null}</section>}
     <div className="business-heading"><h2>{embedded ? '社区任务' : '全部任务'}</h2>{!nodeId && <select aria-label="任务筛选" value={filter} onChange={(e) => setFilter(e.target.value)}><option value="all">全部</option><option value="available">可申请</option>{nodes.map((n) => <option value={n.id} key={n.id}>{n.name}</option>)}</select>}</div>
     {visibleError && <p className="inline-error" role="alert">{visibleError}</p>}{loading && <p className={tasks.length ? 'refresh-status' : 'loading-line'} role="status">正在加载任务…</p>}<section className="task-list" aria-busy={loading}>{tasks.map((task) => <TaskCard task={task} key={task.id} onOpen={(load) => setSelectedTask({ id: task.id, load })} onOpenCommunity={setSelectedCommunity} />)}</section>
-    {!loading && !visibleError && !tasks.length && <p className="search-hint">暂时没有任务。</p>}{nextCursor && <Button label="加载更多" variant="secondary" isDisabled={loading} clickAction={more} />}
+    {!loading && !visibleError && !tasks.length && (filter === 'available' ? <div className="form-stack"><p className="search-hint">{session ? '当前账号暂无可申请的任务。已截止、已申请或由你发布的任务不会出现在这里。' : '登录后才能查看当前账号可申请的任务。你也可以继续浏览全部任务。'}</p><div className="button-row">{!session && <LoginLink className="primary-link">登录后查看</LoginLink>}<Button label="查看全部任务" variant="secondary" onClick={() => setFilter('all')} /></div></div> : <p className="search-hint">暂时没有任务。</p>)}{nextCursor && <Button label="加载更多" variant="secondary" isDisabled={loading} clickAction={more} />}
     {myTasks && <DetailDialog title="我的任务" onClose={() => setMyTasks(false)}><MyTasksPage embedded /></DetailDialog>}
     {selectedCommunity && <DetailDialog title="社区详情" onClose={() => setSelectedCommunity(null)}><NodeDetail nodeId={selectedCommunity} /></DetailDialog>}
     {selectedTask && <DetailDialog key={selectedTask.id} title="任务详情" onClose={() => setSelectedTask(null)}><TaskDetailPage taskId={selectedTask.id} loadTask={selectedTask.load} embedded /></DetailDialog>}
