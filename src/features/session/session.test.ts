@@ -127,7 +127,7 @@ describe('stored session boundaries', () => {
     expect(readStoredSession()).toEqual(storedSession)
   })
 
-  it.each([undefined, null, {}, { ...storedSession.user, did: 'did:example:other' }])(
+  it.each([undefined, {}, { ...storedSession.user, did: 'did:example:other' }])(
     'preserves the last valid session when profile loading returns invalid data: %j',
     async (user) => {
       useMemoryStorage()
@@ -136,6 +136,26 @@ describe('stored session boundaries', () => {
       expect(readStoredSession()).toEqual(storedSession)
     },
   )
+
+  it('clears expired credentials but preserves network failures and a newer login', async () => {
+    useMemoryStorage()
+    writeStoredSession(storedSession)
+    await expect(refreshStoredUser(storedSession, async () => null)).resolves.toBeNull()
+    expect(readStoredSession()).toBeNull()
+
+    writeStoredSession(storedSession)
+    await expect(refreshStoredUser(storedSession, async () => { throw new TypeError('Failed to fetch') })).rejects.toThrow()
+    expect(readStoredSession()).toEqual(storedSession)
+    await refreshStoredUser(storedSession, async () => null, () => false)
+    expect(readStoredSession()).toEqual(storedSession)
+
+    const newer = { ...storedSession, token: 'new-login-token' }
+    await refreshStoredUser(storedSession, async () => {
+      writeStoredSession(newer)
+      return null
+    })
+    expect(readStoredSession()).toEqual(newer)
+  })
 
   it('does not overwrite a valid cache with an invalid login result', () => {
     useMemoryStorage()

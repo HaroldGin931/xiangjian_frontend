@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { ProfilePage, type ProfileInitialData } from '~/features/profile/ProfilePage'
 import { getCurrentUser } from '~/features/session/api'
-import { readStoredSession } from '~/features/session/session'
+import { readStoredSession, writeStoredSession } from '~/features/session/session'
 import { getWallet } from '~/features/grains/api'
 
 export const Route = createFileRoute('/me/')({
@@ -27,8 +27,12 @@ export const Route = createFileRoute('/me/')({
     }
     if (!isCurrentSession()) return empty
     try {
-      const [user, wallet] = await Promise.all([getCurrentUser({ data: deps.token }), getWallet({ data: { token: deps.token } })])
-      if (!isCurrentSession()) return empty
+      const userRequest = getCurrentUser({ data: deps.token }).then((user) => {
+        if (user === null && isCurrentSession()) writeStoredSession(null)
+        return user
+      })
+      const [user, wallet] = await Promise.all([userRequest, getWallet({ data: { token: deps.token } })])
+      if (!isCurrentSession() || !user) return empty
       return { initialData: { user, wallet, accountId: deps.accountId, sessionToken: deps.token }, error: '' }
     } catch (error) {
       if (!isCurrentSession()) return empty

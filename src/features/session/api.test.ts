@@ -1,8 +1,18 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { requestPdsSessionRefresh, requestSemiSession } from './api'
+import { requestCurrentUser, requestPdsSessionRefresh, requestSemiSession } from './api'
 
 afterEach(() => vi.unstubAllGlobals())
+
+it('only treats an explicit current-user 401 as an expired session', async () => {
+  vi.stubGlobal('fetch', vi.fn()
+    .mockResolvedValueOnce(Response.json({ errors: { detail: '未认证' } }, { status: 401 }))
+    .mockResolvedValueOnce(Response.json({ errors: { detail: '服务暂不可用' } }, { status: 503 }))
+    .mockRejectedValueOnce(new TypeError('Failed to fetch')))
+  await expect(requestCurrentUser('old-token')).resolves.toBeNull()
+  await expect(requestCurrentUser('valid-token')).rejects.toThrow('服务暂不可用')
+  await expect(requestCurrentUser('valid-token')).rejects.toThrow('Failed to fetch')
+})
 
 describe('PDS session refresh', () => {
   it('uses the AT Protocol POST method with the refresh token', async () => {

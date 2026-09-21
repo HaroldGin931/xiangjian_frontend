@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 
-import { BACKEND_BASE, requestJson } from '~/lib/http'
+import { BACKEND_BASE, readJson, requestJson } from '~/lib/http'
 import type { RiceSession, RiceUser } from '~/lib/models'
 import { isPdsSession, isRiceSession, isSessionUser } from './session-data'
 
@@ -89,15 +89,20 @@ export const logoutRice = createServerFn({ method: 'POST' })
     return true
   })
 
+export async function requestCurrentUser(token: string): Promise<RiceUser | null> {
+  const response = await fetch(`${BACKEND_BASE}/api/users/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  // An explicit value survives the server-function boundary; transport/5xx still throw.
+  if (response.status === 401) return null
+  const body = await readJson(response)
+  if (!isSessionUser(body.data)) throw new Error('用户资料返回异常，请稍后重试。')
+  return body.data
+}
+
 export const getCurrentUser = createServerFn({ method: 'POST' })
   .validator((token: string) => token)
-  .handler(async ({ data: token }) => {
-    const body = await requestJson<{ data: RiceUser }>(`${BACKEND_BASE}/api/users/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    if (!isSessionUser(body.data)) throw new Error('用户资料返回异常，请稍后重试。')
-    return body.data
-  })
+  .handler(({ data: token }) => requestCurrentUser(token))
 
 export const refreshPdsSession = createServerFn({ method: 'POST' })
   .validator((pds: RiceSession['pds']) => pds)

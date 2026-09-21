@@ -61,13 +61,17 @@ export function writeStoredSession(session: RiceSession | null) {
 // Repair an incomplete cache using its existing credentials, never a different account's profile.
 export async function refreshStoredUser(
   stored: SessionCredentials,
-  loadUser: (input: { data: string }) => Promise<RiceUser> = getCurrentUser,
+  loadUser: (input: { data: string }) => Promise<RiceUser | null> = getCurrentUser,
   isCurrent: () => boolean = () => true,
 ) {
   const user = await loadUser({ data: stored.token })
-  if (!isSessionUser(user) || user.did !== stored.pds.did) throw new Error('用户资料返回异常，请稍后重试。')
   const latest = readStoredCredentials()
   if (!isCurrent() || latest?.token !== stored.token || latest.pds.did !== stored.pds.did) return readStoredSession()
+  if (user === null) {
+    writeStoredSession(null)
+    return null
+  }
+  if (!isSessionUser(user) || user.did !== stored.pds.did) throw new Error('用户资料返回异常，请稍后重试。')
   const updated = { ...latest, user }
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
   return updated
