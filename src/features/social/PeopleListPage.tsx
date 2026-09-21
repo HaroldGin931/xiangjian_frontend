@@ -1,11 +1,11 @@
-import { Button } from '@astryxdesign/core/Button'
 import { EmptyState } from '@astryxdesign/core/EmptyState'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { authorDisplayName } from '~/lib/format'
 import { Avatar } from '~/components/Avatar'
+import { AutoLoadMore } from '~/components/AutoLoadMore'
 import type { SocialConnectionPage } from '~/lib/models'
 
 import { useStoredSession } from '../session/session'
@@ -25,9 +25,12 @@ export function PeopleListPage({
   const [page, setPage] = useState<SocialConnectionPage | null>(null)
   const [error, setError] = useState('')
   const [isLoading, setLoading] = useState(false)
+  const request = useRef(0)
   const title = kind === 'followers' ? '粉丝' : '关注'
 
   const load = async (cursor?: string) => {
+    if (cursor && isLoading) return
+    const currentRequest = request.current
     setLoading(true)
     setError('')
     try {
@@ -39,21 +42,24 @@ export function PeopleListPage({
           accessJwt: session?.pds.access_jwt,
         },
       })
+      if (currentRequest !== request.current) return
       setPage((current) => cursor && current ? {
         subject: next.subject,
-        profiles: [...current.profiles, ...next.profiles],
+        profiles: [...new Map([...current.profiles, ...next.profiles].map((profile) => [profile.did, profile])).values()],
         cursor: next.cursor,
       } : next)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : `${title}列表暂时无法显示`)
+      if (currentRequest === request.current) setError(reason instanceof Error ? reason.message : `${title}列表暂时无法显示`)
     } finally {
-      setLoading(false)
+      if (currentRequest === request.current) setLoading(false)
     }
   }
 
   useEffect(() => {
+    ++request.current
     setPage(null)
     void load()
+    return () => { ++request.current }
     // load only when the route or active PDS session changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actor, kind, session?.pds.access_jwt])
@@ -85,16 +91,6 @@ export function PeopleListPage({
               </span>
             </Link>
           ))}
-          {page.cursor ? (
-            <div className="people-load-more">
-              <Button
-                label="加载更多"
-                variant="secondary"
-                clickAction={() => load(page.cursor)}
-                isLoading={isLoading}
-              />
-            </div>
-          ) : null}
         </div>
       ) : page && !error ? (
         <div className="empty-panel">
@@ -106,6 +102,7 @@ export function PeopleListPage({
       ) : !error ? (
         <p className="loading-line">正在加载{title}列表…</p>
       ) : null}
+      {page?.cursor && <AutoLoadMore key={`${actor}:${kind}:${session?.pds.did}`} cursor={page.cursor} loading={isLoading} failed={!!error} onLoadMore={() => load(page.cursor)} />}
     </div>
   )
 }

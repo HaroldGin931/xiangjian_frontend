@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import type { RepostChange } from '~/components/PostActions'
 import { PostList } from '~/components/PostList'
+import { AutoLoadMore } from '~/components/AutoLoadMore'
 import type { PostFeed } from '~/lib/models'
 
 import { useStoredSession } from '../session/session'
@@ -144,7 +145,7 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
       {error ? (
         <div className="inline-error" role="alert">
           <span>{error}</span>
-          <Button label="重试" variant="ghost" size="sm" onClick={() => setReloadKey((value) => value + 1)} />
+          {!feed.cursor && <Button label="重试" variant="ghost" size="sm" onClick={() => setReloadKey((value) => value + 1)} />}
         </div>
       ) : null}
 
@@ -161,7 +162,7 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
           onRepostChange={handleRepostChange}
           onPostDeleted={handlePostDeleted}
         />
-        {feed.cursor && <Button label="加载更多" variant="secondary" isDisabled={isLoading} clickAction={more} />}
+        {feed.cursor && <AutoLoadMore key={did ?? 'guest'} cursor={feed.cursor} loading={isLoading || !isReady} failed={!!error} onLoadMore={more} />}
       </section>
 
       {selectedPost ? (

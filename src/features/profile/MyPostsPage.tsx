@@ -1,10 +1,10 @@
 import { LoginLink } from '../session/LoginLink'
-import { Button } from '@astryxdesign/core/Button'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { PostList } from '~/components/PostList'
+import { AutoLoadMore } from '~/components/AutoLoadMore'
 import { usePanelReady } from '~/components/DetailDialog'
 import { getPosts } from '~/features/feed/api'
 import { PostThreadDialog } from '~/features/feed/PostThreadDialog'
@@ -73,7 +73,7 @@ export function MyPostsPage({ embedded = false }: { embedded?: boolean }) {
       </Link>}
       {error ? <div className="inline-error" role="alert">{error}</div> : null}
       {feed ? <PostList posts={feed.posts} onOpenPost={(post, focusReply) => setSelectedPost({ post, focusReply })} /> : !error ? <p className="loading-line">正在加载帖子…</p> : null}
-      {feed?.cursor && <Button label="加载更多" variant="secondary" isDisabled={loading} clickAction={more} />}
+      {feed?.cursor && <AutoLoadMore key={session?.pds.did} cursor={feed.cursor} loading={loading} failed={!!error} onLoadMore={more} />}
       {selectedPost && <PostThreadDialog uri={selectedPost.post.uri} category={postCategory(selectedPost.post.record)} focusReply={selectedPost.focusReply} onClose={() => setSelectedPost(null)} />}
     </div>
   )

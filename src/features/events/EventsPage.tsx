@@ -9,6 +9,7 @@ import { useDetailPrefetch } from '~/components/useDetailPrefetch'
 import { useTimeBoundary } from '~/components/useTimeBoundary'
 import { ContentCardHeader } from '~/components/ContentCardHeader'
 import { DetailDialog, usePanelReady } from '~/components/DetailDialog'
+import { AutoLoadMore } from '~/components/AutoLoadMore'
 import { formatTimestamp } from '~/lib/format'
 import { useStoredSession } from '../session/session'
 import { EventDetail } from './EventDetail'
@@ -66,22 +67,23 @@ function EventList({ nodeId, embedded = false, mine = false, initialPage, refres
     if (!paginated.current) setCursor(initialPage.meta?.next_cursor ?? null)
   }, [initialPage, usesRoutePage])
   useEffect(() => {
+    ++request.current
     if (!isReady) return
     paginated.current = false
-    if (initialPage && !nodeId && !mine) { setRows(initialPage.data); setCursor(initialPage.meta?.next_cursor ?? null); setLoading(false); setError(''); return }
-    let active = true; ++request.current
+    if (initialPage && !nodeId && !mine) { setRows(initialPage.data); setCursor(initialPage.meta?.next_cursor ?? null); setLoading(false); setError(''); return () => { ++request.current } }
+    let active = true
     setLoading(true); setError(''); setCursor(null)
     if (mine && !session) { setLoading(false); return }
     void getEvents({ data: { token: session?.token, nodeId, mine: mine ? tab : undefined } }).then((page) => { if (active) { setRows(page.data); setCursor(page.meta?.next_cursor ?? null) } }).catch((e) => { if (active) setError(e.message) }).finally(() => { if (active) setLoading(false) })
     return () => { active = false; ++request.current }
   }, [isReady, session?.token, nodeId, mine, tab, reload])
-  const more = async () => { if (!cursor || loading) return; const current = request.current; paginated.current = true; setLoading(true); try { const page = await getEvents({ data: { token: session?.token, nodeId, mine: mine ? tab : undefined, before: cursor } }); if (current === request.current) { setRows((r) => [...new Map([...r, ...page.data].map((event) => [event.id, event])).values()]); setCursor(page.meta?.next_cursor ?? null) } } catch (e) { if (current === request.current) setError(e instanceof Error ? e.message : '加载失败') } finally { if (current === request.current) setLoading(false) } }
+  const more = async () => { if (!cursor || loading) return; const current = request.current; paginated.current = true; setLoading(true); setError(''); try { const page = await getEvents({ data: { token: session?.token, nodeId, mine: mine ? tab : undefined, before: cursor } }); if (current === request.current) { setRows((r) => [...new Map([...r, ...page.data].map((event) => [event.id, event])).values()]); setCursor(page.meta?.next_cursor ?? null) } } catch (e) { if (current === request.current) setError(e instanceof Error ? e.message : '加载失败') } finally { if (current === request.current) setLoading(false) } }
   return <div className={`page events-page${embedded ? ' business-panel list-panel' : ''}`}><div className="business-heading"><h1>{mine ? '我的活动' : '活动'}</h1>{session && !mine && !embedded && <Link to="/me/events">我的活动</Link>}</div>
     {mine && <div className="filter-buttons">{(['applied', 'managed'] as const).map((value) => <Button key={value} label={value === 'applied' ? '我申请的' : '我管理的'} variant="ghost" className={tab === value ? 'active' : undefined} aria-pressed={tab === value} onClick={() => setTab(value)} />)}</div>}
     {mine && !session && isReady && <LoginLink className="primary-link">登录后查看我的活动</LoginLink>}
     {visibleError && <p className="inline-error" role="alert">{visibleError}</p>}{loading && <p className={rows.length ? 'refresh-status' : 'loading-line'} role="status">正在加载活动…</p>}
     <section className="task-list" aria-busy={loading}>{rows.map((event) => <EventCard event={event} key={event.id} onOpen={(load) => setSelectedEvent({ id: event.id, load })} onOpenCommunity={setSelectedCommunity} />)}</section>
-    {!loading && !visibleError && !rows.length && <p className="search-hint">暂时没有活动。</p>}{cursor && <Button label="加载更多" variant="secondary" isDisabled={loading} clickAction={more} />}
+    {!loading && !visibleError && !rows.length && <p className="search-hint">暂时没有活动。</p>}{cursor && <AutoLoadMore key={`${nodeId}:${mine}:${tab}`} cursor={cursor} loading={loading || !isReady} failed={!!error} onLoadMore={more} />}
     {selectedEvent && <DetailDialog key={selectedEvent.id} title="活动详情" onClose={() => setSelectedEvent(null)}><EventDetail eventId={selectedEvent.id} loadEvent={selectedEvent.load} /></DetailDialog>}
     {selectedCommunity && <DetailDialog title="社区详情" onClose={() => setSelectedCommunity(null)}><NodeDetail nodeId={selectedCommunity} /></DetailDialog>}
   </div>

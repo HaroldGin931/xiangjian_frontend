@@ -3,6 +3,7 @@ import { EmptyState } from '@astryxdesign/core/EmptyState'
 import { useEffect, useRef, useState } from 'react'
 
 import { PostList } from '~/components/PostList'
+import { AutoLoadMore } from '~/components/AutoLoadMore'
 import { usePanelReady } from '~/components/DetailDialog'
 import { getPosts } from '~/features/feed/api'
 import { getTasks } from '~/features/tasks/api'
@@ -96,7 +97,7 @@ function PublicPosts({ actor }: { actor: string }) {
   if (!posts || (posts.length === 0 && !feed?.cursor)) {
     return <ProfileContentState error={error} items={posts} empty="还没有发布帖子" />
   }
-  return <>{error && <div className="inline-error" role="alert">{error}</div>}<PostList posts={posts.filter((p) => postCategory(p.record) === 'post')} onOpenPost={(post) => setSelected(post)} />{feed?.cursor && <Button label="加载更多" variant="secondary" isDisabled={loading} clickAction={more} />}{selected && <PostThreadDialog uri={selected.uri} category="post" focusReply={false} onClose={() => setSelected(null)} />}</>
+  return <>{error && <div className="inline-error" role="alert">{error}</div>}<PostList posts={posts.filter((p) => postCategory(p.record) === 'post')} onOpenPost={(post) => setSelected(post)} />{feed?.cursor && <AutoLoadMore key={`${actor}:${session?.pds.did}`} cursor={feed.cursor} loading={loading} failed={!!error} onLoadMore={more} />}{selected && <PostThreadDialog uri={selected.uri} category="post" focusReply={false} onClose={() => setSelected(null)} />}</>
 }
 
 function PublicTasks({ actor }: { actor: string }) {
