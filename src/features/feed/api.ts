@@ -20,10 +20,12 @@ export function writeCachedFeed(feed: PostFeed, did?: string) {
 }
 
 export function prependCachedPost(post: PostView, did?: string) {
-  if (
-    typeof window === 'undefined' ||
-    clientFeedCache?.owner !== (did ?? null)
-  ) return
+  if (typeof window === 'undefined') return
+  if (clientFeedCache?.owner !== (did ?? null)) {
+    // Publishing from another page must not depend on having opened the plaza.
+    clientFeedCache = { owner: did ?? null, feed: { posts: [post], cursor: '1' } }
+    return
+  }
 
   const posts = [post, ...clientFeedCache.feed.posts.filter((item) => item.uri !== post.uri)]
   clientFeedCache = {
@@ -165,7 +167,7 @@ async function hydrateAuthorNames(posts: PostView[]) {
   const authorName = (author: PostView['author']) => {
     const profile = profiles.get(author.did)
     const avatar = profile?.avatar?.url || author.avatar
-    return { ...author, ...(profile?.nickname ? { displayName: profile.nickname } : {}), ...(avatar ? { avatar: appviewImageUrl(avatar) } : {}) }
+    return { ...author, ...(profile?.handle ? { handle: profile.handle } : {}), ...(profile?.nickname ? { displayName: profile.nickname } : {}), ...(avatar ? { avatar: appviewImageUrl(avatar) } : {}) }
   }
   return posts.map((post) => ({
     ...post,
@@ -247,6 +249,19 @@ async function loadTimelineReposts(accessJwt?: string) {
   }
 }
 
+async function loadOwnRecentPosts(did: string, accessJwt: string) {
+  // Read-your-writes: the PDS has committed before the shared index/AppView catches up.
+  const params = new URLSearchParams({ repo: did, collection: 'app.bsky.feed.post', limit: '20' })
+  const payload = await requestJson<{ records?: Array<{ uri: string; cid: string; value: PostView['record'] }> }>(
+    `${BACKEND_BASE}/pds/xrpc/com.atproto.repo.listRecords?${params}`,
+    { headers: { Authorization: `Bearer ${accessJwt}` } },
+  ).catch(() => null)
+  return normalizePostFeed({ posts: (payload?.records ?? []).map(record => ({
+    uri: record.uri, cid: record.cid, record: record.value, indexedAt: record.value.createdAt,
+    author: { did, handle: did }, replyCount: 0, repostCount: 0, likeCount: 0,
+  })) }).posts
+}
+
 function mergeFeedPosts(posts: PostView[], reposts: PostView[]) {
   const seenReposts = new Set<string>()
   return [...posts, ...reposts]
@@ -318,10 +333,13 @@ export async function loadPostPage(data: GetPostsInput) {
   })
 
   const feed = normalizePostFeed(payload)
-  const timelineReposts = !query && !data.repo && page === 1
-    ? await loadTimelineReposts(data.accessJwt)
-    : []
-  const posts = mergeFeedPosts(feed.posts, timelineReposts).filter(
+  const [timelineReposts, ownPosts] = await Promise.all([
+    !query && !data.repo && page === 1 ? loadTimelineReposts(data.accessJwt) : [],
+    !query && page === 1 && data.did && data.accessJwt && (!data.repo || data.repo === data.did)
+      ? loadOwnRecentPosts(data.did, data.accessJwt) : [],
+  ])
+  const indexedUris = new Set(feed.posts.map(post => post.uri))
+  const posts = mergeFeedPosts([...feed.posts, ...ownPosts.filter(post => !indexedUris.has(post.uri))], timelineReposts).filter(
     (post) =>
       (!data.tag || hasPostTag(post.record.text, data.tag)) &&
       (!data.category || postCategory(post.record) === data.category),

@@ -25,7 +25,7 @@ export function LoginPage({ returnTo }: { returnTo?: string }) {
     const submittedIdentifier = identifierInput.current?.value.trim() || identifier.trim()
     const submittedPassword = passwordInput.current?.value || password
     if (!submittedIdentifier || !submittedPassword) {
-      setError('请输入账号和密码')
+      setError('请输入手机号和密码')
       return
     }
     setError('')
@@ -54,10 +54,11 @@ export function LoginPage({ returnTo }: { returnTo?: string }) {
         </div>
         <TextInput
           ref={identifierInput}
-          label="账号"
+          label="手机号"
           value={identifier}
           onChange={setIdentifier}
-          placeholder="手机号、邮箱或用户名"
+          placeholder="输入注册时验证的手机号"
+          description="请使用手机号登录，昵称不能用于登录。"
           width="100%"
           hasAutoFocus
         />

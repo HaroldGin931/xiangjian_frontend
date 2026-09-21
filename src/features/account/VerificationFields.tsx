@@ -1,9 +1,8 @@
-import { Button } from '@astryxdesign/core/Button'
 import { SegmentedControl, SegmentedControlItem } from '@astryxdesign/core/SegmentedControl'
 import { TextInput } from '@astryxdesign/core/TextInput'
 
 import type { VerificationChannel, VerificationPurpose } from './api'
-import { sendVerificationCode } from './api'
+import { VerificationCodeButton } from './VerificationCodeButton'
 
 type Props = {
   channel: VerificationChannel
@@ -20,24 +19,6 @@ type Props = {
 }
 
 export function VerificationFields(props: Props) {
-  const send = async () => {
-    props.onError('')
-    try {
-      await sendVerificationCode({
-        data: {
-          channel: props.channel,
-          purpose: props.purpose,
-          ...(props.channel === 'sms'
-            ? { phone: props.contact, phoneRegion: '86' }
-            : { email: props.contact }),
-        },
-      })
-      props.onSent?.()
-    } catch (reason) {
-      props.onError(reason instanceof Error ? reason.message : '验证码发送失败')
-    }
-  }
-
   return (
     <>
       {(props.channels?.length ?? 2) > 1 ? <SegmentedControl
@@ -65,13 +46,7 @@ export function VerificationFields(props: Props) {
           width="100%"
           isDisabled={props.disabled}
         />
-        <Button
-          label="获取验证码"
-          variant="secondary"
-          size="lg"
-          clickAction={send}
-          isDisabled={!props.contact.trim() || props.disabled}
-        />
+        <VerificationCodeButton {...props} />
       </div>
     </>
   )

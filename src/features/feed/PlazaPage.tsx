@@ -60,6 +60,7 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
     }
 
     let active = true
+    const current = request.current
     setLoading(true)
     setError('')
     void getPosts({
@@ -70,15 +71,15 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
       },
     })
       .then((nextFeed) => {
-        if (!active) return
+        if (!active || current !== request.current) return
         writeCachedFeed(nextFeed, did)
         setFeed(nextFeed)
       })
       .catch((reason) => {
-        if (active) setError(reason instanceof Error ? reason.message : '帖子暂时无法加载')
+        if (active && current === request.current) setError(reason instanceof Error ? reason.message : '帖子暂时无法加载')
       })
       .finally(() => {
-        if (active) setLoading(false)
+        if (active && current === request.current) setLoading(false)
       })
     return () => { active = false; request.current++ }
   }, [accessJwt, did, initialFeed, isReady, reloadKey])

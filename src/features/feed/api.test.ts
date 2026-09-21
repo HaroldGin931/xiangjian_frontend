@@ -130,6 +130,36 @@ describe('post images', () => {
 })
 
 describe('feed data', () => {
+  it('supplements only the signed-in first page from PDS while indexing lags, then prefers indexed counts', async () => {
+    const uri = `at://${post.author.did}/app.bsky.feed.post/new`
+    const recent = { uri, cid: 'new-cid', value: { ...post.record, text: '刚刚发布', createdAt: '2026-09-21T12:00:00.000Z' } }
+    let indexed = false
+    const fetchMock = vi.fn(async (input: string | URL) => {
+      const url = String(input)
+      if (url.includes('/post/api/posts/list')) return new Response(JSON.stringify({ posts: indexed ? [{ ...post, uri, likeCount: 3 }] : [post] }))
+      if (url.includes('collection=app.bsky.feed.post')) return new Response(JSON.stringify({ records: [recent, { ...recent, uri: `${uri}-reply`, value: { ...recent.value, reply: { root: { uri }, parent: { uri } } } }] }))
+      if (url.includes('/api/users/')) return new Response(JSON.stringify({ data: { did: post.author.did, handle: 'author.test', nickname: '作者' } }))
+      return new Response(JSON.stringify({ records: [], feed: [] }))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const input = { did: post.author.did, accessJwt: 'pds-token' }
+    const first = await loadPosts(input)
+    expect(first.posts.map(item => item.uri)).toEqual([uri, post.uri])
+    expect(first.posts[0].author).toMatchObject({ handle: 'author.test', displayName: '作者' })
+    indexed = true
+    const second = await loadPosts(input)
+    expect(second.posts.filter(item => item.uri === uri)).toHaveLength(1)
+    expect(second.posts[0].likeCount).toBe(3)
+    const ownReads = () => fetchMock.mock.calls.filter(([url]) => String(url).includes('collection=app.bsky.feed.post'))
+    expect(ownReads()).toHaveLength(2)
+    expect(String(ownReads()[0][0])).toContain('limit=20')
+    expect(String(ownReads()[0][0])).not.toContain('reverse=true')
+    await loadPosts({ ...input, cursor: '2' })
+    await loadPosts({ ...input, repo: 'did:someone-else' })
+    await loadPosts({})
+    expect(ownReads()).toHaveLength(2)
+  })
+
   it('keeps legacy hashtag posts and uses the returned list page to continue past empty pages', async () => {
     const legacyPost = { ...post, author: { ...post.author, avatar: 'https://old-appview.example/img/avatar.jpg', displayName: '老用户' }, record: { ...post.record, text: '#活动 以前的活动介绍' } }
     vi.stubEnv('XIANGJIAN_APPVIEW_IMAGE_ORIGINS', 'https://old-appview.example')
@@ -324,6 +354,10 @@ describe('feed data', () => {
     prependCachedPost(created, 'did:alice')
 
     expect(readCachedFeed('did:alice')?.posts).toEqual([created, post])
+    clearCachedFeed('did:alice')
+    prependCachedPost(created, 'did:alice')
+    expect(readCachedFeed('did:alice')).toEqual({ posts: [created], cursor: '1' })
+    expect(readCachedFeed('did:bob')).toBeNull()
   })
 
   it('keeps a deleted post out of the current client feed while indexing catches up', () => {

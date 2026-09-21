@@ -10,9 +10,9 @@ import { useStoredSession } from '../session/session'
 import {
   changeCurrentUserContact,
   deleteCurrentUser,
-  sendVerificationCode,
   type VerificationChannel,
 } from './api'
+import { VerificationCodeButton } from './VerificationCodeButton'
 
 export function AccountSecurityPage() {
   const { session, saveSession } = useStoredSession()
@@ -39,23 +39,6 @@ export function AccountSecurityPage() {
     )
   }
 
-  const sendContactCode = async (channel: VerificationChannel, contact: string) => {
-    setError('')
-    setNotice('')
-    try {
-      await sendVerificationCode({
-        data: {
-          channel,
-          purpose: channel === 'sms' ? 'modify_phone' : 'modify_email',
-          ...(channel === 'sms' ? { phone: contact, phoneRegion: '86' } : { email: contact }),
-        },
-      })
-      setNotice('验证码已发送。')
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '验证码发送失败')
-    }
-  }
-
   const changeContact = async (channel: VerificationChannel) => {
     setBusy(true)
     setError('')
@@ -75,29 +58,6 @@ export function AccountSecurityPage() {
       setError(reason instanceof Error ? reason.message : '联系方式更新失败')
     } finally {
       setBusy(false)
-    }
-  }
-
-  const sendDeleteCode = async () => {
-    const contact = deleteChannel === 'sms' ? session.user.phone : session.user.email
-    if (!contact) {
-      setError('当前账号没有绑定这个联系方式。')
-      return
-    }
-    setError('')
-    try {
-      await sendVerificationCode({
-        data: {
-          channel: deleteChannel,
-          purpose: 'delete_account',
-          ...(deleteChannel === 'sms'
-            ? { phone: contact, phoneRegion: session.user.phone_region || '86' }
-            : { email: contact }),
-        },
-      })
-      setNotice('注销验证码已发送。')
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '验证码发送失败')
     }
   }
 
@@ -147,7 +107,7 @@ export function AccountSecurityPage() {
           <TextInput label="新手机号" value={phone} onChange={setPhone} width="100%" />
           <div className="code-row">
             <TextInput label="验证码" value={phoneCode} onChange={setPhoneCode} width="100%" />
-            <Button label="获取验证码" variant="secondary" size="lg" clickAction={() => sendContactCode('sms', phone)} />
+            <VerificationCodeButton channel="sms" contact={phone} purpose="modify_phone" disabled={busy} onError={setError} onSent={() => setNotice('验证码已发送。')} />
           </div>
           <div className="form-actions">
             <Button label="取消" variant="secondary" onClick={() => setEditing(null)} />
@@ -162,7 +122,7 @@ export function AccountSecurityPage() {
           <TextInput label="新邮箱" type="email" value={email} onChange={setEmail} width="100%" />
           <div className="code-row">
             <TextInput label="验证码" value={emailCode} onChange={setEmailCode} width="100%" />
-            <Button label="获取验证码" variant="secondary" size="lg" clickAction={() => sendContactCode('email', email)} />
+            <VerificationCodeButton channel="email" contact={email} purpose="modify_email" disabled={busy} onError={setError} onSent={() => setNotice('验证码已发送。')} />
           </div>
           <div className="form-actions">
             <Button label="取消" variant="secondary" onClick={() => setEditing(null)} />
@@ -192,7 +152,7 @@ export function AccountSecurityPage() {
             />
             <div className="code-row">
               <TextInput label="验证码" value={deleteCode} onChange={setDeleteCode} width="100%" />
-              <Button label="获取验证码" variant="secondary" size="lg" clickAction={sendDeleteCode} />
+              <VerificationCodeButton channel={deleteChannel} contact={(deleteChannel === 'sms' ? session.user.phone : session.user.email) || ''} phoneRegion={session.user.phone_region || '86'} purpose="delete_account" disabled={busy} onError={setError} onSent={() => setNotice('注销验证码已发送。')} />
             </div>
             <div className="form-actions">
               <Button label="确认注销账号" variant="destructive" clickAction={removeAccount} isLoading={busy} isDisabled={!deleteCode.trim()} />

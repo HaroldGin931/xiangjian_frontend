@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 
-import { BACKEND_BASE, requestJson } from '~/lib/http'
+import { BACKEND_BASE, readJson, requestJson } from '~/lib/http'
 import type { RiceAttachment, RiceSession, RiceUser } from '~/lib/models'
 
 export type VerificationChannel = 'sms' | 'email'
@@ -24,14 +24,24 @@ const contactBody = (data: ContactInput) => data.channel === 'sms'
 
 export const sendVerificationCode = createServerFn({ method: 'POST' })
   .validator((data: ContactInput & { purpose: VerificationPurpose }) => data)
-  .handler(async ({ data }) => {
-    await requestJson(`${BACKEND_BASE}/api/verification_codes`, {
+  .handler(({ data }) => requestVerificationCode(data))
+
+export async function requestVerificationCode(data: ContactInput & { purpose: VerificationPurpose }) {
+  let response: Response
+  try {
+    response = await fetch(`${BACKEND_BASE}/api/verification_codes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ channel: data.channel, ...contactBody(data), purpose: data.purpose }),
     })
-    return true
-  })
+  } catch {
+    throw new Error('网络连接失败，请检查网络后重试。')
+  }
+  const retryAfter = Number(response.headers.get('Retry-After') ?? 60)
+  if (response.status === 429) return { sent: false, retryAfter }
+  await readJson(response)
+  return { sent: true, retryAfter }
+}
 
 export const verifyRegistration = createServerFn({ method: 'POST' })
   .validator((data: ContactInput & { code: string }) => data)
