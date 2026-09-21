@@ -21,17 +21,18 @@ export const Route = createFileRoute('/me/')({
   },
   loader: { staleReloadMode: 'background', handler: async ({ deps, context }) => {
     const empty = { initialData: null, error: '' }
-    if (!deps.token || !deps.accountId) return empty
+    const { token, accountId } = deps
+    if (!token || !accountId) return empty
     const isCurrentSession = () => {
       const current = readStoredSession()
-      return current?.user.id === deps.accountId && current.token === deps.token
+      return current?.user.id === accountId && current.token === token
     }
     if (!isCurrentSession()) return empty
-    const communitiesRequest = getNodes({ data: { token: deps.token, mine: 'managed' } })
+    const communitiesRequest = getNodes({ data: { token, mine: 'managed' } })
       .then(async (nodes) => ({
         communities: await Promise.all(nodes.filter((node) => node.role === 'admin').map(async ({ id, name }) => {
           try {
-            const wallet = await getWallet({ data: { token: deps.token!, nodeId: id } })
+            const wallet = await getWallet({ data: { token, nodeId: id } })
             return { id, name, wallet }
           } catch {
             return { id, name, wallet: null, error: '社区稻米暂时无法加载，请稍后重试。' }
@@ -40,19 +41,19 @@ export const Route = createFileRoute('/me/')({
       }))
       .catch(() => ({ communities: [], communityError: '暂时无法加载管理的社区，请稍后重试。' }))
     try {
-      const userRequest = getCurrentUser({ data: deps.token }).then((user) => {
+      const userRequest = getCurrentUser({ data: token }).then((user) => {
         if (user === null && isCurrentSession()) writeStoredSession(null)
         return user
       })
-      const [user, wallet, communities] = await Promise.all([userRequest, getWallet({ data: { token: deps.token } }), communitiesRequest])
+      const [user, wallet, communities] = await Promise.all([userRequest, getWallet({ data: { token } }), communitiesRequest])
       if (!isCurrentSession() || !user) return empty
-      return { initialData: { user, wallet, accountId: deps.accountId, sessionToken: deps.token, ...communities }, error: '' }
+      return { initialData: { user, wallet, accountId, sessionToken: token, ...communities }, error: '' }
     } catch (error) {
       const communities = await communitiesRequest
       if (!isCurrentSession()) return empty
       const previous = context.previousData
       // Keep personal data on refresh failures, but never restore old community permissions.
-      const initialData = previous?.accountId === deps.accountId && previous.sessionToken === deps.token ? { ...previous, communityError: undefined, ...communities } : null
+      const initialData = previous?.accountId === accountId && previous.sessionToken === token ? { ...previous, communityError: undefined, ...communities } : null
       return { initialData, error: error instanceof TypeError ? '网络连接失败，请检查网络后重试。' : error instanceof Error ? error.message : '个人资料暂时无法加载，请稍后重试。' }
     }
   } },

@@ -45,20 +45,42 @@ export function ProfilePage({ initialData = null, initialError = '' }: { initial
     </section>
     {initialError && <p className="inline-error" role="alert">{initialError}{current && ' 目前显示上次加载的数据。'}</p>}
     <section className="grain-card">
-      <header>{communities.length ? <div className="filter-buttons grain-wallet-tabs" role="group" aria-label="稻米账户">
-        <Button label="我的测试稻米" variant="ghost" className={!community ? 'active' : undefined} aria-pressed={!community} onClick={() => setCommunitySelection(null)} />
-        <Button label="社区稻米" variant="ghost" className={community ? 'active' : undefined} aria-pressed={!!community} onClick={() => selectCommunity(community?.id ?? communities[0].id)} />
-      </div> : <span>我的测试稻米</span>}<Button label="查看流水" variant="ghost" isDisabled={!wallet} onClick={() => setPanel('wallet')}>查看流水 →</Button></header>
-      {community && (communities.length > 1 ? <label className="native-field">管理的社区<select value={community.id} onChange={(event) => selectCommunity(event.target.value)}>{communities.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}</select></label> : <p className="muted">{community.name}</p>)}
-      {(community?.error || current?.communityError) && <p className="inline-error" role="alert">{community?.error || current?.communityError}</p>}
-      <strong>{wallet ? wallet.balance + wallet.frozen : '—'}</strong><div className="grain-metrics"><div><b>{wallet?.balance ?? '—'}</b><span>可用</span></div><div><b>{wallet?.frozen ?? '—'}</b><span>冻结</span></div><div><b>{wallet?.earned ?? '—'}</b><span>累计获得</span></div></div>
+      <header>
+        {communities.length ? (
+          <div className="filter-buttons grain-wallet-tabs" role="group" aria-label="稻米账户">
+            <Button label="我的测试稻米" variant="ghost" className={!community ? 'active' : undefined} aria-pressed={!community} onClick={() => setCommunitySelection(null)} />
+            <Button label="社区稻米" variant="ghost" className={community ? 'active' : undefined} aria-pressed={!!community} onClick={() => selectCommunity(community?.id ?? communities[0].id)} />
+          </div>
+        ) : <span>我的测试稻米</span>}
+        <Button label="查看流水" variant="ghost" isDisabled={!wallet} onClick={() => setPanel('wallet')}>查看流水 →</Button>
+      </header>
+      {community && (communities.length > 1 ? (
+        <label className="native-field">管理的社区
+          <select value={community.id} onChange={(event) => selectCommunity(event.target.value)}>
+            {communities.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
+          </select>
+        </label>
+      ) : <p className="muted">{community.name}</p>)}
+      {(community?.error || current?.communityError) && (
+        <p className="inline-error" role="alert">{community?.error || current?.communityError}</p>
+      )}
+      <strong>{wallet ? wallet.balance + wallet.frozen : '—'}</strong>
+      <div className="grain-metrics">
+        <div><b>{wallet?.balance ?? '—'}</b><span>可用</span></div>
+        <div><b>{wallet?.frozen ?? '—'}</b><span>冻结</span></div>
+        <div><b>{wallet?.earned ?? '—'}</b><span>累计获得</span></div>
+      </div>
     </section>
     <nav className="profile-menu" aria-label="个人中心功能">{([['identity', '我在各社区的身份'], ['tasks', '申请中 · 进行中 · 审核中 · 已结束'], ['events', '我申请 / 主办的活动']] as const).map(([value, copy]) => <button type="button" className="profile-menu-row" key={value} onClick={() => setPanel(value)}><span className="profile-menu-copy"><strong>{titles[value]}</strong><small>{copy}</small></span><ArrowRight size={18} /></button>)}
       <button type="button" className="profile-menu-row" onClick={() => setPanel('posts')}><span className="profile-menu-copy"><strong>我的帖子</strong><small>在广场发布过的内容</small></span><ArrowRight size={18} /></button>
       <button type="button" className="profile-menu-row" onClick={() => setPanel('alliance')}><span className="profile-menu-copy"><strong>联盟与治理</strong><small>浏览联盟中的社区节点</small></span><ArrowRight size={18} /></button>
     </nav><div className="logout-button"><Button label="退出登录" icon={<LogOut size={16} />} variant="ghost" clickAction={logout} /></div>
     {panel && <DetailDialog title={titles[panel]} onClose={() => { setPanel(null); setDirectoryOpen(false) }}>
-      {panel === 'identity' ? <NodesPanel identity /> : panel === 'nodes' ? <NodesPanel /> : panel === 'tasks' ? <MyTasksPage embedded /> : panel === 'events' ? <EventsPage mine embedded /> : panel === 'posts' ? <MyPostsPage embedded /> : panel === 'wallet' ? walletSnapshot ? <GrainHistoryPage embedded nodeId={community?.id} initialData={walletSnapshot} /> : <p className="inline-error" role="alert">{community?.error || '稻米明细暂时无法加载，请稍后重试。'}</p> : panel === 'profile' ? <UserProfilePage actor={profile?.did ?? session?.pds.did ?? ''} onEdit={() => setPanel('edit')} /> : panel === 'edit' ? <ProfileEditPage onSaved={() => { setPanel(null); void router.invalidate({ filter: (match) => match.routeId === '/me/' }) }} /> : <div className="page business-panel list-panel"><h1>联盟与治理</h1><button type="button" className="profile-menu-row node-card" onClick={() => setDirectoryOpen(true)}><span className="profile-menu-copy"><strong>节点目录</strong><small>查看联盟中的社区</small></span><ArrowRight size={18} /></button></div>}
+      {panel === 'identity' ? <NodesPanel identity /> : panel === 'nodes' ? <NodesPanel /> : panel === 'tasks' ? <MyTasksPage embedded /> : panel === 'events' ? <EventsPage mine embedded /> : panel === 'posts' ? <MyPostsPage embedded /> : panel === 'wallet' ? (
+        walletSnapshot
+          ? <GrainHistoryPage embedded nodeId={community?.id} initialData={walletSnapshot} />
+          : <p className="inline-error" role="alert">{community?.error || '稻米明细暂时无法加载，请稍后重试。'}</p>
+      ) : panel === 'profile' ? <UserProfilePage actor={profile?.did ?? session?.pds.did ?? ''} onEdit={() => setPanel('edit')} /> : panel === 'edit' ? <ProfileEditPage onSaved={() => { setPanel(null); void router.invalidate({ filter: (match) => match.routeId === '/me/' }) }} /> : <div className="page business-panel list-panel"><h1>联盟与治理</h1><button type="button" className="profile-menu-row node-card" onClick={() => setDirectoryOpen(true)}><span className="profile-menu-copy"><strong>节点目录</strong><small>查看联盟中的社区</small></span><ArrowRight size={18} /></button></div>}
       {directoryOpen && <DetailDialog title="节点目录" onClose={() => setDirectoryOpen(false)}><NodesPanel /></DetailDialog>}
     </DetailDialog>}
   </div>
