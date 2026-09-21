@@ -3,10 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RiceSession } from '~/lib/models'
 
 const state = vi.hoisted(() => ({ session: null as RiceSession | null }))
-const api = vi.hoisted(() => ({ user: vi.fn(), wallet: vi.fn() }))
+const api = vi.hoisted(() => ({ user: vi.fn(), wallet: vi.fn(), nodes: vi.fn() }))
 vi.mock('~/features/session/session', () => ({ readStoredSession: () => state.session }))
 vi.mock('~/features/session/api', () => ({ getCurrentUser: api.user }))
 vi.mock('~/features/grains/api', () => ({ getWallet: api.wallet }))
+vi.mock('~/features/nodes/api', () => ({ getNodes: api.nodes }))
 vi.mock('~/features/profile/ProfilePage', () => ({ ProfilePage: () => null }))
 
 // Exercise the actual private route's loader and cache with only network calls mocked.
@@ -58,10 +59,70 @@ beforeEach(() => {
   state.session = session('a')
   api.user.mockReset().mockResolvedValue({ id: 'a', nickname: '甲' })
   api.wallet.mockReset().mockResolvedValue({ balance: 100, frozen: 0, earned: 100, entries: [] })
+  api.nodes.mockReset().mockResolvedValue([])
 })
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers() })
 
 describe('private profile route cache', () => {
+  it('prefetches separate wallets for managed communities and excludes member communities', async () => {
+    api.nodes.mockResolvedValue([
+      { id: 'one', name: '一号社区', role: 'admin' },
+      { id: 'joined', name: '参加的社区', role: 'member' },
+      { id: 'two', name: '二号社区', role: 'admin' },
+    ])
+    api.wallet.mockImplementation(({ data }) => Promise.resolve({ balance: data.nodeId === 'one' ? 500 : data.nodeId === 'two' ? 80 : 100, entries: [] }))
+    const router = await readyRouter()
+    await router.navigate({ to: '/me' })
+    expect(api.nodes).toHaveBeenCalledExactlyOnceWith({ data: { token: 'token-a', mine: 'managed' } })
+    expect(api.wallet).toHaveBeenCalledTimes(3)
+    expect(api.wallet).not.toHaveBeenCalledWith({ data: { token: 'token-a', nodeId: 'joined' } })
+    expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ initialData: {
+      wallet: { balance: 100 },
+      communities: [
+        { id: 'one', name: '一号社区', wallet: { balance: 500 } },
+        { id: 'two', name: '二号社区', wallet: { balance: 80 } },
+      ],
+    } })
+  })
+
+  it('keeps the personal wallet when a community wallet fails without inventing a zero balance', async () => {
+    api.nodes.mockResolvedValue([{ id: 'one', name: '一号社区', role: 'admin' }])
+    api.wallet.mockImplementation(({ data }) => data.nodeId ? Promise.reject(new Error('forbidden')) : Promise.resolve({ balance: 100 }))
+    const router = await readyRouter()
+    await router.navigate({ to: '/me' })
+    expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ initialData: {
+      wallet: { balance: 100 },
+      communities: [{ id: 'one', name: '一号社区', wallet: null, error: '社区稻米暂时无法加载，请稍后重试。' }],
+    }, error: '' })
+  })
+
+  it.each(['revoked', 'unavailable'])('drops old community data on refresh when managed communities are %s even if the personal wallet also fails', async (reason) => {
+    api.nodes.mockResolvedValueOnce([{ id: 'one', name: '一号社区', role: 'admin' }])
+    const router = await readyRouter()
+    await router.navigate({ to: '/me' })
+    if (reason === 'unavailable') api.nodes.mockRejectedValueOnce(new Error('offline'))
+    api.wallet.mockRejectedValueOnce(new Error('个人钱包暂时不可用'))
+    await router.invalidate({ filter: (match) => match.routeId === '/me/' })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ initialData: { wallet: { balance: 100 }, communities: [] } })
+    if (reason === 'unavailable') expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ initialData: { communityError: '暂时无法加载管理的社区，请稍后重试。' } })
+  })
+
+  it('discards community wallets completing after a new session starts', async () => {
+    const oldWallet = deferred<{ balance: number }>()
+    api.nodes.mockResolvedValueOnce([{ id: 'one', name: '一号社区', role: 'admin' }])
+    api.wallet.mockImplementation(({ data }) => data.nodeId ? oldWallet.promise : Promise.resolve({ balance: 100 }))
+    const router = await readyRouter()
+    const preload = router.preloadRoute({ to: '/me' })
+    await vi.advanceTimersByTimeAsync(0)
+    state.session = session('a', 'new-token-a')
+    await router.navigate({ to: '/me' })
+    oldWallet.resolve({ balance: 500 })
+    const oldMatches = await preload
+    expect(oldMatches?.at(-1)?.loaderData).toEqual({ initialData: null, error: '' })
+    expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ initialData: { sessionToken: 'new-token-a', communities: [] } })
+  })
+
   it('does not reuse guest preloads after login, then reuses the current session on return', async () => {
     state.session = null
     const router = await readyRouter()

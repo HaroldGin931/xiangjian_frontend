@@ -4,6 +4,7 @@ import { ProfilePage, type ProfileInitialData } from '~/features/profile/Profile
 import { getCurrentUser } from '~/features/session/api'
 import { readStoredSession, writeStoredSession } from '~/features/session/session'
 import { getWallet } from '~/features/grains/api'
+import { getNodes } from '~/features/nodes/api'
 
 export const Route = createFileRoute('/me/')({
   ssr: false,
@@ -26,18 +27,32 @@ export const Route = createFileRoute('/me/')({
       return current?.user.id === deps.accountId && current.token === deps.token
     }
     if (!isCurrentSession()) return empty
+    const communitiesRequest = getNodes({ data: { token: deps.token, mine: 'managed' } })
+      .then(async (nodes) => ({
+        communities: await Promise.all(nodes.filter((node) => node.role === 'admin').map(async ({ id, name }) => {
+          try {
+            const wallet = await getWallet({ data: { token: deps.token!, nodeId: id } })
+            return { id, name, wallet }
+          } catch {
+            return { id, name, wallet: null, error: '社区稻米暂时无法加载，请稍后重试。' }
+          }
+        })),
+      }))
+      .catch(() => ({ communities: [], communityError: '暂时无法加载管理的社区，请稍后重试。' }))
     try {
       const userRequest = getCurrentUser({ data: deps.token }).then((user) => {
         if (user === null && isCurrentSession()) writeStoredSession(null)
         return user
       })
-      const [user, wallet] = await Promise.all([userRequest, getWallet({ data: { token: deps.token } })])
+      const [user, wallet, communities] = await Promise.all([userRequest, getWallet({ data: { token: deps.token } }), communitiesRequest])
       if (!isCurrentSession() || !user) return empty
-      return { initialData: { user, wallet, accountId: deps.accountId, sessionToken: deps.token }, error: '' }
+      return { initialData: { user, wallet, accountId: deps.accountId, sessionToken: deps.token, ...communities }, error: '' }
     } catch (error) {
+      const communities = await communitiesRequest
       if (!isCurrentSession()) return empty
       const previous = context.previousData
-      const initialData = previous?.accountId === deps.accountId && previous.sessionToken === deps.token ? previous : null
+      // Keep personal data on refresh failures, but never restore old community permissions.
+      const initialData = previous?.accountId === deps.accountId && previous.sessionToken === deps.token ? { ...previous, communityError: undefined, ...communities } : null
       return { initialData, error: error instanceof TypeError ? '网络连接失败，请检查网络后重试。' : error instanceof Error ? error.message : '个人资料暂时无法加载，请稍后重试。' }
     }
   } },

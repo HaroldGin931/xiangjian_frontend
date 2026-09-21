@@ -268,7 +268,8 @@ input:-webkit-autofill:focus {
 .profile-identity p { margin: 0; color: var(--xj-muted); font-size: var(--xj-font-small); overflow-wrap: anywhere; }
 .profile-public-link > span { margin-top: 5px; color: var(--xj-text-soft); font-size: var(--xj-font-small); }
 .grain-card { padding: 16px; border: 1px solid #e1e7cf; border-radius: 15px; background: #f0f2df; }
-.grain-card header { display: flex; align-items: baseline; justify-content: space-between; font-size: var(--xj-font-small); }
+.grain-card header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px; font-size: var(--xj-font-small); }
+.grain-wallet-tabs button { min-height: 40px; padding-inline: 10px; font-size: var(--xj-font-small); }
 .grain-card > strong { display: block; margin: 4px 0 12px; color: var(--xj-accent); font-size: 38px; }
 .grain-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .grain-metrics div { min-height: 62px; border-radius: 10px; display: grid; place-content: center; gap: 3px; background: rgba(255,255,255,.62); text-align: center; }

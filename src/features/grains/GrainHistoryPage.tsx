@@ -11,9 +11,10 @@ import { useStoredSession } from '../session/session'
 import { fundCommunity, getWallet, walletEntryIncoming, type RiceWallet, type WalletEntry } from './api'
 
 const labels: Record<WalletEntry['kind'], string> = { reserved: '冻结', refunded: '解冻', grant: '稻米发放', gift: '稻米转赠', reward: '内容打赏', task_reward: '任务报酬', event_fee: '活动报名费', community_fund: '转入社区' }
-export function GrainHistoryPage({ embedded = false, initialData, nodeId }: { embedded?: boolean; nodeId?: string; initialData?: { accountId: string; wallet: RiceWallet } | null }) {
+export function GrainHistoryPage({ embedded = false, initialData, nodeId }: { embedded?: boolean; nodeId?: string; initialData?: { accountId: string; sessionToken: string; nodeId?: string; wallet: RiceWallet } | null }) {
   const { session } = useStoredSession()
-  return <WalletHistory key={`${session?.token ?? 'guest'}:${nodeId ?? 'personal'}`} embedded={embedded} nodeId={nodeId} initialWallet={!nodeId && initialData?.accountId === session?.user.id ? initialData?.wallet : undefined} />
+  const current = initialData?.accountId === session?.user.id && initialData?.sessionToken === session?.token && initialData?.nodeId === nodeId ? initialData : null
+  return <WalletHistory key={`${session?.token ?? 'guest'}:${nodeId ?? 'personal'}`} embedded={embedded} nodeId={nodeId} initialWallet={current?.wallet} />
 }
 
 function WalletHistory({ embedded, initialWallet, nodeId }: { embedded: boolean; initialWallet?: RiceWallet; nodeId?: string }) {
