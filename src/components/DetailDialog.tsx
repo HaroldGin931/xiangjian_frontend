@@ -46,7 +46,7 @@ export function DetailDialog({ title, onClose, children, className = 'post-dialo
     return () => document.removeEventListener('keydown', cancel, true)
   }, [opened, onClose])
   return <PanelReadiness.Provider value={register}>
-    {!opened && <LoadingProgress label={`正在准备${title}，按 Escape 取消`} onCancel={onClose} />}
+    {!opened && <LoadingProgress label={`正在准备${title}`} />}
     <dialog ref={ref} className={className} aria-labelledby={titleId}
     onCancel={(event) => {
       if (event.target !== event.currentTarget) return

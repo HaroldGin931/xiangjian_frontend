@@ -8,6 +8,7 @@ import {
   NOTIFICATIONS_READ_EVENT,
 } from '~/features/notifications/api'
 import { NotificationsPage } from '~/features/notifications/NotificationsPage'
+import { applyNotificationState, NOTIFICATION_STORAGE_PREFIX } from '~/features/notifications/local-state'
 import { DetailDialog } from './DetailDialog'
 import { LoadingProgress } from './LoadingProgress'
 import { ComposePanel, type ComposeKind, type ComposeHandle } from '~/features/feed/ComposePanel'
@@ -66,21 +67,25 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       const hasUnread = results.some(
         (result) =>
-          result.status === 'fulfilled' && result.value.some((item) => !item.isRead),
+          result.status === 'fulfilled' && applyNotificationState(session.pds.did, result.value).some((item) => !item.isRead),
       )
       if (hasUnread || results.every((result) => result.status === 'fulfilled')) {
         setHasUnreadNotifications(hasUnread)
       }
     }
-    const clear = () => setHasUnreadNotifications(false)
+    const storageChanged = (event: StorageEvent) => {
+      if (!event.key || event.key === `${NOTIFICATION_STORAGE_PREFIX}${session.pds.did}`) void refresh()
+    }
 
     void refresh()
     const timer = window.setInterval(refresh, 60_000)
-    window.addEventListener(NOTIFICATIONS_READ_EVENT, clear)
+    window.addEventListener(NOTIFICATIONS_READ_EVENT, refresh)
+    window.addEventListener('storage', storageChanged)
     return () => {
       active = false
       window.clearInterval(timer)
-      window.removeEventListener(NOTIFICATIONS_READ_EVENT, clear)
+      window.removeEventListener(NOTIFICATIONS_READ_EVENT, refresh)
+      window.removeEventListener('storage', storageChanged)
     }
   }, [isReady, session?.token, session?.pds?.access_jwt])
 

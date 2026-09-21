@@ -1,5 +1,5 @@
 import { Button } from '@astryxdesign/core/Button'
-import { useNavigate, useRouter } from '@tanstack/react-router'
+import { useRouter } from '@tanstack/react-router'
 import { ArrowRight, LogOut, Pencil } from 'lucide-react'
 import { useState } from 'react'
 import { DetailDialog } from '~/components/DetailDialog'
@@ -24,9 +24,8 @@ export function ProfilePage({ initialData = null, initialError = '' }: { initial
   const { session, isReady, saveSession } = useStoredSession()
   const [panel, setPanel] = useState<Panel | null>(null)
   const [directoryOpen, setDirectoryOpen] = useState(false)
-  const navigate = useNavigate()
   const router = useRouter()
-  const logout = async () => { if (session) await logoutRice({ data: session.token }).catch(() => undefined); saveSession(null); await navigate({ to: '/' }) }
+  const logout = async () => { if (session) await logoutRice({ data: session.token }).catch(() => undefined); saveSession(null) }
   if (!isReady || !session) return null
   const current = initialData?.accountId === session.user.id && initialData.sessionToken === session.token ? initialData : null
   const profile = current?.user ?? session.user

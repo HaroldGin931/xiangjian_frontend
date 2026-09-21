@@ -3,11 +3,16 @@ import type { ReactNode } from 'react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import type { RiceSession, RiceUser } from '~/lib/models'
 
-const state = vi.hoisted(() => ({ session: null as RiceSession | null }))
-vi.mock('../session/session', () => ({ useStoredSession: () => ({ session: state.session, isReady: true, saveSession: vi.fn() }) }))
+const state = vi.hoisted(() => ({ session: null as RiceSession | null, saveSession: vi.fn(), navigate: vi.fn(), logout: vi.fn(), logoutAction: undefined as (() => Promise<void>) | undefined }))
+vi.mock('../session/session', () => ({ useStoredSession: () => ({ session: state.session, isReady: true, saveSession: state.saveSession }) }))
+vi.mock('../session/api', async (original) => ({ ...await original<typeof import('../session/api')>(), logoutRice: state.logout }))
+vi.mock('@astryxdesign/core/Button', () => ({ Button: ({ label, clickAction }: { label: string; clickAction?: () => Promise<void> }) => {
+  if (label === '退出登录') state.logoutAction = clickAction
+  return <button>{label}</button>
+} }))
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, to }: { children: ReactNode; to: string }) => <a href={to}>{children}</a>,
-  useNavigate: () => vi.fn(),
+  useNavigate: () => state.navigate,
   useRouter: () => ({ invalidate: vi.fn() }),
 }))
 
@@ -17,7 +22,20 @@ import { GrainHistoryPage } from '../grains/GrainHistoryPage'
 
 const user = { id: 'member', did: 'did:example:member', handle: 'member.test', nickname: '当前用户', bio: '个人简介', avatar: null } as RiceUser
 const initialData: ProfileInitialData = { accountId: user.id, sessionToken: 'token', user, wallet: { balance: 123, frozen: 7, earned: 140, entries: [] } }
-beforeEach(() => { state.session = { token: 'token', user, pds: { did: user.did } } as RiceSession })
+beforeEach(() => {
+  vi.clearAllMocks()
+  state.logout.mockResolvedValue(true)
+  state.logoutAction = undefined
+  state.session = { token: 'token', user, pds: { did: user.did } } as RiceSession
+})
+
+it('clears the session without starting a late homepage navigation over the personal login form', async () => {
+  renderToStaticMarkup(<ProfilePage initialData={initialData} />)
+  await state.logoutAction!()
+  expect(state.logout).toHaveBeenCalledWith({ data: 'token' })
+  expect(state.saveSession).toHaveBeenCalledWith(null)
+  expect(state.navigate).not.toHaveBeenCalled()
+})
 
 it('renders the prefetched profile and balance together on first render', () => {
   const html = renderToStaticMarkup(<ProfilePage initialData={initialData} />)
