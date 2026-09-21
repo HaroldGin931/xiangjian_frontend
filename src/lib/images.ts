@@ -1,5 +1,6 @@
 export const IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif'
-export const DEFAULT_IMAGE_MAX_BYTES = 2_000_000
+// All publishing forms use the smallest supported limit (the PDS image lexicon).
+export const DEFAULT_IMAGE_MAX_BYTES = 1_000_000
 
 export function imageSizeLabel(bytes: number) {
   return `${Number((bytes / 1_000_000).toFixed(2))} MB`

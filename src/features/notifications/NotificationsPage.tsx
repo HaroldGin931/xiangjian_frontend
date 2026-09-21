@@ -13,6 +13,7 @@ import { authorDisplayName, formatTimestamp } from '~/lib/format'
 import type { NotificationView } from '~/lib/models'
 
 import { useStoredSession } from '../session/session'
+import { LoginLink } from '../session/LoginLink'
 import {
   getNotifications,
   getTaskNotifications,
@@ -33,7 +34,8 @@ const reasonCopy: Record<string, { label: string; action: string }> = {
   'subscribed-post': { label: '帖子', action: '发布了新帖子' },
   'task-application_created': { label: '任务', action: '申请领取你的任务' },
   'task-assignee_appointed': { label: '任务', action: '任命你承做任务' },
-  'task-application_not_selected': { label: '任务', action: '为任务任命了其他承做人' },
+  'task-application_not_selected': { label: '任务', action: '通知你：本次任务申请未入选' },
+  'task-application_rejected': { label: '任务', action: '拒绝了你的任务申请，本次申请未入选' },
   'task-task_cancelled': { label: '任务', action: '取消了你申请的任务' },
   'task-task_expired': { label: '任务', action: '你申请的任务已失效' },
   'task-result_submitted': { label: '任务', action: '提交了任务结果' },
@@ -41,7 +43,7 @@ const reasonCopy: Record<string, { label: string; action: string }> = {
   'task-changes_requested': { label: '任务', action: '请你继续完善任务结果' },
 }
 
-function notificationTitle(notification: NotificationView) {
+export function notificationTitle(notification: NotificationView) {
   if (notification.subjectType && notification.subjectType !== 'task') return notification.text || '有新的业务通知'
   return `${authorDisplayName(notification.author)} ${reasonCopy[notification.reason]?.action || '与你有新的互动'}`
 }
@@ -88,8 +90,11 @@ export function NotificationsPage({ embedded = false }: { embedded?: boolean }) 
           .sort((a, b) => b.indexedAt.localeCompare(a.indexedAt))
         setNotifications(nextNotifications)
 
-        const failures = [social, tasks].filter((result) => result.status === 'rejected')
-        if (failures.length > 0) setError('部分通知暂时无法加载，请稍后重试。')
+        setError(([
+          ['帖子互动通知', social], ['任务、活动与社区通知', tasks],
+        ] as const).flatMap(([source, result]) => result.status === 'rejected'
+          ? [`${source}暂时无法加载：${result.reason instanceof Error ? result.reason.message : '请稍后重试。'}`]
+          : []).join(' '))
       })
       .finally(() => {
         if (active) setLoading(false)
@@ -117,7 +122,7 @@ export function NotificationsPage({ embedded = false }: { embedded?: boolean }) 
         <Bell size={34} aria-hidden="true" />
         <strong>登录后查看通知</strong>
         <p>新的互动会集中显示在这里。</p>
-        <Link to="/login" className="primary-link">前往登录</Link>
+        <LoginLink className="primary-link">前往登录</LoginLink>
       </div>
     )
   }

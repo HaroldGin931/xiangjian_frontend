@@ -1,3 +1,4 @@
+import { LoginLink } from '../session/LoginLink'
 import { Button } from '@astryxdesign/core/Button'
 import { Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
@@ -37,12 +38,12 @@ export function MyTasksPage({ embedded = false }: { embedded?: boolean }) {
   useEffect(() => { setGroup(null); setSelectedTask(null) }, [session?.user.id])
   const tasks = data && data.owner === session?.user.id ? data.tasks : null
   usePanelReady(isReady && (!session || tasks !== null || !!error))
-  if (isReady && !session) return <div className="page"><Link to="/login" className="primary-link">登录后查看我的任务</Link></div>
+  if (isReady && !session) return <div className="page"><LoginLink className="primary-link">登录后查看我的任务</LoginLink></div>
   if (!tasks) return <div className="page business-panel list-panel">{!embedded && <Link to="/me" className="back-link">返回我的</Link>}<h1>我的任务</h1>{error ? <p className="inline-error" role="alert">{error}</p> : <p className="loading-line">正在加载任务…</p>}</div>
   const own = (task: RiceTask) => task.creator.id === session?.user.id
   const groupOf = (task: RiceTask) => myTaskGroup(task, own(task))
   const publisher = tasks.some(own)
-  const tabs: Array<[Group, string]> = [...(publisher ? [['pending', '待审批']] as Array<[Group, string]> : []), ...(!publisher || tasks.some((t) => groupOf(t) === 'applying') ? [['applying', '申请中']] as Array<[Group, string]> : []), ['in_progress', '进行中'], ['under_review', '审核中'], ['ended', '已结束'], ...(publisher ? [['open', '招募中'], ['draft', '草稿']] as Array<[Group, string]> : [])]
+  const tabs: Array<[Group, string]> = [...(publisher ? [['pending', '待审批']] as Array<[Group, string]> : []), ...(!publisher || tasks.some((t) => groupOf(t) === 'applying') ? [['applying', '申请中']] as Array<[Group, string]> : []), ['in_progress', '进行中'], ['under_review', '审核中'], ['ended', '已结束'], ...(publisher ? [['open', '待分配'], ['draft', '草稿']] as Array<[Group, string]> : [])]
   const selected = group && tabs.some(([value]) => value === group) ? group : tabs[0][0]
   return <div className="page business-panel list-panel" aria-busy={loading}>{!embedded && <Link to="/me" className="back-link">返回我的</Link>}<h1>我的任务</h1><div className="filter-buttons my-task-tabs">{tabs.map(([value, label]) => <Button key={value} label={`${label} ${tasks.filter((t) => groupOf(t) === value).length}`} variant="ghost" className={selected === value ? 'active' : undefined} aria-pressed={selected === value} onClick={() => setGroup(value)} />)}</div>
     {error && <p className="inline-error" role="alert">{error}</p>}<section className="task-list">{tasks.filter((t) => groupOf(t) === selected).map((task) => <TaskCard task={task} compact key={task.id} onOpen={(load) => setSelectedTask({ id: task.id, load })} />)}</section>{!error && !tasks.some((t) => groupOf(t) === selected) && <p className="search-hint">这里还没有任务。</p>}

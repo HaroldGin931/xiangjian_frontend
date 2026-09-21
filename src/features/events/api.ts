@@ -4,10 +4,18 @@ import type { RicePublicUser, RiceAttachment } from '~/lib/models'
 import type { CommunityNode } from '../nodes/api'
 
 export type EventStatus = 'draft' | 'open' | 'in_progress' | 'completed' | 'cancelled'
-export type EventApplication = { id: string; reason: string; status: 'pending' | 'approved' | 'rejected' | 'removed' | 'not_selected' | 'cancelled'; payment_status: 'none' | 'reserved' | 'refunded' | 'settled'; user: RicePublicUser; inserted_at: string; allowed_actions: string[] }
+export type EventApplication = { id: string; reason: string; status: 'pending' | 'approved' | 'rejected' | 'removed' | 'not_selected' | 'cancelled' | 'withdrawn'; payment_status: 'none' | 'reserved' | 'refunded' | 'settled'; user: RicePublicUser; inserted_at: string; allowed_actions: string[] }
 export type RiceEvent = { attachments?: RiceAttachment[]; id: string; title: string; description: string; location: string; status: EventStatus; node: Pick<CommunityNode, 'id' | 'name' | 'logo'>; creator: RicePublicUser; fee_amount: number; capacity: number; application_deadline: string; starts_at: string; ends_at: string; published_at: string | null; inserted_at: string; application_count: number; approved_count: number; my_application: EventApplication | null; allowed_actions: string[]; applications: EventApplication[]; history: Array<{ id: string; action: string; from_status: string | null; to_status: string; actor: RicePublicUser | null; inserted_at: string }> }
 export const eventStatusLabel: Record<EventStatus, string> = { draft: '草稿', open: '报名中', in_progress: '已开始', completed: '已结束', cancelled: '已取消' }
-export const applicationStatusLabel: Record<EventApplication['status'], string> = { pending: '申请中', approved: '已通过', rejected: '未通过', removed: '已移除', not_selected: '未入选', cancelled: '已取消' }
+export function eventDisplayStatus(event: Pick<RiceEvent, 'status' | 'application_deadline' | 'starts_at' | 'ends_at'>, now: number) {
+  if (event.status === 'open' || event.status === 'in_progress') {
+    if (Date.parse(event.ends_at) <= now) return '待确认结束'
+    if (event.status === 'in_progress' || Date.parse(event.starts_at) <= now) return '已开始'
+    if (Date.parse(event.application_deadline) <= now) return '报名已截止'
+  }
+  return eventStatusLabel[event.status]
+}
+export const applicationStatusLabel: Record<EventApplication['status'], string> = { pending: '申请中', approved: '已通过', rejected: '未通过', removed: '已移除', not_selected: '未入选', cancelled: '已取消', withdrawn: '已撤销' }
 export type EventListInput = { token?: string; q?: string; nodeId?: string; mine?: 'created' | 'applied'; creatorDid?: string; participantDid?: string; status?: EventStatus; before?: string }
 export type EventPage = { data: RiceEvent[]; meta?: { next_cursor?: string | null } }
 export async function fetchEventPage(data: EventListInput) {
@@ -51,7 +59,10 @@ export async function saveEventRequest(data: SaveEventInput) {
   return event
 }
 export const saveEvent = createServerFn({ method: 'POST' }).validator((data: SaveEventInput) => data).handler(({ data }) => saveEventRequest(data))
-export const eventAction = createServerFn({ method: 'POST' }).validator((data: { token: string; id: string; action: 'apply' | 'approve' | 'reject' | 'remove' | 'finish' | 'cancel'; applicationId?: string; reason?: string }) => data).handler(async ({ data }) => {
+export type EventActionInput = { token: string; id: string; action: 'apply' | 'approve' | 'reject' | 'remove' | 'withdraw' | 'finish' | 'cancel'; applicationId?: string; reason?: string }
+export async function eventActionRequest(data: EventActionInput) {
+  if (data.action === 'withdraw' && !data.applicationId) throw new Error('未找到要撤销的申请，请重新打开活动详情。')
   const suffix = data.action === 'apply' ? 'applications' : data.applicationId ? `applications/${encodeURIComponent(data.applicationId)}/${data.action}` : data.action
   return (await requestJson<{ data: RiceEvent }>(`${BACKEND_BASE}/api/events/${encodeURIComponent(data.id)}/${suffix}`, { method: 'POST', headers: { Authorization: `Bearer ${data.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: data.reason }) })).data
-})
+}
+export const eventAction = createServerFn({ method: 'POST' }).validator((data: EventActionInput) => data).handler(({ data }) => eventActionRequest(data))

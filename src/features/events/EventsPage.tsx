@@ -1,3 +1,4 @@
+import { LoginLink } from '../session/LoginLink'
 import { ImageCover } from '~/components/ContentImages'
 import { attachmentImages } from '~/lib/attachments'
 import { Button } from '@astryxdesign/core/Button'
@@ -5,16 +6,18 @@ import { Link } from '@tanstack/react-router'
 import { Sprout } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useDetailPrefetch } from '~/components/useDetailPrefetch'
+import { useTimeBoundary } from '~/components/useTimeBoundary'
 import { ContentCardHeader } from '~/components/ContentCardHeader'
 import { DetailDialog, usePanelReady } from '~/components/DetailDialog'
 import { formatTimestamp } from '~/lib/format'
 import { useStoredSession } from '../session/session'
 import { EventDetail } from './EventDetail'
 import { NodeDetail } from '../nodes/NodesPanel'
-import { eventStatusLabel, getEvent, getEvents, type RiceEvent, type EventPage } from './api'
+import { eventDisplayStatus, getEvent, getEvents, type RiceEvent, type EventPage } from './api'
 
 export function EventCard({ event, onOpen, onOpenCommunity }: { event: RiceEvent; onOpen?: (load: (token?: string) => Promise<RiceEvent>) => void; onOpenCommunity?: (nodeId: string) => void }) {
   const { session } = useStoredSession()
+  const now = useTimeBoundary(['open', 'in_progress'].includes(event.status) ? [event.application_deadline, event.starts_at, event.ends_at] : [])
   const loadEvent = useDetailPrefetch(useCallback(() => getEvent({ data: { id: event.id, token: session?.token } }), [event.id, session?.token]))
   const prefetch = () => { void loadEvent().catch(() => undefined) }
   const [open, setOpen] = useState(false)
@@ -24,7 +27,7 @@ export function EventCard({ event, onOpen, onOpenCommunity }: { event: RiceEvent
     <button className="business-card-body" type="button" onPointerEnter={prefetch} onFocus={prefetch} onTouchStart={prefetch} onClick={() => { prefetch(); if (onOpen) onOpen((token) => token === session?.token ? loadEvent() : getEvent({ data: { id: event.id, token } })); else setOpen(true) }}>
     <h2>{event.title}</h2><p>{formatTimestamp(event.starts_at, true)} · {event.location}</p>
     <ImageCover images={attachmentImages(event.attachments)} />
-    <footer className="content-card-actions task-card-actions"><span className={`task-status status-${event.status}`}>{eventStatusLabel[event.status]}</span><strong className="rice-amount" aria-label={event.fee_amount ? `${event.fee_amount} 稻米每人` : '免费'}>{event.fee_amount ? <><Sprout size={21} />{event.fee_amount}<small>/ 人</small></> : '免费'}</strong></footer>
+    <footer className="content-card-actions task-card-actions"><span className={`task-status status-${event.status}`}>{eventDisplayStatus(event, now)}</span><strong className="rice-amount" aria-label={event.fee_amount ? `${event.fee_amount} 稻米每人` : '免费'}>{event.fee_amount ? <><Sprout size={21} />{event.fee_amount}<small>/ 人</small></> : '免费'}</strong></footer>
     </button></article>{open && <DetailDialog title="活动详情" onClose={() => setOpen(false)}><EventDetail eventId={event.id} loadEvent={(token) => token === session?.token ? loadEvent() : getEvent({ data: { id: event.id, token } })} /></DetailDialog>}{communityOpen && <DetailDialog title="社区详情" onClose={() => setCommunityOpen(false)}><NodeDetail nodeId={event.node.id} /></DetailDialog>}</>
 }
 
@@ -69,7 +72,7 @@ export function EventsPage({ nodeId, embedded = false, mine = false, initialPage
   const more = async () => { if (!cursor || loading) return; const current = request.current; paginated.current = true; setLoading(true); try { const page = await getEvents({ data: { token: session?.token, nodeId, mine: mine ? tab : undefined, before: cursor } }); if (current === request.current) { setRows((r) => [...new Map([...r, ...page.data].map((event) => [event.id, event])).values()]); setCursor(page.meta?.next_cursor ?? null) } } catch (e) { if (current === request.current) setError(e instanceof Error ? e.message : '加载失败') } finally { if (current === request.current) setLoading(false) } }
   return <div className={`page events-page${embedded ? ' business-panel list-panel' : ''}`}><div className="business-heading"><h1>{mine ? '我的活动' : '活动'}</h1>{session && !mine && !embedded && <Link to="/me/events">我的活动</Link>}</div>
     {mine && <div className="filter-buttons">{(['applied', 'created'] as const).map((value) => <Button key={value} label={value === 'applied' ? '我申请的' : '我主办的'} variant="ghost" className={tab === value ? 'active' : undefined} aria-pressed={tab === value} onClick={() => setTab(value)} />)}</div>}
-    {mine && !session && isReady && <Link to="/login" className="primary-link">登录后查看我的活动</Link>}
+    {mine && !session && isReady && <LoginLink className="primary-link">登录后查看我的活动</LoginLink>}
     {visibleError && <p className="inline-error" role="alert">{visibleError}</p>}{loading && <p className={rows.length ? 'refresh-status' : 'loading-line'} role="status">正在加载活动…</p>}
     <section className="task-list" aria-busy={loading}>{rows.map((event) => <EventCard event={event} key={event.id} onOpen={(load) => setSelectedEvent({ id: event.id, load })} onOpenCommunity={setSelectedCommunity} />)}</section>
     {!loading && !visibleError && !rows.length && <p className="search-hint">暂时没有活动。</p>}{cursor && <Button label="加载更多" variant="secondary" isDisabled={loading} clickAction={more} />}

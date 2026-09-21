@@ -85,6 +85,11 @@ export const taskStatusLabel: Record<TaskStatus, string> = {
   cancelled: '已取消',
 }
 
+export function taskDisplayStatus(task: Pick<RiceTask, 'status' | 'application_closed' | 'application_deadline'>, now: number) {
+  if (task.status === 'open' && (task.application_closed || (task.application_deadline && Date.parse(task.application_deadline) <= now))) return '申请已截止'
+  return taskStatusLabel[task.status]
+}
+
 export const taskApplicationStatusLabel: Record<TaskApplication['status'], string> = {
   pending: '申请中',
   appointed: '已入选',

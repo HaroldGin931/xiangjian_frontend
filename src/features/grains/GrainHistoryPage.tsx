@@ -1,3 +1,4 @@
+import { LoginLink } from '../session/LoginLink'
 import { Button } from '@astryxdesign/core/Button'
 import { Link } from '@tanstack/react-router'
 import { Sprout } from 'lucide-react'
@@ -30,7 +31,7 @@ function WalletHistory({ embedded, initialWallet }: { embedded: boolean; initial
     return () => { active = false; ++request.current }
   }, [session?.token, isReady, initialWallet])
   const more = async () => { if (!session || !wallet?.next_cursor || loading) return; const current = request.current; setLoading(true); setError(''); try { const page = await getWallet({ data: { token: session.token, before: wallet.next_cursor } }); if (current === request.current) setWallet((previous) => ({ ...page, entries: [...(previous?.entries ?? []), ...page.entries] })) } catch (e) { if (current === request.current) setError(e instanceof Error ? e.message : '加载失败') } finally { if (current === request.current) setLoading(false) } }
-  if (isReady && !session) return <div className="page"><Link to="/login" className="primary-link">登录后查看稻米明细</Link></div>
+  if (isReady && !session) return <div className="page"><LoginLink className="primary-link">登录后查看稻米明细</LoginLink></div>
   return <div className="page grain-history-page">{!embedded && <Link to="/me" className="back-link">返回我的</Link>}<h1>我的稻米</h1><p className="muted">测试稻米</p>
     <section className="grain-history-summary"><div><Sprout size={24} /><span>稻米余额</span></div><strong>{wallet ? wallet.balance + wallet.frozen : '—'}</strong><dl><div><dt>可用</dt><dd>{wallet?.balance ?? '—'}</dd></div><div><dt>已冻结</dt><dd>{wallet?.frozen ?? '—'}</dd></div><div><dt>累计获得</dt><dd>{wallet?.earned ?? '—'}</dd></div></dl></section>
     <h2>稻米明细</h2>{error && <p className="inline-error" role="alert">{error}</p>}{loading && <p className={wallet ? 'refresh-status' : 'loading-line'} role="status">正在加载明细…</p>}

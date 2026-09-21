@@ -1,3 +1,4 @@
+import { LoginLink } from '../session/LoginLink'
 import { Button } from '@astryxdesign/core/Button'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, ChevronRight, LogOut } from 'lucide-react'
@@ -13,7 +14,7 @@ export function SettingsPage() {
     return (
       <div className="page signed-out-state">
         <strong>登录后管理账号</strong>
-        <Link to="/login" className="primary-link">前往登录</Link>
+        <LoginLink className="primary-link">前往登录</LoginLink>
       </div>
     )
   }

@@ -1,3 +1,4 @@
+import { LoginLink } from '../session/LoginLink'
 import { Button } from '@astryxdesign/core/Button'
 import { FileInput } from '@astryxdesign/core/FileInput'
 import { TextArea } from '@astryxdesign/core/TextArea'
@@ -131,7 +132,7 @@ function LoginRequired() {
   return (
     <div className="page signed-out-state">
       <strong>登录后编辑资料</strong>
-      <Link to="/login" className="primary-link">前往登录</Link>
+      <LoginLink className="primary-link">前往登录</LoginLink>
     </div>
   )
 }

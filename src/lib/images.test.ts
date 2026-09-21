@@ -1,10 +1,13 @@
 import { expect, it } from 'vitest'
-import { validateImageFiles } from './images'
+import { DEFAULT_IMAGE_MAX_BYTES, validateImageFiles } from './images'
+import { MAX_POST_IMAGE_BYTES } from './pds'
 
-it('accepts four supported images at the post size boundary', () => {
-  const files = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'].map((type) => ({ name: '社区图片', type, size: 2_000_000 }))
+it('uses the PDS size boundary for all publishing forms and rejects one byte over it', () => {
+  expect(DEFAULT_IMAGE_MAX_BYTES).toBe(1_000_000)
+  expect(MAX_POST_IMAGE_BYTES).toBe(DEFAULT_IMAGE_MAX_BYTES)
+  const files = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'].map((type) => ({ name: '社区图片', type, size: 1_000_000 }))
   expect(validateImageFiles(files, 0)).toBeNull()
-  expect(validateImageFiles([{ ...files[0], size: 2_000_001 }], 0)).toContain('超过 2 MB')
+  expect(validateImageFiles([{ ...files[0], size: 1_000_001 }], 0)).toContain('超过 1 MB')
 })
 
 it('counts existing images and applies the supplied upload limit', () => {

@@ -1,13 +1,14 @@
 import { Button } from '@astryxdesign/core/Button'
 import { TextInput } from '@astryxdesign/core/TextInput'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { LogIn } from 'lucide-react'
 import { useRef, useState } from 'react'
 
 import { loginRice } from '~/features/session/api'
 import { useStoredSession } from '~/features/session/session'
+import { loginReturnTo } from './login-redirect'
 
-export function LoginPage() {
+export function LoginPage({ returnTo }: { returnTo?: string }) {
   const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -15,6 +16,7 @@ export function LoginPage() {
   const passwordInput = useRef<HTMLInputElement>(null)
   const { saveSession } = useStoredSession()
   const navigate = useNavigate()
+  const currentHref = useRouterState({ select: (state) => state.location.href })
 
   const submit = async () => {
     const submittedIdentifier = identifierInput.current?.value.trim() || identifier.trim()
@@ -29,7 +31,7 @@ export function LoginPage() {
         data: { identifier: submittedIdentifier, password: submittedPassword },
       })
       saveSession(session)
-      await navigate({ to: '/' })
+      await navigate({ href: loginReturnTo(returnTo ?? currentHref), replace: true })
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '登录失败')
     }

@@ -1,8 +1,9 @@
 import { BACKEND_BASE, requestJson, type JsonObject } from './http'
 import type { PdsImage } from './models'
+import { DEFAULT_IMAGE_MAX_BYTES } from './images'
 
 // The deployed PDS image lexicon still limits each blob to 1,000,000 bytes.
-export const MAX_POST_IMAGE_BYTES = 1_000_000
+export const MAX_POST_IMAGE_BYTES = DEFAULT_IMAGE_MAX_BYTES
 export const MAX_POST_IMAGES = 4
 export const POST_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 

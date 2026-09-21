@@ -1,3 +1,4 @@
+import { LoginLink } from '../session/LoginLink'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -40,7 +41,7 @@ export function MyPostsPage({ embedded = false }: { embedded?: boolean }) {
     return (
       <div className="page signed-out-state">
         <strong>登录后查看我的帖子</strong>
-        <Link to="/login" className="primary-link">前往登录</Link>
+        <LoginLink className="primary-link">前往登录</LoginLink>
       </div>
     )
   }

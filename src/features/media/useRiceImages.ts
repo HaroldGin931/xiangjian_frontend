@@ -4,7 +4,6 @@ import { readFileBase64 } from '~/lib/images'
 import type { RiceAttachment } from '~/lib/models'
 import { uploadRiceAttachment } from '../account/api'
 
-export const RICE_IMAGE_MAX_BYTES = 20 * 1024 * 1024
 type SelectedImage = { src: string; alt: string; file?: File; attachment?: RiceAttachment }
 
 export async function uploadImageSelection(

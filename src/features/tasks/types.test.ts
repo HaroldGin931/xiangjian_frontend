@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { myTaskGroup, taskApplicationStatusLabel, taskEventLabel, type RiceTask, type TaskEvent } from './types'
+import { myTaskGroup, taskDisplayStatus, taskEventLabel, type RiceTask, type TaskEvent } from './types'
 
 const event = (overrides: Partial<TaskEvent>): TaskEvent => ({
   id: 'event-1',
@@ -13,10 +13,12 @@ const event = (overrides: Partial<TaskEvent>): TaskEvent => ({
 })
 
 describe('task labels', () => {
-  it('keeps completed applications distinct from cancelled and expired history', () => {
-    expect(taskApplicationStatusLabel.not_selected).toBe('未入选')
-    expect(taskApplicationStatusLabel.cancelled).toBe('任务已取消')
-    expect(taskApplicationStatusLabel.expired).toBe('任务已失效')
+  it('stops showing recruitment at the deadline while keeping cancelled tasks cancelled', () => {
+    const task = { status: 'open', application_deadline: '2026-09-21T09:00:00Z' } as const
+    const deadline = Date.parse(task.application_deadline)
+    expect(taskDisplayStatus(task, deadline - 1)).toBe('招募中')
+    expect(taskDisplayStatus(task, deadline)).toBe('申请已截止')
+    expect(taskDisplayStatus({ ...task, status: 'cancelled' }, deadline)).toBe('已取消')
   })
 
   it('describes user actions without exposing state-machine transitions', () => {

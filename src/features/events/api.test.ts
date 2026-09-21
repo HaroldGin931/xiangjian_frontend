@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { fetchEventPage, saveEventRequest, type EventDraftInput } from './api'
+import { applicationStatusLabel, eventActionRequest, eventDisplayStatus, fetchEventPage, saveEventRequest, type EventDraftInput } from './api'
 afterEach(() => vi.unstubAllGlobals())
 it('uses Rice auth and preserves event ownership, participation and paging filters', async () => {
   const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: [], meta: { next_cursor: null } }), { status: 200 }))
@@ -15,6 +15,43 @@ const attachment = (id: string) => ({ id, kind: 'image', filename: `${id}.png`, 
 const event = { ...fields, id: 'event-1', status: 'draft', node: { id: 'node' }, attachments: [attachment('old-image')] }
 const response = (data: object) => new Response(JSON.stringify({ data }), { status: 200 })
 
+it('shows the actual activity phase even when cached open status has not advanced yet', () => {
+  const times = { ...fields, status: 'open' as const }
+  expect(eventDisplayStatus(times, Date.parse(fields.application_deadline) - 1)).toBe('报名中')
+  expect(eventDisplayStatus(times, Date.parse(fields.application_deadline))).toBe('报名已截止')
+  expect(eventDisplayStatus(times, Date.parse(fields.starts_at))).toBe('已开始')
+  expect(eventDisplayStatus(times, Date.parse(fields.ends_at))).toBe('待确认结束')
+  expect(eventDisplayStatus({ ...times, status: 'cancelled' }, Date.parse(fields.ends_at))).toBe('已取消')
+})
+
+it('withdraws the specified application with Rice auth and uses the returned status and permissions', async () => {
+  const withdrawn = { id: 'application-1', status: 'withdrawn', payment_status: 'refunded', allowed_actions: [] }
+  const updated = { ...event, status: 'open', my_application: withdrawn, applications: [withdrawn], allowed_actions: [] }
+  const fetch = vi.fn().mockResolvedValue(response(updated))
+  vi.stubGlobal('fetch', fetch)
+  const result = await eventActionRequest({ token: 'rice-token', id: 'event-1', action: 'withdraw', applicationId: 'application-1' })
+  const [url, options] = fetch.mock.calls[0]
+  expect(new URL(url).pathname).toBe('/api/events/event-1/applications/application-1/withdraw')
+  expect(options.method).toBe('POST')
+  expect(options.headers.Authorization).toBe('Bearer rice-token')
+  expect(result).toEqual(updated)
+  expect(applicationStatusLabel[result.my_application!.status]).toBe('已撤销')
+})
+
+it('does not send a withdrawal request without an application id', async () => {
+  const fetch = vi.fn()
+  vi.stubGlobal('fetch', fetch)
+  await expect(eventActionRequest({ token: 'rice-token', id: 'event-1', action: 'withdraw' })).rejects.toThrow('未找到要撤销的申请')
+  expect(fetch).not.toHaveBeenCalled()
+})
+
+it('surfaces a concurrent approval conflict without retrying or reporting a refund', async () => {
+  const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ errors: { detail: '当前状态不允许此操作' } }), { status: 409 }))
+  vi.stubGlobal('fetch', fetch)
+  await expect(eventActionRequest({ token: 'rice-token', id: 'event-1', action: 'withdraw', applicationId: 'application-1' })).rejects.toThrow('当前状态不允许此操作')
+  expect(fetch).toHaveBeenCalledTimes(1)
+})
+
 it('recovers a published draft after a lost response without patching or publishing it twice', async () => {
   const fetch = vi.fn().mockResolvedValue(response({ ...event, status: 'open' }))
   vi.stubGlobal('fetch', fetch)
@@ -24,7 +61,7 @@ it('recovers a published draft after a lost response without patching or publish
   expect(fetch.mock.calls[0][1].method).toBeUndefined()
 })
 
-it.each(['draft', 'open'] as const)('recovers a lost draft creation response and saves the current images before %s', async (status) => {
+it.each(['draft', 'open'] as const)('recovers a lost draft creation response and saves corrected times and images before %s', async (status) => {
   let saved: typeof event | undefined
   let published = 0
   const fetch = vi.fn(async (_url: string, init?: RequestInit) => {
@@ -42,10 +79,11 @@ it.each(['draft', 'open'] as const)('recovers a lost draft creation response and
   })
   vi.stubGlobal('fetch', fetch)
   await expect(saveEventRequest({ token: 'rice-token', status: 'draft', fields })).rejects.toThrow()
-  const edited = { ...fields, attachment_ids: ['new-second', 'new-first'] }
+  const edited = { ...fields, attachment_ids: ['new-second', 'new-first'], application_deadline: '2026-10-02T01:00:00Z', starts_at: '2026-10-02T02:00:00Z', ends_at: '2026-10-02T04:00:00Z' }
   const result = await saveEventRequest({ token: 'rice-token', status, fields: edited })
   expect(result.status).toBe(status)
   expect(result.attachments?.map((image) => image.id)).toEqual(edited.attachment_ids)
+  expect([result.application_deadline, result.starts_at, result.ends_at]).toEqual([edited.application_deadline, edited.starts_at, edited.ends_at])
   expect(published).toBe(status === 'open' ? 1 : 0)
   expect(JSON.parse(String(fetch.mock.calls[0][1]?.body)).status).toBe('draft')
   expect(JSON.parse(String(fetch.mock.calls[1][1]?.body)).client_request_id).toBe('same-key')

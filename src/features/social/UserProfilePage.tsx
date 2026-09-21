@@ -1,6 +1,6 @@
 import { Button } from '@astryxdesign/core/Button'
 import { EmptyState } from '@astryxdesign/core/EmptyState'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { ArrowLeft, Pencil, UserRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -23,6 +23,7 @@ export function UserProfilePage(props: UserProfileProps) {
 function UserProfileContent({ actor, onEdit, embedded = false }: UserProfileProps) {
   const { session, isReady } = useStoredSession()
   const navigate = useNavigate()
+  const returnTo = useRouterState({ select: (state) => state.location.href })
   const [profile, setProfile] = useState<SocialProfile | null>(null)
   const [error, setError] = useState('')
   const [followError, setFollowError] = useState('')
@@ -47,7 +48,7 @@ function UserProfileContent({ actor, onEdit, embedded = false }: UserProfileProp
   const changeFollow = async () => {
     if (!profile) return
     if (!session) {
-      await navigate({ to: '/login' })
+      await navigate({ to: '/login', search: { returnTo } })
       return
     }
 

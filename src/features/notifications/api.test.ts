@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { notificationTarget, normalizeNotifications } from './api'
+import { notificationTitle } from './NotificationsPage'
 
 const author = { did: 'did:plc:actor', handle: 'mo.local', displayName: '小莫' }
 const postUri = 'at://did:plc:poster/app.bsky.feed.post/post-1'
@@ -14,34 +15,21 @@ function targetFor(fields: Record<string, unknown>) {
 }
 
 describe('notification data', () => {
-  it('keeps only usable notifications without adding demo entries', () => {
-    const notification = {
-      uri: 'at://did:example/app.bsky.feed.like/1',
-      cid: 'cid',
-      author: { did: 'did:example', handle: 'mo.local' },
-      reason: 'like',
-      record: { text: '一条通知内容' },
-      isRead: false,
-      indexedAt: '2026-09-01T00:00:00.000Z',
-      taskId: 'task-1',
-    }
-
-    expect(
-      normalizeNotifications({
-        notifications: [notification, { reason: 'like' }],
-        priority: true,
-      }),
-    ).toEqual([
-      {
-        uri: notification.uri,
-        author: { did: notification.author.did, handle: notification.author.handle },
-        reason: notification.reason,
-        text: '一条通知内容',
-        isRead: notification.isRead,
-        indexedAt: notification.indexedAt,
-        taskId: notification.taskId,
-      },
-    ])
+  it('distinguishes a rejected application without claiming another worker was appointed', () => {
+    const [notification] = normalizeNotifications({ notifications: [{ uri: 'task-notification:1', author, reason: 'task-application_rejected', record: { text: '社区任务' } }] })
+    expect(notificationTitle(notification)).toBe('小莫 拒绝了你的任务申请，本次申请未入选')
+    expect(notificationTitle({ ...notification, reason: 'task-application_not_selected' })).not.toContain('任命')
+  })
+  it('filters unusable notifications and preserves content, actor and post references', () => {
+    expect(normalizeNotifications({ notifications: [{
+      uri: interactionUri, author, reason: 'like', reasonSubject: postUri,
+      record: { text: '一条通知内容', subject: { uri: postUri } },
+      isRead: true, indexedAt: '2026-09-01T00:00:00.000Z', taskId: 'task-1',
+    }, { reason: 'like' }] })).toEqual([{
+      uri: interactionUri, author, reason: 'like', reasonSubject: postUri,
+      recordSubjectUri: postUri, text: '一条通知内容',
+      isRead: true, indexedAt: '2026-09-01T00:00:00.000Z', taskId: 'task-1',
+    }])
   })
 
   it('tolerates missing or malformed lists and entries', () => {
@@ -50,16 +38,6 @@ describe('notification data', () => {
     }
   })
 
-  it('preserves the post references and actor identity in social notifications', () => {
-    const [notification] = normalizeNotifications({ notifications: [{
-      uri: interactionUri,
-      author,
-      reason: 'like',
-      reasonSubject: postUri,
-      record: { subject: { uri: postUri, cid: 'post-cid' } },
-    }] })
-    expect(notification).toMatchObject({ author, reasonSubject: postUri, recordSubjectUri: postUri })
-  })
 })
 
 describe('notification destinations', () => {

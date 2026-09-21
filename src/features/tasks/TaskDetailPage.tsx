@@ -1,5 +1,6 @@
 import { ImageGroup } from '~/components/ContentImages'
 import { usePanelReady } from '~/components/DetailDialog'
+import { useTimeBoundary } from '~/components/useTimeBoundary'
 import { attachmentImages } from '~/lib/attachments'
 import { Button } from '@astryxdesign/core/Button'
 import { TextArea } from '@astryxdesign/core/TextArea'
@@ -22,7 +23,7 @@ import {
 } from './api'
 import {
   taskEventLabel,
-  taskStatusLabel,
+  taskDisplayStatus,
   type RiceTask,
   type TaskSubmission,
 } from './types'
@@ -35,6 +36,7 @@ export function TaskDetailPage({ taskId, embedded = false, loadTask }: { taskId:
 function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded: boolean; loadTask?: (token?: string) => Promise<RiceTask> }) {
   const { session, isReady } = useStoredSession()
   const [task, setTask] = useState<RiceTask | null>(null)
+  const now = useTimeBoundary(task?.status === 'open' ? [task.application_deadline] : task && ['in_progress', 'under_review'].includes(task.status) ? [task.execution_deadline] : [])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -102,7 +104,7 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
       <article className="task-detail-card">
         <header className="task-detail-heading">
           <div>
-            <span className={`task-status status-${task.status}`}>{taskStatusLabel[task.status]}</span>
+            <span className={`task-status status-${task.status}`}>{taskDisplayStatus(task, now)}</span>
             <h1>{task.title}</h1>
             <p>{task.node?.name} · {task.creator.nickname || task.creator.handle}发起</p>
           </div>
@@ -131,7 +133,7 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
           <div className="task-neutral-note">申请截止：{formatTimestamp(task.application_deadline, true)}</div>
         ) : null}
         {task.execution_deadline && <div className="task-neutral-note">交付截止：{formatTimestamp(task.execution_deadline, true)}</div>}
-        {task.overdue && <div className="task-warning-note"><CircleAlert size={18} /><div><strong>任务已逾期</strong><p>请与负责人 {task.creator.nickname || task.creator.handle} 联系，确认交付安排。</p><Link to="/profile/$actor" params={{ actor: task.creator.did }}>查看负责人主页</Link></div></div>}
+        {(task.overdue || (['in_progress', 'under_review'].includes(task.status) && task.execution_deadline && Date.parse(task.execution_deadline) <= now)) && <div className="task-warning-note"><CircleAlert size={18} /><div><strong>任务已逾期</strong><p>请与负责人 {task.creator.nickname || task.creator.handle} 联系，确认交付安排。</p><Link to="/profile/$actor" params={{ actor: task.creator.did }}>查看负责人主页</Link></div></div>}
 
         {task.status === 'completed' ? (
           <div className="task-success-note"><CheckCircle2 size={18} /> 结果已认可，任务完成</div>
@@ -148,7 +150,7 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
           </section>
         ) : null}
 
-        {actions.has('apply') && token ? (
+        {actions.has('apply') && token && (!task.application_deadline || Date.parse(task.application_deadline) > now) ? (
           <section className="task-action-section">
             {!applyOpen ? (
               <Button label="申请承接" variant="primary" onClick={() => setApplyOpen(true)} />
