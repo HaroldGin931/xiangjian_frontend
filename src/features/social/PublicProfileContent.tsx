@@ -1,6 +1,6 @@
 import { Button } from '@astryxdesign/core/Button'
 import { EmptyState } from '@astryxdesign/core/EmptyState'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { PostList } from '~/components/PostList'
 import { usePanelReady } from '~/components/DetailDialog'
@@ -12,7 +12,7 @@ import { getEvents, type RiceEvent } from '../events/api'
 import { EventCard } from '../events/EventsPage'
 import { PostThreadDialog } from '../feed/PostThreadDialog'
 import { postCategory } from '../feed/tags'
-import type { PostView } from '~/lib/models'
+import type { PostFeed, PostView } from '~/lib/models'
 
 import { useStoredSession } from '../session/session'
 
@@ -53,12 +53,18 @@ export function PublicProfileContent({ actor }: { actor: string }) {
 function PublicPosts({ actor }: { actor: string }) {
   const { session } = useStoredSession()
   const [selected, setSelected] = useState<PostView | null>(null)
-  const [posts, setPosts] = useState<PostView[] | null>(null)
+  const [feed, setFeed] = useState<PostFeed | null>(null)
+  const posts = feed?.posts ?? null
+  const [loading, setLoading] = useState(false)
+  const request = useRef(0)
   const [error, setError] = useState('')
   usePanelReady(Boolean(posts || error))
 
   useEffect(() => {
+    request.current++
     let active = true
+    setFeed(null)
+    setLoading(false)
     setError('')
     void getPosts({
       data: {
@@ -67,17 +73,30 @@ function PublicPosts({ actor }: { actor: string }) {
         accessJwt: session?.pds.access_jwt,
       },
     })
-      .then((feed) => { if (active) setPosts(feed.posts) })
+      .then((feed) => { if (active) setFeed(feed) })
       .catch((reason) => {
         if (active) setError(reason instanceof Error ? reason.message : '帖子暂时无法显示')
       })
-    return () => { active = false }
+    return () => { active = false; request.current++ }
   }, [actor, session?.pds.did, session?.pds.access_jwt])
 
-  if (error || !posts || posts.length === 0) {
+  const more = async () => {
+    if (!feed?.cursor || loading) return
+    const current = request.current
+    setLoading(true)
+    setError('')
+    try {
+      const page = await getPosts({ data: { repo: actor, did: session?.pds.did, accessJwt: session?.pds.access_jwt, cursor: feed.cursor } })
+      if (current === request.current) setFeed((previous) => ({ ...page, posts: [...new Map([...(previous?.posts ?? []), ...page.posts].map((post) => [post.uri, post])).values()] }))
+    } catch (reason) {
+      if (current === request.current) setError(reason instanceof Error ? reason.message : '帖子暂时无法显示')
+    } finally { if (current === request.current) setLoading(false) }
+  }
+
+  if (!posts || (posts.length === 0 && !feed?.cursor)) {
     return <ProfileContentState error={error} items={posts} empty="还没有发布帖子" />
   }
-  return <><PostList posts={posts.filter((p) => postCategory(p.record) === 'post')} onOpenPost={(post) => setSelected(post)} />{selected && <PostThreadDialog uri={selected.uri} category="post" focusReply={false} onClose={() => setSelected(null)} />}</>
+  return <>{error && <div className="inline-error" role="alert">{error}</div>}<PostList posts={posts.filter((p) => postCategory(p.record) === 'post')} onOpenPost={(post) => setSelected(post)} />{feed?.cursor && <Button label="加载更多" variant="secondary" isDisabled={loading} clickAction={more} />}{selected && <PostThreadDialog uri={selected.uri} category="post" focusReply={false} onClose={() => setSelected(null)} />}</>
 }
 
 function PublicTasks({ actor }: { actor: string }) {

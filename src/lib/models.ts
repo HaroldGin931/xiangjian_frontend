@@ -81,6 +81,7 @@ export type PostView = {
     did: string
     handle: string
     displayName?: string
+    avatar?: string
   }
   record: {
     text: string
@@ -116,6 +117,7 @@ export type PostView = {
 
 export type PostFeed = {
   posts: PostView[]
+  cursor?: string | null
 }
 
 export type PostThread = {

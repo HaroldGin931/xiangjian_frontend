@@ -2,9 +2,11 @@ import { Button } from '@astryxdesign/core/Button'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, UserPlus } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { useStoredSession } from '../session/session'
+import { loginReturnTo } from '../session/login-redirect'
+import { useAuthOptions } from '../session/useAuthOptions'
 import {
   registerRice,
   verifyRegistration,
@@ -12,7 +14,7 @@ import {
 } from './api'
 import { VerificationFields } from './VerificationFields'
 
-export function RegisterPage() {
+export function RegisterPage({ returnTo }: { returnTo?: string }) {
   const [channel, setChannel] = useState<VerificationChannel>('sms')
   const [contact, setContact] = useState('')
   const [code, setCode] = useState('')
@@ -24,6 +26,11 @@ export function RegisterPage() {
   const [busy, setBusy] = useState(false)
   const { saveSession } = useStoredSession()
   const navigate = useNavigate()
+  const { options, error: optionsError } = useAuthOptions()
+  const channels = options?.registration_channels ?? []
+  useEffect(() => {
+    if (channels.length && !channels.includes(channel)) setChannel(channels[0])
+  }, [options, channel])
 
   const verify = async () => {
     setBusy(true)
@@ -50,7 +57,7 @@ export function RegisterPage() {
     try {
       const session = await registerRice({ data: { ticket, handle, password } })
       saveSession(session)
-      await navigate({ to: '/' })
+      await navigate({ href: loginReturnTo(returnTo), replace: true })
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '注册失败')
     } finally {
@@ -60,7 +67,7 @@ export function RegisterPage() {
 
   return (
     <div className="page narrow-page account-entry-page">
-      <Link to="/login" className="back-link"><ArrowLeft size={16} /> 登录</Link>
+      <Link to="/login" search={{ returnTo }} className="back-link"><ArrowLeft size={16} /> 登录</Link>
       <section className="page-intro">
         <div className="eyebrow">一个身份，走遍全联盟</div>
         <h1>创建账号</h1>
@@ -68,6 +75,10 @@ export function RegisterPage() {
       </section>
       <section className="form-card">
         <div className="login-icon"><UserPlus size={28} /></div>
+        {optionsError ? <p className="form-error" role="alert">{optionsError}</p> : null}
+        {options && !channels.length ? <p>注册暂未开放，请稍后再试。</p> : null}
+        {options?.verification_mode === 'log' ? <p className="form-notice">测试模式：验证码仅写入服务器日志，不会发送短信或邮件。</p> : null}
+        {channels.length ? <>
         {!ticket ? (
           <>
             <VerificationFields
@@ -78,9 +89,10 @@ export function RegisterPage() {
               code={code}
               setCode={setCode}
               purpose="register"
+              channels={channels}
               disabled={busy}
               onError={setError}
-              onSent={() => setNotice('验证码已发送，请检查短信或邮箱。')}
+              onSent={() => setNotice(options?.verification_mode === 'log' ? '测试验证码已写入服务器日志。' : '验证码已发送，请检查短信或邮箱。')}
             />
             {notice ? <div className="form-notice">{notice}</div> : null}
             <div className="form-actions">
@@ -100,7 +112,7 @@ export function RegisterPage() {
               label="Handle"
               value={handle}
               onChange={setHandle}
-              placeholder="mo-name.local.xjdao.xyz"
+              placeholder={`name.${options?.handle_domain ?? ''}`}
               width="100%"
             />
             <TextInput
@@ -124,6 +136,7 @@ export function RegisterPage() {
             </div>
           </>
         )}
+        </> : null}
         {error ? <div className="form-error" role="alert">{error}</div> : null}
       </section>
     </div>

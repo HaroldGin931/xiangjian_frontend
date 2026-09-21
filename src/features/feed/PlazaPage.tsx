@@ -1,5 +1,5 @@
 import { Button } from '@astryxdesign/core/Button'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import type { RepostChange } from '~/components/PostActions'
 import { PostList } from '~/components/PostList'
@@ -25,8 +25,11 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
   const { session, isReady } = useStoredSession()
   const accessJwt = session?.pds.access_jwt
   const did = session?.pds.did
+  const request = useRef(0)
   useEffect(() => {
     const refresh = () => {
+      request.current++
+      setLoading(false)
       const cached = readCachedFeed(did)
       if (cached) setFeed(cached)
       else setReloadKey((value) => value + 1)
@@ -36,6 +39,7 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
   }, [did])
 
   useEffect(() => {
+    request.current++
     if (!isReady) return
     if (reloadKey === 0) {
       const cachedFeed = readCachedFeed(did)
@@ -43,14 +47,14 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
         setLoading(false)
         setError('')
         setFeed(cachedFeed)
-        return
+        return () => { request.current++ }
       }
       if (!did) {
         setLoading(false)
         setError('')
         writeCachedFeed(initialFeed)
         setFeed(initialFeed)
-        return
+        return () => { request.current++ }
       }
     }
 
@@ -75,8 +79,24 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
       .finally(() => {
         if (active) setLoading(false)
       })
-    return () => { active = false }
+    return () => { active = false; request.current++ }
   }, [accessJwt, did, initialFeed, isReady, reloadKey])
+
+  const more = async () => {
+    if (!feed.cursor || isLoading) return
+    const current = request.current
+    setLoading(true)
+    setError('')
+    try {
+      const page = await getPosts({ data: { accessJwt, did, category: 'post', cursor: feed.cursor } })
+      if (current !== request.current) return
+      const next = { ...page, posts: [...new Map([...feed.posts, ...page.posts].map((post) => [post.reason?.uri ?? post.uri, post])).values()] }
+      setFeed(next)
+      writeCachedFeed(next, did)
+    } catch (reason) {
+      if (current === request.current) setError(reason instanceof Error ? reason.message : '帖子暂时无法加载')
+    } finally { if (current === request.current) setLoading(false) }
+  }
 
   const handleRepostChange = ({ post, reason }: RepostChange) => {
     if (!did) return
@@ -94,7 +114,7 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
       const posts = reason
         ? [{ ...basePost, viewer, reason }, ...remaining]
         : remaining
-      return { posts }
+      return { ...current, posts }
     })
   }
 
@@ -111,6 +131,7 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
 
   const handlePostDeleted = (postUri: string) => {
     setFeed((current) => ({
+      ...current,
       posts: current.posts.filter((post) => post.uri !== postUri),
     }))
     setSelectedPost((current) => current?.uri === postUri ? null : current)
@@ -140,6 +161,7 @@ export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
           onRepostChange={handleRepostChange}
           onPostDeleted={handlePostDeleted}
         />
+        {feed.cursor && <Button label="加载更多" variant="secondary" isDisabled={isLoading} clickAction={more} />}
       </section>
 
       {selectedPost ? (

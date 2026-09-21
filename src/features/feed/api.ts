@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 
 import { BACKEND_BASE, requestJson } from '~/lib/http'
 import type { PdsImage, PostCategory, PostFeed, PostImage, PostThread, PostView, RicePublicUser, RiceSession } from '~/lib/models'
-import { createPdsRecord, deletePdsRecord, MAX_POST_IMAGE_BYTES, MAX_POST_IMAGES, pdsBlobUrl, POST_IMAGE_TYPES, recordKeyFromUri, uploadPdsImage } from '~/lib/pds'
+import { appviewImageUrl, createPdsRecord, deletePdsRecord, MAX_POST_IMAGE_BYTES, MAX_POST_IMAGES, pdsBlobUrl, POST_IMAGE_TYPES, recordKeyFromUri, uploadPdsImage } from '~/lib/pds'
 
 import { hasPostTag, postCategory } from './tags'
 
@@ -28,7 +28,7 @@ export function prependCachedPost(post: PostView, did?: string) {
   const posts = [post, ...clientFeedCache.feed.posts.filter((item) => item.uri !== post.uri)]
   clientFeedCache = {
     owner: did ?? null,
-    feed: { posts },
+    feed: { ...clientFeedCache.feed, posts },
   }
 }
 
@@ -40,6 +40,7 @@ export function hideDeletedPost(uri: string, did?: string) {
     clientFeedCache = {
       owner: did ?? null,
       feed: {
+        ...clientFeedCache.feed,
         posts: clientFeedCache.feed.posts.filter((post) => post.uri !== uri),
       },
     }
@@ -79,6 +80,7 @@ export function createdPostView(
       did: session.pds.did,
       handle: session.pds.handle,
       displayName: session.user.nickname ?? undefined,
+      ...(session.user.avatar?.url ? { avatar: session.user.avatar.url } : {}),
     },
     record: {
       text: created.text,
@@ -155,14 +157,16 @@ async function hydrateViewerRecords(
 
 async function hydrateAuthorNames(posts: PostView[]) {
   const authors = posts.flatMap((post) => post.reason ? [post.author, post.reason.by] : [post.author])
-  const names = new Map<string, string | undefined>()
+  const profiles = new Map<string, RicePublicUser>()
   await Promise.all([...new Set(authors.map((author) => author.did))].map(async (did) => {
     const profile = await requestJson<{ data: RicePublicUser }>(`${BACKEND_BASE}/api/users/${encodeURIComponent(did)}/profile`).catch(() => null)
-    if (profile?.data?.did === did) names.set(did, profile.data.nickname ?? undefined)
+    if (profile?.data?.did === did) profiles.set(did, profile.data)
   }))
-  const authorName = (author: PostView['author']) => names.has(author.did)
-    ? { ...author, displayName: names.get(author.did) }
-    : author
+  const authorName = (author: PostView['author']) => {
+    const profile = profiles.get(author.did)
+    const avatar = profile?.avatar?.url || author.avatar
+    return { ...author, ...(profile?.nickname ? { displayName: profile.nickname } : {}), ...(avatar ? { avatar: appviewImageUrl(avatar) } : {}) }
+  }
   return posts.map((post) => ({
     ...post,
     author: authorName(post.author),
@@ -190,16 +194,7 @@ export function normalizePostImages(post: PostView): PostView {
     const viewUrl = (value: unknown) => {
       const url = httpUrl(value)
       if (!url) return undefined
-      try {
-        // Legacy cached AppView URLs may name a deployment's internal origin.
-        // Only explicitly configured origins use our AppView gateway: external
-        // authors' images must not be redirected to this deployment's PDS.
-        const parsed = new URL(url)
-        const origins = (process.env.XIANGJIAN_APPVIEW_IMAGE_ORIGINS ?? '').split(',').map((origin) => origin.trim()).filter(Boolean)
-        return origins.includes(parsed.origin) && parsed.pathname.startsWith('/img/')
-          ? `/bsky${parsed.pathname}${parsed.search}`
-          : url
-      } catch { return undefined }
+      return appviewImageUrl(url)
     }
     const fullsize = viewUrl(item.fullsize)
     const src = viewUrl(item.thumb) ?? fullsize ?? blobUrl
@@ -300,6 +295,8 @@ export type GetPostsInput = {
 
 export async function loadPostPage(data: GetPostsInput) {
   const query = data.query?.trim()
+  const page = !query && data.cursor ? Number(data.cursor) : 1
+  if (!Number.isSafeInteger(page) || page < 1) throw new Error('帖子页码无效')
   const endpoint = query ? '/post/api/posts/search' : '/post/api/posts/list'
   const requestBody = query
     ? {
@@ -309,7 +306,7 @@ export async function loadPostPage(data: GetPostsInput) {
         ...(data.cursor ? { cursor: data.cursor } : {}),
       }
     : {
-        page: 1,
+        page,
         per_page: data.limit ?? 20,
         ...(data.repo ? { repo: data.repo } : {}),
         ...(data.tag ? { tag: data.tag } : {}),
@@ -321,7 +318,7 @@ export async function loadPostPage(data: GetPostsInput) {
   })
 
   const feed = normalizePostFeed(payload)
-  const timelineReposts = !query && !data.repo
+  const timelineReposts = !query && !data.repo && page === 1
     ? await loadTimelineReposts(data.accessJwt)
     : []
   const posts = mergeFeedPosts(feed.posts, timelineReposts).filter(
@@ -329,18 +326,18 @@ export async function loadPostPage(data: GetPostsInput) {
       (!data.tag || hasPostTag(post.record.text, data.tag)) &&
       (!data.category || postCategory(post.record) === data.category),
   )
-  const body = payload as { cursor?: unknown }
+  const body = payload as { cursor?: unknown; page?: number; total?: number }
+  const currentPage = body.page ?? page
   return {
     posts: await hydrateAuthorNames(await hydrateViewerRecords(posts, data.did, data.accessJwt)),
-    cursor: query && typeof body.cursor === 'string' && body.cursor
-      ? body.cursor
-      : null,
+    cursor: query
+      ? typeof body.cursor === 'string' && body.cursor ? body.cursor : null
+      : currentPage * (data.limit ?? 20) < (body.total ?? 0) ? String(currentPage + 1) : null,
   }
 }
 
 export async function loadPosts(data: GetPostsInput) {
-  const { posts } = await loadPostPage(data)
-  return { posts }
+  return loadPostPage(data)
 }
 
 export const getPosts = createServerFn({ method: 'POST' })

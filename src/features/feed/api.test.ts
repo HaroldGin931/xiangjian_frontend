@@ -130,6 +130,26 @@ describe('post images', () => {
 })
 
 describe('feed data', () => {
+  it('keeps legacy hashtag posts and uses the returned list page to continue past empty pages', async () => {
+    const legacyPost = { ...post, author: { ...post.author, avatar: 'https://old-appview.example/img/avatar.jpg', displayName: '老用户' }, record: { ...post.record, text: '#活动 以前的活动介绍' } }
+    vi.stubEnv('XIANGJIAN_APPVIEW_IMAGE_ORIGINS', 'https://old-appview.example')
+    const fetchMock = vi.fn(async (url: string | URL, _init?: RequestInit) => String(url).includes('/post/api/posts/list')
+      ? new Response(JSON.stringify({ posts: [legacyPost], page: 3, total: 81 }))
+      : new Response(JSON.stringify({ data: { did: post.author.did, nickname: null, avatar: null } })))
+    vi.stubGlobal('fetch', fetchMock)
+    const result = await loadPosts({ cursor: '2', category: 'post' })
+    expect(result.cursor).toBe('4')
+    expect(result.posts[0]).toMatchObject({ author: { displayName: '老用户', avatar: '/bsky/img/avatar.jpg' }, record: legacyPost.record })
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toMatchObject({ page: 2, per_page: 20 })
+  })
+
+  it('ends list pagination at the last returned page', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string | URL) => String(url).includes('/post/api/posts/list')
+      ? new Response(JSON.stringify({ posts: [], page: 2, total: 40 }))
+      : new Response(JSON.stringify({ error: 'not_found' }), { status: 404 })))
+    await expect(loadPosts({ cursor: '2' })).resolves.toEqual({ posts: [], cursor: null })
+  })
+
   it('loads a public thread for guests without bearer headers or private viewer record reads', async () => {
     const fetchMock = vi.fn(async (input: string | URL, _init?: RequestInit) => String(input).includes('getPostThread')
       ? new Response(JSON.stringify({ thread: { post, replies: [] } }))

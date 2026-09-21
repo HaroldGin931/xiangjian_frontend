@@ -28,6 +28,16 @@ export function pdsBlobUrl(did: string, cid: string) {
   return `/pds/xrpc/com.atproto.sync.getBlob?${new URLSearchParams({ did, cid })}`
 }
 
+export function appviewImageUrl(url: string) {
+  try {
+    const parsed = new URL(url)
+    const origins = (process.env.XIANGJIAN_APPVIEW_IMAGE_ORIGINS ?? '').split(',').map((origin) => origin.trim())
+    return origins.includes(parsed.origin) && parsed.pathname.startsWith('/img/')
+      ? `/bsky${parsed.pathname}${parsed.search}`
+      : url
+  } catch { return url }
+}
+
 let lastPostTimestamp = 0n
 export function newPostRecordKey() {
   // AT Protocol TID: microsecond timestamp, 10-bit clock ID, sortable base32.

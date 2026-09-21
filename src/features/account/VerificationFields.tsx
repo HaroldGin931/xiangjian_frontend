@@ -13,6 +13,7 @@ type Props = {
   code: string
   setCode: (code: string) => void
   purpose: VerificationPurpose
+  channels?: VerificationChannel[]
   disabled?: boolean
   onError: (message: string) => void
   onSent?: () => void
@@ -39,7 +40,7 @@ export function VerificationFields(props: Props) {
 
   return (
     <>
-      <SegmentedControl
+      {(props.channels?.length ?? 2) > 1 ? <SegmentedControl
         label="验证方式"
         value={props.channel}
         onChange={(value) => props.setChannel(value as VerificationChannel)}
@@ -47,7 +48,7 @@ export function VerificationFields(props: Props) {
       >
         <SegmentedControlItem value="sms" label="手机号" />
         <SegmentedControlItem value="email" label="邮箱" />
-      </SegmentedControl>
+      </SegmentedControl> : null}
       <TextInput
         label={props.channel === 'sms' ? '手机号' : '邮箱'}
         type={props.channel === 'email' ? 'email' : 'text'}

@@ -47,3 +47,12 @@ npm run build
 本轮已完成代码、接口契约测试与构建，并在用户明确批准后完成三账号浏览器主流程验收：发布、候选审批、任务退回重交与发放、活动自动开始/退款及结束结算、入会重申与通过、钱包和通知回访。使用独立测试栈的真实 Rice/PDS 会话，未操作生产资产。具体覆盖范围与测试证据以实施记录为准，不将静态原型或构建通过当作业务验收证据。
 
 工作区级规则与实施证据见 `../docs/requirements/minimal-core-scope.md` 和 `../docs/progress/minimal-core-implementation-2026-09-15.md`；完整工作区才包含这些文件。原型对齐入口为 `../prototype/README.md`。旧分支与历史视觉评估只作参考，不代表当前版本的已验收状态。
+
+## 注册与 Semi
+
+登录方式和注册 handle 域名读取后端 `/auth/semi/options`，不在前端存放服务商密钥。
+Semi 配置完成后显示入口，回调 `/semi-callback` 用一次性 ticket 经服务端交换会话，
+校验 Rice 用户和 PDS DID 一致后再保存；登录或注册完成均保留原详情返回地址。
+未配置的验证码通道不显示为注册选项；显式日志测试模式会标明没有真实短信／邮件发送。
+Vite 开发代理及部署网关都需要将 `/auth/semi/` 转到 Rice；具体变量与填配置后的重启命令
+在部署仓库 `compose/README.md`，前端不需要额外 API key。

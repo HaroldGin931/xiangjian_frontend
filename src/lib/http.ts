@@ -12,6 +12,7 @@ const errorMessages: Record<string, string> = {
   ExpiredToken: '登录状态已过期，请重新登录。',
   InvalidToken: '登录状态已失效，请重新登录。',
   JwtExpired: '登录状态已过期，请重新登录。',
+  invalid_or_expired_ticket: '登录凭证无效或已过期，请重新登录。',
 }
 
 export async function readJson(response: Response) {

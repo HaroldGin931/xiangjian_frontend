@@ -7,6 +7,7 @@ import { useRef, useState } from 'react'
 import { loginRice } from '~/features/session/api'
 import { useStoredSession } from '~/features/session/session'
 import { loginReturnTo } from './login-redirect'
+import { useAuthOptions } from './useAuthOptions'
 
 export function LoginPage({ returnTo }: { returnTo?: string }) {
   const [identifier, setIdentifier] = useState('')
@@ -17,6 +18,8 @@ export function LoginPage({ returnTo }: { returnTo?: string }) {
   const { saveSession } = useStoredSession()
   const navigate = useNavigate()
   const currentHref = useRouterState({ select: (state) => state.location.href })
+  const destination = loginReturnTo(returnTo ?? currentHref)
+  const { options } = useAuthOptions()
 
   const submit = async () => {
     const submittedIdentifier = identifierInput.current?.value.trim() || identifier.trim()
@@ -31,7 +34,7 @@ export function LoginPage({ returnTo }: { returnTo?: string }) {
         data: { identifier: submittedIdentifier, password: submittedPassword },
       })
       saveSession(session)
-      await navigate({ href: loginReturnTo(returnTo ?? currentHref), replace: true })
+      await navigate({ href: destination, replace: true })
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '登录失败')
     }
@@ -77,8 +80,12 @@ export function LoginPage({ returnTo }: { returnTo?: string }) {
             clickAction={submit}
           />
         </div>
+        {options?.semi_enabled ? <div className="form-actions">
+          <Button label="使用 Semi 登录" variant="secondary" size="lg"
+            onClick={() => { window.location.href = `/auth/semi/login?returnTo=${encodeURIComponent(destination)}` }} />
+        </div> : null}
         <div className="login-links">
-          <Link to="/register">创建账号</Link>
+          <Link to="/register" search={{ returnTo: destination }}>创建账号</Link>
           <Link to="/forgot-password">忘记密码？</Link>
         </div>
       </section>

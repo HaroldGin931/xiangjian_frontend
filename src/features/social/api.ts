@@ -3,7 +3,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { ACTIVITY_PARTICIPATION_TEXT, postCategory } from '~/features/feed/tags'
 import { BACKEND_BASE, requestJson } from '~/lib/http'
 import type { PostView, RicePublicUser, SocialConnectionPage, SocialProfile } from '~/lib/models'
-import { createPdsRecord, deletePdsRecord, recordKeyFromUri } from '~/lib/pds'
+import { appviewImageUrl, createPdsRecord, deletePdsRecord, recordKeyFromUri } from '~/lib/pds'
 
 export type SocialConnectionKind = 'followers' | 'following'
 
@@ -49,7 +49,7 @@ export function normalizeSocialProfile(value: unknown): SocialProfile {
       ? { description: profile.description }
       : {}),
     ...(typeof profile.avatar === 'string' && profile.avatar
-      ? { avatar: profile.avatar }
+      ? { avatar: appviewImageUrl(profile.avatar) }
       : {}),
     followersCount: typeof profile.followersCount === 'number' ? profile.followersCount : 0,
     followsCount: typeof profile.followsCount === 'number' ? profile.followsCount : 0,
@@ -68,13 +68,13 @@ export function normalizeSocialProfile(value: unknown): SocialProfile {
 export async function loadSocialProfile(actor: string, accessJwt?: string) {
   const params = new URLSearchParams({ actor })
   const [pds, rice] = await Promise.allSettled([
-    requestJson<unknown>(`${BACKEND_BASE}/pds/xrpc/app.bsky.actor.getProfile?${params}`, { headers: authHeaders(accessJwt) }),
+    requestJson<unknown>(`${BACKEND_BASE}/${accessJwt ? 'pds' : 'bsky'}/xrpc/app.bsky.actor.getProfile?${params}`, { headers: authHeaders(accessJwt) }),
     requestJson<{ data: RicePublicUser }>(`${BACKEND_BASE}/api/users/${encodeURIComponent(actor)}/profile`),
   ])
   const social = pds.status === 'fulfilled' ? normalizeSocialProfile(pds.value) : null
   if (rice.status === 'fulfilled') {
     const profile = rice.value.data
-    return { ...(social ?? { followersCount: 0, followsCount: 0, postsCount: 0 }), socialAvailable: Boolean(social), did: profile.did, handle: profile.handle, displayName: profile.nickname ?? undefined, description: profile.bio ?? undefined, avatar: profile.avatar?.url } satisfies SocialProfile
+    return { ...(social ?? { followersCount: 0, followsCount: 0, postsCount: 0 }), socialAvailable: Boolean(social), did: profile.did, handle: profile.handle, displayName: profile.nickname || social?.displayName, description: profile.bio || social?.description, avatar: profile.avatar?.url || social?.avatar } satisfies SocialProfile
   }
   if (social) return social
   throw new Error('用户资料暂时无法显示')
@@ -92,7 +92,7 @@ export async function loadSocialConnections(data: {
   if (data.cursor) params.set('cursor', data.cursor)
 
   const body = await requestJson<Record<string, unknown>>(
-    `${BACKEND_BASE}/pds/xrpc/app.bsky.graph.${method}?${params}`,
+    `${BACKEND_BASE}/${data.accessJwt ? 'pds' : 'bsky'}/xrpc/app.bsky.graph.${method}?${params}`,
     { headers: authHeaders(data.accessJwt) },
   )
   const profiles = Array.isArray(body[listKey]) ? body[listKey] : []

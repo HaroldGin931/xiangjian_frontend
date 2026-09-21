@@ -1,7 +1,8 @@
 import { LoginLink } from '../session/LoginLink'
+import { Button } from '@astryxdesign/core/Button'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { PostList } from '~/components/PostList'
 import { usePanelReady } from '~/components/DetailDialog'
@@ -16,10 +17,15 @@ export function MyPostsPage({ embedded = false }: { embedded?: boolean }) {
   const { session, isReady } = useStoredSession()
   const [feed, setFeed] = useState<PostFeed | null>(null)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+  const request = useRef(0)
   const [selectedPost, setSelectedPost] = useState<{ post: PostView; focusReply: boolean } | null>(null)
   usePanelReady(isReady && (!session || Boolean(feed || error)))
 
   useEffect(() => {
+    request.current++
+    setFeed(null)
+    setLoading(false)
     if (!session) return
     let active = true
     setError('')
@@ -34,8 +40,21 @@ export function MyPostsPage({ embedded = false }: { embedded?: boolean }) {
       .catch((reason) => {
         if (active) setError(reason instanceof Error ? reason.message : '帖子暂时无法加载')
       })
-    return () => { active = false }
+    return () => { active = false; request.current++ }
   }, [session?.pds.did, session?.pds.access_jwt])
+
+  const more = async () => {
+    if (!session || !feed?.cursor || loading) return
+    const current = request.current
+    setLoading(true)
+    setError('')
+    try {
+      const page = await getPosts({ data: { repo: session.pds.did, did: session.pds.did, accessJwt: session.pds.access_jwt, cursor: feed.cursor } })
+      if (current === request.current) setFeed((previous) => ({ ...page, posts: [...new Map([...(previous?.posts ?? []), ...page.posts].map((post) => [post.uri, post])).values()] }))
+    } catch (reason) {
+      if (current === request.current) setError(reason instanceof Error ? reason.message : '帖子暂时无法加载')
+    } finally { if (current === request.current) setLoading(false) }
+  }
 
   if (isReady && !session) {
     return (
@@ -54,6 +73,7 @@ export function MyPostsPage({ embedded = false }: { embedded?: boolean }) {
       </Link>}
       {error ? <div className="inline-error" role="alert">{error}</div> : null}
       {feed ? <PostList posts={feed.posts} onOpenPost={(post, focusReply) => setSelectedPost({ post, focusReply })} /> : !error ? <p className="loading-line">正在加载帖子…</p> : null}
+      {feed?.cursor && <Button label="加载更多" variant="secondary" isDisabled={loading} clickAction={more} />}
       {selectedPost && <PostThreadDialog uri={selectedPost.post.uri} category={postCategory(selectedPost.post.record)} focusReply={selectedPost.focusReply} onClose={() => setSelectedPost(null)} />}
     </div>
   )

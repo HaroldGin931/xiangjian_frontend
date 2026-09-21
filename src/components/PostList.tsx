@@ -93,6 +93,7 @@ export function PostCard({
         name={authorDisplayName(post.author)}
         timestamp={formatTimestamp(post.record.createdAt || post.indexedAt)}
         profileActor={post.author.did}
+        avatarUrl={post.author.avatar}
       />
       <p
         className="post-copy post-copy-link"

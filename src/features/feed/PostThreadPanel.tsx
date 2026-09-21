@@ -175,6 +175,7 @@ function PostThreadContent({
                 true,
               )}
               profileActor={thread.post.author.did}
+              avatarUrl={thread.post.author.avatar}
             />
             <p className="post-detail-copy">
               <PostText text={postDisplayText(thread.post.record.text, category)} />
@@ -237,6 +238,7 @@ function PostThreadContent({
                           true,
                         )}
                         profileActor={reply.post.author.did}
+                        avatarUrl={reply.post.author.avatar}
                       />
                       <p><PostText text={reply.post.record.text} /></p>
                       <ImageGroup images={(reply.post.images ?? []).map((image) => ({ ...image, src: image.fullsize ?? image.src }))} />

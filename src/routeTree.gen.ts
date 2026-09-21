@@ -19,6 +19,7 @@ import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as PostRouteImport } from './routes/post'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SearchRouteImport } from './routes/search'
+import { Route as SemiCallbackRouteImport } from './routes/semi-callback'
 import { Route as TasksRouteImport } from './routes/tasks'
 import { Route as EventsEventIdRouteImport } from './routes/events_.$eventId'
 import { Route as MeIndexRouteImport } from './routes/me.index'
@@ -86,6 +87,11 @@ const RegisterRoute = RegisterRouteImport.update({
 const SearchRoute = SearchRouteImport.update({
   id: '/search',
   path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SemiCallbackRoute = SemiCallbackRouteImport.update({
+  id: '/semi-callback',
+  path: '/semi-callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TasksRoute = TasksRouteImport.update({
@@ -190,6 +196,7 @@ export interface FileRoutesByFullPath {
   '/post': typeof PostRoute
   '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
+  '/semi-callback': typeof SemiCallbackRoute
   '/tasks': typeof TasksRouteWithChildren
   '/events/$eventId': typeof EventsEventIdRoute
   '/me/events': typeof MeEventsRoute
@@ -219,6 +226,7 @@ export interface FileRoutesByTo {
   '/post': typeof PostRoute
   '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
+  '/semi-callback': typeof SemiCallbackRoute
   '/events/$eventId': typeof EventsEventIdRoute
   '/me/events': typeof MeEventsRoute
   '/me/grains': typeof MeGrainsRoute
@@ -247,6 +255,7 @@ export interface FileRoutesById {
   '/post': typeof PostRoute
   '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
+  '/semi-callback': typeof SemiCallbackRoute
   '/tasks': typeof TasksRouteWithChildren
   '/events_/$eventId': typeof EventsEventIdRoute
   '/me/events': typeof MeEventsRoute
@@ -279,6 +288,7 @@ export interface FileRouteTypes {
     | '/post'
     | '/register'
     | '/search'
+    | '/semi-callback'
     | '/tasks'
     | '/events/$eventId'
     | '/me/events'
@@ -308,6 +318,7 @@ export interface FileRouteTypes {
     | '/post'
     | '/register'
     | '/search'
+    | '/semi-callback'
     | '/events/$eventId'
     | '/me/events'
     | '/me/grains'
@@ -335,6 +346,7 @@ export interface FileRouteTypes {
     | '/post'
     | '/register'
     | '/search'
+    | '/semi-callback'
     | '/tasks'
     | '/events_/$eventId'
     | '/me/events'
@@ -366,6 +378,7 @@ export interface RootRouteChildren {
   PostRoute: typeof PostRoute
   RegisterRoute: typeof RegisterRoute
   SearchRoute: typeof SearchRoute
+  SemiCallbackRoute: typeof SemiCallbackRoute
   TasksRoute: typeof TasksRouteWithChildren
   EventsEventIdRoute: typeof EventsEventIdRoute
   ProfileActorRoute: typeof ProfileActorRouteWithChildren
@@ -441,6 +454,13 @@ declare module '@tanstack/react-router' {
       path: '/search'
       fullPath: '/search'
       preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/semi-callback': {
+      id: '/semi-callback'
+      path: '/semi-callback'
+      fullPath: '/semi-callback'
+      preLoaderRoute: typeof SemiCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tasks': {
@@ -649,6 +669,7 @@ const rootRouteChildren: RootRouteChildren = {
   PostRoute: PostRoute,
   RegisterRoute: RegisterRoute,
   SearchRoute: SearchRoute,
+  SemiCallbackRoute: SemiCallbackRoute,
   TasksRoute: TasksRouteWithChildren,
   EventsEventIdRoute: EventsEventIdRoute,
   ProfileActorRoute: ProfileActorRouteWithChildren,

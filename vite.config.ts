@@ -6,6 +6,7 @@ import { defineConfig } from 'vite'
 export default defineConfig({
   server: {
     proxy: {
+      '/auth/semi/': process.env.XIANGJIAN_BACKEND_URL ?? 'http://localhost:19006',
       '/api/attachments': process.env.XIANGJIAN_BACKEND_URL ?? 'http://localhost:19006',
       '/pds/xrpc/com.atproto.sync.getBlob': process.env.XIANGJIAN_BACKEND_URL ?? 'http://localhost:19006',
       '/bsky/img/': process.env.XIANGJIAN_BACKEND_URL ?? 'http://localhost:19006',
