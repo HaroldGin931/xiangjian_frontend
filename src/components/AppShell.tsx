@@ -10,7 +10,7 @@ import {
 import { NotificationsPage } from '~/features/notifications/NotificationsPage'
 import { DetailDialog } from './DetailDialog'
 import { LoadingProgress } from './LoadingProgress'
-import { ComposePanel, type ComposeKind } from '~/features/feed/ComposePanel'
+import { ComposePanel, type ComposeKind, type ComposeHandle } from '~/features/feed/ComposePanel'
 import { useStoredSession } from '~/features/session/session'
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -18,16 +18,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { session, isReady, recoveryError } = useStoredSession()
   const previousSession = useRef<{ accountId?: string; token?: string } | null>(null)
   const [compose, setCompose] = useState<ComposeKind | null>(null)
-  const [composeState, setComposeState] = useState({ dirty: false, busy: false })
+  const composeRef = useRef<ComposeHandle>(null)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false)
   const pathname = useRouterState({ select: (state) => (state.resolvedLocation ?? state.location).pathname })
   const navigating = useRouterState({ select: (state) => state.isLoading && state.location.href !== state.resolvedLocation?.href })
   const href = useRouterState({ select: (state) => state.location.href })
-  const closeCompose = () => {
-    if (composeState.busy) return
-    if (!composeState.dirty || window.confirm('还有未提交的内容，确定放弃并关闭吗？')) setCompose(null)
-  }
   useEffect(() => {
     const refresh = () => { void router.invalidate({ filter: (match) => ['/tasks/', '/events', '/me/'].includes(match.routeId) }) }
     window.addEventListener('rice-changed', refresh)
@@ -51,7 +47,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     setNotificationsOpen(false)
     setCompose(null)
-    setComposeState({ dirty: false, busy: false })
   }, [href, session?.user.id])
 
   useEffect(() => {
@@ -130,7 +125,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           我的
         </Link>
       </nav> : null}
-      {session && compose && <DetailDialog title="发布" onClose={closeCompose}><ComposePanel key={session?.user.id ?? 'guest'} initialKind={compose} onCloseStateChange={setComposeState} onPublished={() => setCompose(null)} /></DetailDialog>}
+      {session && compose && <DetailDialog title="发布" onClose={() => composeRef.current?.requestClose()}><ComposePanel ref={composeRef} initialKind={compose} onClose={() => setCompose(null)} onPublished={() => setCompose(null)} /></DetailDialog>}
       {session && notificationsOpen && <DetailDialog title="通知" onClose={() => setNotificationsOpen(false)}><NotificationsPage key={session?.user.id ?? 'guest'} embedded /></DetailDialog>}
     </div>
   )

@@ -58,7 +58,7 @@ export function EventCreateForm({ session, nodes, onPublished, active, onCloseSt
   usePanelReady(!active || !loading)
   const requestId = useRef('')
   const imageSelection = useRiceImages()
-  const markSaved = useFormCloseState(JSON.stringify([fields, imageSelection.images.map(image => image.src)]), !loading, busy, onCloseStateChange)
+  const markSaved = useFormCloseState(JSON.stringify([fields, imageSelection.images.map(image => image.src)]), !loading, busy, onCloseStateChange, () => submit('draft'))
   const restoreImages = imageSelection.restore
   const set = (key: keyof typeof fields, value: string) => { setFields((f) => ({ ...f, [key]: value })); setError(''); setNotice('') }
   const setTime = (key: keyof EventTimes, value: string) => {
@@ -81,22 +81,24 @@ export function EventCreateForm({ session, nodes, onPublished, active, onCloseSt
     return () => { active = false }
   }, [session.token, restoreImages, nodes])
   if (loading) return <p className="loading-line">正在恢复草稿…</p>
-  const submit = async (status: 'draft' | 'open') => {
-    if (busy) return
+  async function submit(status: 'draft' | 'open'): Promise<boolean> {
+    if (busy) return false
+    if (!fields.node_id || !fields.title.trim() || !fields.description.trim() || !fields.location.trim() || Number(fields.capacity) < 1) { setError('请先填写活动标题、介绍、地点和名额，再保存草稿。'); return false }
     const timeError = eventTimeError(fields)
-    if (timeError) { setError(timeError); return }
+    if (timeError) { setError(timeError); return false }
     if (!requestId.current) requestId.current = crypto.randomUUID()
     setBusy(true); setError(''); setNotice('')
     try {
       const attachment_ids = await imageSelection.upload(session.token)
       const event = await saveEvent({ data: { token: session.token, id: draftId, status, fields: { ...fields, attachment_ids, fee_amount: Number(fields.fee_amount), capacity: Number(fields.capacity), application_deadline: beijingTimeIso(fields.application_deadline), starts_at: beijingTimeIso(fields.starts_at), ends_at: beijingTimeIso(fields.ends_at), client_request_id: requestId.current } } })
-      if (!mounted.current) return
+      if (!mounted.current) return false
       setDraftId(event.id)
       markSaved()
-      if (status === 'draft') { setNotice('草稿已保存'); return }
+      if (status === 'draft') { setNotice('草稿已保存'); return true }
       window.dispatchEvent(new Event('rice-changed'))
       onPublished()
-    } catch (e) { if (mounted.current) setError(e instanceof Error ? e.message : '保存失败') } finally { if (mounted.current) setBusy(false) }
+      return true
+    } catch (e) { if (mounted.current) setError(e instanceof Error ? e.message : '保存失败'); return false } finally { if (mounted.current) setBusy(false) }
   }
   const disabled = busy || !fields.node_id || !fields.title.trim() || !fields.description.trim() || !fields.location.trim() || !fields.application_deadline || !fields.starts_at || !fields.ends_at || Number(fields.capacity) < 1
   return <section className="form-card event-compose-form">
@@ -113,6 +115,6 @@ export function EventCreateForm({ session, nodes, onPublished, active, onCloseSt
     <TextInput isDisabled={busy} label="参与名额" value={fields.capacity} onChange={(v) => set('capacity', v.replace(/\D/g, '').slice(0, 6))} width="100%" isRequired />
     <TextInput isDisabled={busy} label="每人报名费（测试稻米，0 为免费）" value={fields.fee_amount} onChange={(v) => set('fee_amount', v.replace(/\D/g, '').slice(0, 9))} width="100%" isRequired />
     {error && <p className="form-error" role="alert">{error}</p>}{notice && <p className="form-notice" role="status">{notice}</p>}
-    <div className="form-actions"><Button label="保存草稿" variant="secondary" isDisabled={disabled} clickAction={() => submit('draft')} /><Button label="发布活动" variant="primary" isDisabled={disabled} clickAction={() => submit('open')} /></div>
+    <div className="form-actions"><Button label="保存草稿" variant="secondary" isDisabled={disabled} clickAction={async () => { await submit('draft') }} /><Button label="发布活动" variant="primary" isDisabled={disabled} clickAction={async () => { await submit('open') }} /></div>
   </section>
 }

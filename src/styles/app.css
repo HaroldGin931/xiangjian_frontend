@@ -580,6 +580,7 @@ button.content-card-author { padding: 0; border: 0; background: transparent; col
 .business-dialog { width: min(760px, calc(100% - 28px)); height: auto; max-height: 90dvh; margin: auto; border-radius: 22px; background: var(--xj-surface); }
 .business-dialog .post-dialog-shell { max-height: 90dvh; }
 .business-dialog .post-dialog-scroll { flex: 1 1 auto; }
+.post-dialog.compose-close-dialog { position: fixed; inset: 0; width: min(480px, calc(100% - 32px)); height: fit-content; max-height: calc(100dvh - 32px); margin: auto; }
 .business-dialog .task-detail-page { padding: 0; }
 .business-dialog .task-detail-card { border: 0; box-shadow: none; border-radius: 0; }
 .business-panel, .business-dialog .compose-page, .business-dialog .events-page, .business-dialog .task-page, .business-dialog .grain-history-page { padding: 26px; }

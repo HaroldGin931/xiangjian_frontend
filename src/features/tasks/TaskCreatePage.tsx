@@ -30,7 +30,7 @@ export function TaskCreatePage({ session, nodes, onPublished, active, onCloseSta
   usePanelReady(!active || !draftLoading)
   const requestId = useRef('')
   const imageSelection = useRiceImages()
-  const markSaved = useFormCloseState(JSON.stringify([nodeId, title, description, requirement, applicationDeadline, executionDeadline, rewardAmount, imageSelection.images.map(image => image.src)]), !draftLoading, !!submitting, onCloseStateChange)
+  const markSaved = useFormCloseState(JSON.stringify([nodeId, title, description, requirement, applicationDeadline, executionDeadline, rewardAmount, imageSelection.images.map(image => image.src)]), !draftLoading, !!submitting, onCloseStateChange, () => submit('draft'))
   const restoreImages = imageSelection.restore
   useEffect(() => {
     let active = true; setDraftLoading(true)
@@ -42,9 +42,10 @@ export function TaskCreatePage({ session, nodes, onPublished, active, onCloseSta
     return () => { active = false }
   }, [session.token, restoreImages, nodes])
   if (draftLoading) return <p className="loading-line">正在恢复草稿…</p>
-  const submit = async (status: 'draft' | 'open') => {
-    if (submitting) return
-    if ((applicationDeadline && !(beijingTime(applicationDeadline) > Date.now())) || (executionDeadline && !(beijingTime(executionDeadline) > Date.now())) || (applicationDeadline && executionDeadline && beijingTime(executionDeadline) <= beijingTime(applicationDeadline))) { setError('申请截止应早于交付截止，日期应晚于当前时间。'); return }
+  async function submit(status: 'draft' | 'open'): Promise<boolean> {
+    if (submitting) return false
+    if (!nodeId || !title.trim() || !description.trim() || !requirement.trim() || rewardAmount === '') { setError('请先填写任务标题、说明、交付要求和报酬，再保存草稿。'); return false }
+    if ((applicationDeadline && !(beijingTime(applicationDeadline) > Date.now())) || (executionDeadline && !(beijingTime(executionDeadline) > Date.now())) || (applicationDeadline && executionDeadline && beijingTime(executionDeadline) <= beijingTime(applicationDeadline))) { setError('申请截止应早于交付截止，日期应晚于当前时间。'); return false }
     setSubmitting(status); setError(''); setNotice('')
     if (!requestId.current) requestId.current = crypto.randomUUID()
     try {
@@ -70,13 +71,14 @@ export function TaskCreatePage({ session, nodes, onPublished, active, onCloseSta
         setEditingDraftId(task.id)
         if (status === 'open') task = await publishTask({ data: { token: session.token, taskId: task.id } })
       }
-      if (!mounted.current) return
+      if (!mounted.current) return false
       setEditingDraftId(task.id)
       markSaved()
-      if (status === 'draft') { setNotice('草稿已保存'); return }
+      if (status === 'draft') { setNotice('草稿已保存'); return true }
       window.dispatchEvent(new Event('rice-changed'))
       onPublished(task.id)
-    } catch (e) { if (mounted.current) setError(e instanceof Error ? e.message : '任务保存失败') } finally { if (mounted.current) setSubmitting(null) }
+      return true
+    } catch (e) { if (mounted.current) setError(e instanceof Error ? e.message : '任务保存失败'); return false } finally { if (mounted.current) setSubmitting(null) }
   }
   const disabled = !nodeId || !title.trim() || !description.trim() || !requirement.trim() || rewardAmount === '' || !!submitting
   return <section className="form-card task-compose-form">
@@ -89,6 +91,6 @@ export function TaskCreatePage({ session, nodes, onPublished, active, onCloseSta
     <DateTimeField label="交付截止时间" value={executionDeadline} min={applicationDeadline ? addMinutes(applicationDeadline, 15) : nextTimeSlot()} disabled={!!submitting} onChange={value => { setExecutionDeadline(value); setError('') }} />
     <TextInput isDisabled={!!submitting} label="任务报酬（测试稻米）" value={rewardAmount} onChange={(v) => setRewardAmount(v.replace(/\D/g, '').slice(0, 9))} width="100%" isRequired />
     {error && <p className="form-error" role="alert">{error}</p>}{notice && <p className="form-notice" role="status">{notice}</p>}
-    <div className="form-actions"><Button label="保存草稿" variant="secondary" isDisabled={disabled} isLoading={submitting === 'draft'} clickAction={() => submit('draft')} /><Button label="发布任务" variant="primary" isDisabled={disabled} isLoading={submitting === 'open'} clickAction={() => submit('open')} /></div>
+    <div className="form-actions"><Button label="保存草稿" variant="secondary" isDisabled={disabled} isLoading={submitting === 'draft'} clickAction={async () => { await submit('draft') }} /><Button label="发布任务" variant="primary" isDisabled={disabled} isLoading={submitting === 'open'} clickAction={async () => { await submit('open') }} /></div>
   </section>
 }
