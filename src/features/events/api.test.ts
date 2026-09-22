@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { applicationStatusLabel, eventActionRequest, eventDisplayStatus, fetchEventPage, saveEventRequest, type EventDraftInput } from './api'
+import { applicationStatusLabel, eventAcceptsApplications, eventActionRequest, eventDisplayStatus, fetchEventPage, saveEventRequest, type EventDraftInput } from './api'
 afterEach(() => vi.unstubAllGlobals())
 it('uses Rice auth and preserves event ownership, participation and paging filters', async () => {
   const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: [], meta: { next_cursor: null } }), { status: 200 }))
@@ -16,12 +16,27 @@ const event = { ...fields, id: 'event-1', status: 'draft', node: { id: 'node' },
 const response = (data: object) => new Response(JSON.stringify({ data }), { status: 200 })
 
 it('shows the actual activity phase even when cached open status has not advanced yet', () => {
-  const times = { ...fields, status: 'open' as const }
+  const times = { ...fields, status: 'open' as const, approved_count: 0 }
   expect(eventDisplayStatus(times, Date.parse(fields.application_deadline) - 1)).toBe('报名中')
   expect(eventDisplayStatus(times, Date.parse(fields.application_deadline))).toBe('报名已截止')
   expect(eventDisplayStatus(times, Date.parse(fields.starts_at))).toBe('已开始')
   expect(eventDisplayStatus(times, Date.parse(fields.ends_at))).toBe('待确认结束')
   expect(eventDisplayStatus({ ...times, status: 'cancelled' }, Date.parse(fields.ends_at))).toBe('已取消')
+  expect(eventAcceptsApplications(times, Date.parse(fields.application_deadline))).toBe(false)
+  expect(eventDisplayStatus({ ...times, approved_count: fields.capacity }, Date.parse(fields.starts_at))).toBe('已开始')
+})
+
+it('accepts new applications only while approved participants leave room, and reopens when a place is released', () => {
+  const now = Date.parse(fields.application_deadline) - 1
+  const open = { ...fields, status: 'open' as const, capacity: 1, approved_count: 0, application_count: 3 }
+  expect(eventAcceptsApplications(open, now)).toBe(true)
+  expect(eventDisplayStatus(open, now)).toBe('报名中')
+  const full = { ...open, approved_count: 1 }
+  expect(eventAcceptsApplications(full, now)).toBe(false)
+  expect(eventDisplayStatus(full, now)).toBe('已满')
+  expect(eventAcceptsApplications({ ...full, approved_count: 0 }, now)).toBe(true)
+  expect(eventDisplayStatus({ ...full, approved_count: 0 }, now)).toBe('报名中')
+  expect(eventAcceptsApplications({ ...open, status: 'cancelled' }, now)).toBe(false)
 })
 
 it('withdraws the specified application with Rice auth and uses the returned status and permissions', async () => {

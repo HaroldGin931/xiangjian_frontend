@@ -1,11 +1,32 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { notificationTarget, normalizeNotifications } from './api'
+import { notificationTarget, normalizeNotifications, updateSeenNotifications } from './api'
 import { notificationTitle } from './NotificationsPage'
+
+afterEach(() => vi.unstubAllGlobals())
 
 const author = { did: 'did:plc:actor', handle: 'mo.local', displayName: '小莫' }
 const postUri = 'at://did:plc:poster/app.bsky.feed.post/post-1'
 const interactionUri = 'at://did:plc:actor/app.bsky.feed.like/like-1'
+
+it('accepts updateSeen empty success with PDS auth, but rejects HTTP and network failures', async () => {
+  const fetch = vi.fn()
+    .mockResolvedValueOnce(new Response(null, { status: 200 }))
+    .mockResolvedValueOnce(Response.json({ error: 'ExpiredToken' }, { status: 401 }))
+    .mockResolvedValueOnce(Response.json({ message: '通知服务暂时不可用' }, { status: 503 }))
+    .mockRejectedValueOnce(new TypeError('fetch failed'))
+  vi.stubGlobal('fetch', fetch)
+
+  await expect(updateSeenNotifications('pds-token')).resolves.toBeUndefined()
+  const [url, init] = fetch.mock.calls[0]
+  expect(new URL(url).pathname).toBe('/pds/xrpc/app.bsky.notification.updateSeen')
+  expect(init.method).toBe('POST')
+  expect(init.headers).toEqual({ Authorization: 'Bearer pds-token', 'Content-Type': 'application/json' })
+  expect(Number.isFinite(Date.parse(JSON.parse(init.body).seenAt))).toBe(true)
+  await expect(updateSeenNotifications('pds-token')).rejects.toThrow('登录状态已过期')
+  await expect(updateSeenNotifications('pds-token')).rejects.toThrow('通知服务暂时不可用')
+  await expect(updateSeenNotifications('pds-token')).rejects.toThrow()
+})
 
 function targetFor(fields: Record<string, unknown>) {
   const [notification] = normalizeNotifications({

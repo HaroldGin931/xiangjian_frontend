@@ -60,6 +60,7 @@ function NotificationInbox({ session, isReady, embedded }: { session: RiceSessio
   const [rows, setRows] = useState<NotificationView[]>([])
   const [isLoading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+  const [readError, setReadError] = useState('')
   const [error, setError] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
   const [, refreshLocalState] = useState(0)
@@ -127,13 +128,13 @@ function NotificationInbox({ session, isReady, embedded }: { session: RiceSessio
   const markAll = async () => {
     if (!accessJwt || !riceToken || marking) return
     const requestLifetime = lifetime.current
-    setMarking(true); setError('')
+    setMarking(true); setReadError(''); setError('')
     const results = await Promise.allSettled([markNotificationsRead({ data: accessJwt }), markTaskNotificationsRead({ data: riceToken })])
     if (requestLifetime !== lifetime.current) return
     setRows((current) => current.map((notification) =>
       results[notificationSource(notification) === 'social' ? 0 : 1].status === 'fulfilled'
         ? { ...notification, isRead: true } : notification))
-    setError(results.flatMap((result, index) => result.status === 'rejected'
+    setReadError(results.flatMap((result, index) => result.status === 'rejected'
       ? [`${index === 0 ? '帖子互动通知' : '任务、活动与社区通知'}未能标记已读，请重试。`] : []).join(' '))
     window.dispatchEvent(new Event(NOTIFICATIONS_READ_EVENT))
     setMarking(false)
@@ -171,10 +172,13 @@ function NotificationInbox({ session, isReady, embedded }: { session: RiceSessio
           <Button label="清除所有已读消息" variant="ghost" isDisabled={marking || !notifications.some((notification) => notification.isRead)} clickAction={() => saveLocalState(notifications.filter((notification) => notification.isRead), 'hidden')} />
         </div>
       </div>
-      {loadError || error ? (
+      {loadError || readError || error ? (
         <div className="inline-error" role="alert">
-          <span>{[loadError, error].filter(Boolean).join(' ')}</span>
-          <Button label="重试" variant="ghost" size="sm" onClick={() => setReloadKey((value) => value + 1)} />
+          <span>{[loadError, readError, error].filter(Boolean).join(' ')}</span>
+          <Button label="重试" variant="ghost" size="sm" isDisabled={marking} onClick={async () => {
+            if (readError) await markAll()
+            if (loadError || !readError) setReloadKey((value) => value + 1)
+          }} />
         </div>
       ) : null}
 

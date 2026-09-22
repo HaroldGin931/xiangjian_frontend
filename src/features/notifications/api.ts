@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 
-import { BACKEND_BASE, requestJson } from '~/lib/http'
+import { BACKEND_BASE, readJson, requestJson } from '~/lib/http'
 import type { NotificationView } from '~/lib/models'
 
 export const NOTIFICATIONS_READ_EVENT = 'xiangjian-notifications-read'
@@ -117,18 +117,22 @@ export const getTaskNotifications = createServerFn({ method: 'POST' })
     return normalizeNotifications(body)
   })
 
+export async function updateSeenNotifications(accessJwt: string) {
+  const response = await fetch(`${BACKEND_BASE}/pds/xrpc/app.bsky.notification.updateSeen`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessJwt}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ seenAt: new Date().toISOString() }),
+  })
+  // updateSeen has no output schema and returns an empty HTTP 200 on success.
+  if (!response.ok) await readJson(response)
+}
+
 export const markNotificationsRead = createServerFn({ method: 'POST' })
   .validator((accessJwt: string) => accessJwt)
-  .handler(async ({ data: accessJwt }) => {
-    await requestJson(`${BACKEND_BASE}/pds/xrpc/app.bsky.notification.updateSeen`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessJwt}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ seenAt: new Date().toISOString() }),
-    })
-  })
+  .handler(({ data: accessJwt }) => updateSeenNotifications(accessJwt))
 
 export const markTaskNotificationsRead = createServerFn({ method: 'POST' })
   .validator((token: string) => token)
