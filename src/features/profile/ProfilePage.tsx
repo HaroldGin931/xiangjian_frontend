@@ -49,7 +49,7 @@ export function ProfilePage({ initialData = null, initialError = '' }: { initial
         {communities.length ? (
           <div className="filter-buttons grain-wallet-tabs" role="group" aria-label="稻米账户">
             <Button label="我的测试稻米" variant="ghost" className={!community ? 'active' : undefined} aria-pressed={!community} onClick={() => setCommunitySelection(null)} />
-            <Button label="社区稻米" variant="ghost" className={community ? 'active' : undefined} aria-pressed={!!community} onClick={() => selectCommunity(community?.id ?? communities[0].id)} />
+            <Button label="节点稻米" variant="ghost" className={community ? 'active' : undefined} aria-pressed={!!community} onClick={() => selectCommunity(community?.id ?? communities[0].id)} />
           </div>
         ) : <span>我的测试稻米</span>}
         <Button label="查看流水" variant="ghost" isDisabled={!wallet} onClick={() => setPanel('wallet')}>查看流水 →</Button>

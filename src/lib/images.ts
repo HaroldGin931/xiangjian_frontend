@@ -1,5 +1,6 @@
 export const IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif'
 export const DEFAULT_IMAGE_MAX_BYTES = 20_000_000
+export const DEFAULT_IMAGE_MAX_COUNT = 9
 
 export function imageSizeLabel(bytes: number) {
   return `${Number((bytes / 1_000_000).toFixed(2))} MB`
@@ -8,7 +9,7 @@ export function imageSizeLabel(bytes: number) {
 export function validateImageFiles(
   files: ReadonlyArray<Pick<File, 'name' | 'type' | 'size'>>,
   currentCount: number,
-  { maxImages = 4, maxBytes = DEFAULT_IMAGE_MAX_BYTES }: { maxImages?: number; maxBytes?: number } = {},
+  { maxImages = DEFAULT_IMAGE_MAX_COUNT, maxBytes = DEFAULT_IMAGE_MAX_BYTES }: { maxImages?: number; maxBytes?: number } = {},
 ) {
   if (currentCount + files.length > maxImages) return `最多添加 ${maxImages} 张图片。`
   for (const file of files) {

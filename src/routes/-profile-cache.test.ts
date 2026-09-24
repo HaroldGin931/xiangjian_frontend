@@ -92,7 +92,7 @@ describe('private profile route cache', () => {
     await router.navigate({ to: '/me' })
     expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ initialData: {
       wallet: { balance: 100 },
-      communities: [{ id: 'one', name: '一号社区', wallet: null, error: '社区稻米暂时无法加载，请稍后重试。' }],
+      communities: [{ id: 'one', name: '一号社区', wallet: null, error: '节点稻米暂时无法加载，请稍后重试。' }],
     }, error: '' })
   })
 

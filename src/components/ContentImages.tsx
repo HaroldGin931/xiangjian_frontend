@@ -3,7 +3,7 @@ import { IconButton } from '@astryxdesign/core/IconButton'
 import { ImagePlus, X } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { DEFAULT_IMAGE_MAX_BYTES, IMAGE_ACCEPT, imageSizeLabel, validateImageFiles } from '~/lib/images'
+import { DEFAULT_IMAGE_MAX_BYTES, DEFAULT_IMAGE_MAX_COUNT, IMAGE_ACCEPT, imageSizeLabel, validateImageFiles } from '~/lib/images'
 import '~/styles/images.css'
 
 export type PreviewImage = { src: string; alt: string }
@@ -63,7 +63,7 @@ function ImageViewer({ images, initialIndex, opener, onClose }: { images: Previe
   </dialog>, document.body)
 }
 
-export function ImagePicker({ images, onSelect, onRemove, disabled = false, maxImages = 4, maxBytes = DEFAULT_IMAGE_MAX_BYTES, description }: {
+export function ImagePicker({ images, onSelect, onRemove, disabled = false, maxImages = DEFAULT_IMAGE_MAX_COUNT, maxBytes = DEFAULT_IMAGE_MAX_BYTES, description }: {
   images: PreviewImage[]
   onSelect: (files: File[]) => void
   onRemove: (index: number) => void

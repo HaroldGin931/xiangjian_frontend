@@ -35,7 +35,7 @@ export const Route = createFileRoute('/me/')({
             const wallet = await getWallet({ data: { token, nodeId: id } })
             return { id, name, wallet }
           } catch {
-            return { id, name, wallet: null, error: '社区稻米暂时无法加载，请稍后重试。' }
+            return { id, name, wallet: null, error: '节点稻米暂时无法加载，请稍后重试。' }
           }
         })),
       }))

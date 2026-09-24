@@ -31,8 +31,9 @@ it('compresses large static images to the upload boundary without silently flatt
 
 it('counts existing images and applies the supplied upload limit', () => {
   const file = { name: '工作坊.png', type: 'image/png', size: 3_000_000 }
-  expect(validateImageFiles([file], 3, { maxBytes: 5_000_000 })).toBeNull()
-  expect(validateImageFiles([file], 4, { maxBytes: 5_000_000 })).toContain('最多添加 4 张')
+  expect(validateImageFiles([file], 8, { maxBytes: 5_000_000 })).toBeNull()
+  expect(validateImageFiles([file], 9, { maxBytes: 5_000_000 })).toContain('最多添加 9 张')
+  expect(validateImageFiles([file], 4, { maxImages: 4 })).toContain('最多添加 4 张')
 })
 
 it('rejects empty files and files outside supported image formats', () => {

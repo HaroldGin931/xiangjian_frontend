@@ -43,17 +43,17 @@ it('renders the prefetched profile and balance together on first render', () => 
   expect(html).toContain('<strong>130</strong>')
   expect(html).toContain('<b>123</b>')
   expect(html).not.toContain('>—<')
-  expect(html).not.toContain('社区稻米')
+  expect(html).not.toContain('节点稻米')
 })
 
 it('offers the community switch alongside the personal balance only for the current session', () => {
   const adminData = { ...initialData, communities: [{ id: 'community', name: '测试社区', wallet: { ...initialData.wallet, balance: 500 } }] }
   const html = renderToStaticMarkup(<ProfilePage initialData={adminData} />)
   expect(html).toContain('我的测试稻米')
-  expect(html).toContain('社区稻米')
+  expect(html).toContain('节点稻米')
   expect(html).toContain('<strong>130</strong>')
   expect(html).not.toContain('<strong>507</strong>')
-  expect(renderToStaticMarkup(<ProfilePage initialData={{ ...adminData, sessionToken: 'old-session' }} />)).not.toContain('社区稻米')
+  expect(renderToStaticMarkup(<ProfilePage initialData={{ ...adminData, sessionToken: 'old-session' }} />)).not.toContain('节点稻米')
 })
 
 it('does not display another account’s prefetched profile or balance', () => {
@@ -89,7 +89,7 @@ it('opens wallet history from the current account snapshot without an empty load
 it('opens a prefetched community history immediately and rejects another wallet or session', () => {
   const snapshot = { ...initialData, nodeId: 'community' }
   const html = renderToStaticMarkup(<GrainHistoryPage embedded nodeId="community" initialData={snapshot} />)
-  expect(html).toContain('社区稻米')
+  expect(html).toContain('节点稻米')
   expect(html).toContain('<strong>130</strong>')
   expect(html).not.toContain('正在加载明细')
   for (const stale of [{ ...snapshot, nodeId: 'other' }, { ...snapshot, sessionToken: 'old-session' }, initialData]) {

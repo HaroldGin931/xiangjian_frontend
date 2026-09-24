@@ -10,7 +10,7 @@ import { formatTimestamp } from '~/lib/format'
 import { useStoredSession } from '../session/session'
 import { fundCommunity, getWallet, walletEntryIncoming, type RiceWallet, type WalletEntry } from './api'
 
-const labels: Record<WalletEntry['kind'], string> = { reserved: '冻结', refunded: '解冻', grant: '稻米发放', gift: '稻米转赠', reward: '内容打赏', task_reward: '任务报酬', event_fee: '活动报名费', community_fund: '转入社区' }
+const labels: Record<WalletEntry['kind'], string> = { reserved: '冻结', refunded: '解冻', grant: '稻米发放', gift: '稻米转赠', reward: '内容赞赏', task_reward: '任务报酬', event_fee: '活动报名费', community_fund: '转入社区' }
 export function GrainHistoryPage({ embedded = false, initialData, nodeId }: { embedded?: boolean; nodeId?: string; initialData?: { accountId: string; sessionToken: string; nodeId?: string; wallet: RiceWallet } | null }) {
   const { session } = useStoredSession()
   const current = initialData?.accountId === session?.user.id && initialData?.sessionToken === session?.token && initialData?.nodeId === nodeId ? initialData : null
@@ -35,7 +35,7 @@ function WalletHistory({ embedded, initialWallet, nodeId }: { embedded: boolean;
   }, [session?.token, isReady, initialWallet, nodeId])
   const more = async () => { if (!session || !wallet?.next_cursor || loading) return; const current = request.current; setLoading(true); setError(''); try { const page = await getWallet({ data: { token: session.token, nodeId, before: wallet.next_cursor } }); if (current === request.current) setWallet((previous) => ({ ...page, entries: [...(previous?.entries ?? []), ...page.entries] })) } catch (e) { if (current === request.current) setError(e instanceof Error ? e.message : '加载失败') } finally { if (current === request.current) setLoading(false) } }
   if (isReady && !session) return <div className="page"><LoginLink className="primary-link">登录后查看稻米明细</LoginLink></div>
-  return <div className="page grain-history-page">{!embedded && <Link to="/me" className="back-link">返回我的</Link>}<h1>{nodeId ? '社区稻米' : '我的稻米'}</h1><p className="muted">测试稻米</p>
+  return <div className="page grain-history-page">{!embedded && <Link to="/me" className="back-link">返回我的</Link>}<h1>{nodeId ? '节点稻米' : '我的稻米'}</h1><p className="muted">测试稻米</p>
     <section className="grain-history-summary"><div><Sprout size={24} /><span>稻米余额</span></div><strong>{wallet ? wallet.balance + wallet.frozen : '—'}</strong><dl><div><dt>可用</dt><dd>{wallet?.balance ?? '—'}</dd></div><div><dt>已冻结</dt><dd>{wallet?.frozen ?? '—'}</dd></div><div><dt>累计获得</dt><dd>{wallet?.earned ?? '—'}</dd></div></dl></section>
     {nodeId && session && wallet && <CommunityFunding nodeId={nodeId} token={session.token} onFunded={(value) => { ++request.current; setWallet(value); setLoading(false); setError('') }} />}
     <h2>稻米明细</h2>{error && <p className="inline-error" role="alert">{error}</p>}{loading && <p className={wallet ? 'refresh-status' : 'loading-line'} role="status">正在加载明细…</p>}
