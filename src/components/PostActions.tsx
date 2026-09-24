@@ -24,6 +24,7 @@ export type RepostChange = {
 type PostActionsProps = {
   post: PostView
   onOpenComments?: () => void
+  commentAction?: 'reply' | 'hidden'
   onRepostChange?: (change: RepostChange) => void
   onPostDeleted?: (uri: string) => void
 }
@@ -33,7 +34,7 @@ export function PostActions(props: PostActionsProps) {
   return session ? <SessionPostActions key={`${props.post.uri}:${session.pds.did}`} {...props} session={session} /> : null
 }
 
-function SessionPostActions({ post, onOpenComments, onRepostChange, onPostDeleted, session }: PostActionsProps & { session: RiceSession }) {
+function SessionPostActions({ post, onOpenComments, commentAction, onRepostChange, onPostDeleted, session }: PostActionsProps & { session: RiceSession }) {
   const [likeUri, setLikeUri] = useState(() => ownedInteractionUri(post.viewer?.like, session.pds.did, 'app.bsky.feed.like'))
   const [repostUri, setRepostUri] = useState(() => ownedInteractionUri(post.viewer?.repost, session.pds.did, 'app.bsky.feed.repost'))
   const mounted = useRef(true)
@@ -152,7 +153,7 @@ function SessionPostActions({ post, onOpenComments, onRepostChange, onPostDelete
   return (
     <>
       <div className="content-card-actions post-actions" aria-label="帖子互动">
-        {category === 'activity' ? (
+        {commentAction === 'hidden' ? null : category === 'activity' ? (
           <span className="post-action special-post-state" aria-label={`${post.replyCount ?? 0} 人参与`}>
             <Users size={18} aria-hidden="true" /> 参与 {post.replyCount ?? 0}
           </span>
@@ -162,14 +163,14 @@ function SessionPostActions({ post, onOpenComments, onRepostChange, onPostDelete
           </span>
         ) : onOpenComments ? (
           <Button
-            label={`${post.replyCount ?? 0} 条评论`}
+            label={commentAction === 'reply' ? '回复评论' : `${post.replyCount ?? 0} 条评论`}
             variant="ghost"
             size="sm"
             icon={<MessageCircle size={18} aria-hidden="true" />}
             className="post-action"
             onClick={onOpenComments}
           >
-            {post.replyCount ?? 0}
+            {commentAction === 'reply' ? '回复' : post.replyCount ?? 0}
           </Button>
         ) : (
           <Link

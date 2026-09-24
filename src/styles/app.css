@@ -422,9 +422,14 @@ button.notification-row:focus-visible { outline: 2px solid var(--xj-green, #1b60
 .reply-section h2 { margin: 16px 0 8px; display: flex; align-items: center; gap: 6px; font-size: var(--xj-font-body-strong); }
 .reply-section h2 span { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; display: inline-grid; place-items: center; background: var(--xj-surface-soft); color: var(--xj-muted); font-size: var(--xj-font-caption); }
 .reply-composer { margin: 12px 0 8px; padding: 14px; border: 1px solid var(--xj-line); border-radius: 15px; background: var(--xj-surface); box-shadow: 0 4px 16px rgba(21, 54, 41, .05); }
+.reply-composer-target { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--xj-text-soft); }
 .reply-composer-notice { margin: 0; color: var(--xj-muted); font-size: var(--xj-font-small); }
 .reply-list { border-top: 1px solid var(--xj-line); }
+.reply-thread { border-bottom: 1px solid var(--xj-line); }
 .reply-row { padding: 12px 8px; border-bottom: 1px solid var(--xj-line); }
+.reply-thread .reply-row { border-bottom: 0; }
+.reply-row-child { margin-left: 28px; padding-left: 14px; border-left: 2px solid var(--xj-line); }
+.reply-row .reply-parent { color: var(--xj-text-soft); font-size: var(--xj-font-small); }
 .reply-row p { margin: 9px 0; font-size: var(--xj-font-body); }
 .special-post-details {
   margin: 14px 0;

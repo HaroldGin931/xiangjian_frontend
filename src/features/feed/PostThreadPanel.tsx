@@ -13,7 +13,7 @@ import {
   type RepostChange,
 } from '~/components/PostActions'
 import { authorDisplayName, formatTimestamp } from '~/lib/format'
-import type { PostThread } from '~/lib/models'
+import type { PostThread, PostView } from '~/lib/models'
 
 import { useStoredSession } from '../session/session'
 import {
@@ -56,6 +56,7 @@ function PostThreadContent({
   const [thread, setThread] = useState<PostThread | null>(null)
   const [error, setError] = useState('')
   const [replyText, setReplyText] = useState('')
+  const [replyTo, setReplyTo] = useState<PostView | null>(null)
   const [replyNotice, setReplyNotice] = useState('')
   const [isReplying, setReplying] = useState(false)
   const replyComposerId = useId()
@@ -63,7 +64,7 @@ function PostThreadContent({
   const category = thread ? postCategory(thread.post.record) : 'post'
   const fields = thread ? postFieldValues(thread.post.record.text, category) : {}
   const participants = thread?.replies.filter(
-    (reply) => reply.post.record.text === ACTIVITY_PARTICIPATION_TEXT,
+    (reply) => reply.parentUri === thread.post.uri && reply.post.record.text === ACTIVITY_PARTICIPATION_TEXT,
   ) ?? []
   const hasParticipated = Boolean(
     session && participants.some((reply) => reply.post.author.did === session.pds.did),
@@ -100,16 +101,18 @@ function PostThreadContent({
     })
   }, [focusReply, replyComposerId, thread])
 
-  const focusComposer = () => {
+  const focusComposer = (target: PostView | null = null) => {
+    setReplyTo(target)
+    setReplyNotice('')
     const composer = document.getElementById(replyComposerId)
     composer?.scrollIntoView({ behavior: 'smooth', block: 'end' })
     composer?.querySelector('textarea')?.focus()
   }
 
-  const publishComment = async (text: string) => {
+  const publishComment = async (text: string, target: PostView | null) => {
     if (!session || !thread) return
     const subject = { uri: thread.post.uri, cid: thread.post.cid }
-    const reply = { root: subject, parent: subject }
+    const reply = { root: subject, parent: target ? { uri: target.uri, cid: target.cid } : subject }
     const result = await createReply({
       data: {
         did: session.pds.did,
@@ -125,7 +128,12 @@ function PostThreadContent({
         ...current.post,
         replyCount: (current.post.replyCount ?? 0) + 1,
       },
-      replies: [...current.replies, { post }],
+      replies: [
+        ...current.replies.map((item) => target?.uri === item.post.uri
+          ? { ...item, post: { ...item.post, replyCount: (item.post.replyCount ?? 0) + 1 } }
+          : item),
+        { post, parentUri: reply.parent.uri },
+      ],
     } : current)
     clearCachedFeed(session.pds.did)
     onReplyCreated?.(thread.post.uri)
@@ -135,11 +143,12 @@ function PostThreadContent({
     text: string,
     successMessage: string,
     failureMessage: string,
+    target: PostView | null = null,
   ) => {
     setReplying(true)
     setReplyNotice('')
     try {
-      await publishComment(text)
+      await publishComment(text, target)
       setReplyNotice(successMessage)
       return true
     } catch (reason) {
@@ -152,8 +161,9 @@ function PostThreadContent({
 
   const submitReply = async () => {
     if (!session || !thread || !replyText.trim()) return
-    if (await submitComment(replyText, '评论已发布。', '评论失败')) {
+    if (await submitComment(replyText, '评论已发布。', '评论失败', replyTo)) {
       setReplyText('')
+      setReplyTo(null)
     }
   }
 
@@ -184,7 +194,7 @@ function PostThreadContent({
             <div className="detail-actions">
               <PostActions
                 post={thread.post}
-                onOpenComments={focusComposer}
+                onOpenComments={() => focusComposer()}
                 onRepostChange={onRepostChange}
                 onPostDeleted={(postUri) => {
                   if (onPostDeleted) {
@@ -200,8 +210,9 @@ function PostThreadContent({
           {category === 'post' ? (
             <section className="reply-section" aria-label="评论">
               {session && <div className="reply-composer" id={replyComposerId}>
+                {replyTo && <div className="reply-composer-target"><span>回复 {authorDisplayName(replyTo.author)}</span><Button label="取消回复" variant="ghost" size="sm" onClick={() => setReplyTo(null)} /></div>}
                 <TextArea
-                  label="写下评论"
+                  label={replyTo ? `回复 ${authorDisplayName(replyTo.author)}` : '写下评论'}
                   value={replyText}
                   onChange={setReplyText}
                   rows={6}
@@ -223,27 +234,19 @@ function PostThreadContent({
               </div>}
 
               <h2>评论 <span>{thread.replies.length}</span></h2>
-              {thread.replies.length === 0 ? (
+              {!thread.replies.length ? (
                 <div className="empty-panel replies-empty">
                   <EmptyState title="还没有评论" description="成为第一个参与讨论的人。" />
                 </div>
               ) : (
                 <div className="reply-list">
-                  {thread.replies.map((reply) => (
-                    <article className="reply-row" key={reply.post.uri}>
-                      <ContentCardHeader
-                        name={authorDisplayName(reply.post.author)}
-                        timestamp={formatTimestamp(
-                          reply.post.record.createdAt || reply.post.indexedAt,
-                          true,
-                        )}
-                        profileActor={reply.post.author.did}
-                        avatarUrl={reply.post.author.avatar}
-                      />
-                      <p><PostText text={reply.post.record.text} /></p>
-                      <ImageGroup images={(reply.post.images ?? []).map((image) => ({ ...image, src: image.fullsize ?? image.src }))} />
-                      <PostActions post={reply.post} onOpenComments={focusComposer} />
-                    </article>
+                  {thread.replies.filter((reply) => reply.parentUri === thread.post.uri).map((reply) => (
+                    <div className="reply-thread" key={reply.post.uri}>
+                      <CommentRow post={reply.post} onReply={() => focusComposer(reply.post)} />
+                      {thread.replies.filter((child) => child.parentUri === reply.post.uri).map((child) => (
+                        <CommentRow key={child.post.uri} post={child.post} repliedTo={authorDisplayName(reply.post.author)} />
+                      ))}
+                    </div>
                   ))}
                 </div>
               )}
@@ -281,4 +284,14 @@ function PostThreadContent({
       ) : null}
     </div>
   )
+}
+
+function CommentRow({ post, onReply, repliedTo }: { post: PostView; onReply?: () => void; repliedTo?: string }) {
+  return <article className={`reply-row${repliedTo ? ' reply-row-child' : ''}`}>
+    <ContentCardHeader name={authorDisplayName(post.author)} timestamp={formatTimestamp(post.record.createdAt || post.indexedAt, true)} profileActor={post.author.did} avatarUrl={post.author.avatar} />
+    {repliedTo && <p className="reply-parent">回复 {repliedTo}</p>}
+    <p><PostText text={post.record.text} /></p>
+    <ImageGroup images={(post.images ?? []).map((image) => ({ ...image, src: image.fullsize ?? image.src }))} />
+    <PostActions post={post} onOpenComments={onReply} commentAction={repliedTo ? 'hidden' : 'reply'} />
+  </article>
 }

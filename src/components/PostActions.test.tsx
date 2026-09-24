@@ -32,4 +32,10 @@ describe('post interaction rendering', () => {
   it('shows no mutation controls for a guest with cached viewer metadata', () => {
     expect(render()).toBe('')
   })
+
+  it('offers reply on a comment and hides the action on a second-level reply', () => {
+    state.session = { user: { id: 'alice' }, pds: { did: 'did:alice' } } as RiceSession
+    expect(renderToStaticMarkup(<PostActions post={post} onOpenComments={() => undefined} commentAction="reply" />)).toContain('回复评论')
+    expect(renderToStaticMarkup(<PostActions post={post} commentAction="hidden" />)).not.toContain('条评论')
+  })
 })

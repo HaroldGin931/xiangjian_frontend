@@ -209,10 +209,11 @@ describe('feed data', () => {
 
   it('uses the same local name for thread author and replies with one profile read per DID', async () => {
     const localReply = { ...post, uri: `${post.uri}-reply` }
+    const nestedReply = { ...post, uri: `${post.uri}-nested` }
     const externalReply = { ...post, uri: `${post.uri}-external`, author: { did: 'did:external', handle: 'outside.test', displayName: '外部作者' } }
     const fetchMock = vi.fn(async (input: string | URL) => {
       const url = String(input)
-      if (url.includes('getPostThread')) return new Response(JSON.stringify({ thread: { post, replies: [{ post: localReply }, { post: externalReply }] } }))
+      if (url.includes('getPostThread')) return new Response(JSON.stringify({ thread: { post, replies: [{ post: localReply, replies: [{ post: nestedReply }] }, { post: externalReply }] } }))
       if (url.includes('listRecords')) return new Response(JSON.stringify({ records: [] }))
       if (url.includes('/api/users/did%3Aexample/profile')) return new Response(JSON.stringify({ data: { did: post.author.did, nickname: '测试参与者 B' } }))
       return new Response(JSON.stringify({ error: 'not_found' }), { status: 404 })
@@ -221,7 +222,9 @@ describe('feed data', () => {
     const thread = await loadPostThread({ uri: post.uri, did: 'did:viewer', accessJwt: 'pds-token' })
     expect(thread.post.author.displayName).toBe('测试参与者 B')
     expect(thread.replies[0].post.author.displayName).toBe('测试参与者 B')
-    expect(thread.replies[1].post.author).toEqual(externalReply.author)
+    expect(thread.replies[1]).toMatchObject({ parentUri: localReply.uri, post: { author: { displayName: '测试参与者 B' } } })
+    expect(thread.replies[2].post.author).toEqual(externalReply.author)
+    expect(new URL(String(fetchMock.mock.calls[0][0])).searchParams.get('depth')).toBe('2')
     expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/api/users/'))).toHaveLength(2)
   })
 
@@ -447,16 +450,17 @@ describe('feed data', () => {
     ).toEqual({ posts: [{ ...post, reason }] })
   })
 
-  it('normalizes only the reply depth rendered by the product', () => {
+  it('keeps comments and their replies attached to the correct parent', () => {
     const reply = { ...post, uri: `${post.uri}-reply` }
+    const child = { ...post, uri: `${post.uri}-child`, record: { ...post.record, text: '回复评论' } }
     expect(normalizePostThread({
       thread: {
         post,
-        replies: [{ post: reply, replies: [{ post }] }, { blocked: true }],
+        replies: [{ post: reply, replies: [{ post: child }, { blocked: true }] }, { blocked: true }],
       },
     })).toEqual({
       post,
-      replies: [{ post: reply }],
+      replies: [{ post: reply, parentUri: post.uri }, { post: child, parentUri: reply.uri }],
     })
   })
 

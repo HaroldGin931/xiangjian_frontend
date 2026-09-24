@@ -286,14 +286,17 @@ export function normalizePostThread(payload: unknown): PostThread {
     throw new Error('帖子暂时无法显示')
   }
 
-  // ponytail: 当前产品只展示根帖下一层评论，嵌套回复留到 UI 真正支持时再取。
   const replies = (body.thread?.replies ?? [])
-    .map((value) => (value as { post?: PostView }).post)
-    .filter(
-      (reply): reply is PostView =>
-        Boolean(reply?.uri && reply.record?.text !== undefined),
-    )
-    .map((reply) => ({ post: normalizePostImages(reply) }))
+    .flatMap((value) => {
+      const node = value as { post?: PostView; replies?: unknown[] }
+      const parent = node.post
+      if (!parent?.uri || parent.record?.text === undefined) return []
+      const children = (node.replies ?? [])
+        .map((child) => (child as { post?: PostView }).post)
+        .filter((child): child is PostView => Boolean(child?.uri && child.record?.text !== undefined))
+        .map((child) => ({ post: normalizePostImages(child), parentUri: parent.uri }))
+      return [{ post: normalizePostImages(parent), parentUri: post.uri }, ...children]
+    })
   return { post: normalizePostImages(post), replies }
 }
 
@@ -370,7 +373,7 @@ type PostThreadInput = { uri: string; accessJwt?: string; did?: string }
 export async function loadPostThread(data: PostThreadInput): Promise<PostThread> {
     const params = new URLSearchParams({
       uri: data.uri,
-      depth: '1',
+      depth: '2',
       parentHeight: '0',
     })
     const payload = await requestJson<unknown>(
@@ -384,7 +387,7 @@ export async function loadPostThread(data: PostThreadInput): Promise<PostThread>
       data.accessJwt,
     )
     const [namedPost, ...replies] = await hydrateAuthorNames(posts)
-    return { post: namedPost, replies: replies.map((reply) => ({ post: reply })) }
+    return { post: namedPost, replies: replies.map((reply, index) => ({ post: reply, parentUri: thread.replies[index].parentUri })) }
 }
 
 export const getPostThread = createServerFn({ method: 'POST' })

@@ -122,7 +122,7 @@ export type PostFeed = {
 
 export type PostThread = {
   post: PostView
-  replies: Array<{ post: PostView }>
+  replies: Array<{ post: PostView; parentUri: string }>
 }
 
 export type NotificationView = {
