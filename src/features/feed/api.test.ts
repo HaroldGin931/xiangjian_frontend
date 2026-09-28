@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { PdsImage, RiceSession } from '~/lib/models'
-import { MAX_POST_IMAGE_BYTES, newPostRecordKey, pdsBlobUrl, recordKeyFromUri, uploadPdsImage } from '~/lib/pds'
+import { MAX_POST_IMAGE_BYTES, MAX_POST_IMAGES, newPostRecordKey, pdsBlobUrl, recordKeyFromUri, uploadPdsImage } from '~/lib/pds'
 
 import {
   clearCachedFeed,
@@ -80,11 +80,32 @@ describe('post images', () => {
     expect(record.text).toBe('')
   })
 
-  it('blocks more than four images and invalid blob sizes before creating a post', async () => {
+  it.each([5, 9])('publishes %i images as a gallery and shows them immediately', async (count) => {
+    const images = Array.from({ length: count }, (_, index): PdsImage => ({
+      image: { ...image.image, ref: { $link: `bafkreiimage${index}` } },
+      alt: `图片 ${index + 1}`,
+      aspectRatio: { width: 1200, height: 800 },
+    }))
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ uri: post.uri, cid: 'created' })))
+    vi.stubGlobal('fetch', fetchMock)
+    const created = await createTextPostRecord({ did: 'did:example', accessJwt: 'pds-token', text: '', category: 'post', rkey: 'recordkey', createdAt: post.indexedAt, images })
+    const record = JSON.parse(fetchMock.mock.calls[0][1].body).record
+    expect(record.embed).toEqual({ $type: 'app.bsky.embed.gallery', items: images.map((item) => ({ $type: 'app.bsky.embed.gallery#image', ...item })) })
+    const session = { user: { nickname: 'Mo' }, pds: { did: 'did:example', handle: 'mo.local' } } as RiceSession
+    const immediate = createdPostView(created, session)
+    expect(immediate.record.embed).toEqual(record.embed)
+    expect(immediate.images).toHaveLength(count)
+    expect(immediate.images?.[count - 1]).toMatchObject({ src: pdsBlobUrl(session.pds.did, images[count - 1].image.ref.$link), width: 1200, height: 800 })
+  })
+
+  it('blocks more than nine images, invalid blob sizes, and galleries without real dimensions', async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
     const input = { did: 'did:example', accessJwt: 'pds-token', text: '', category: 'post' as const, rkey: 'recordkey', createdAt: post.indexedAt }
-    await expect(createTextPostRecord({ ...input, images: Array(5).fill(image) })).rejects.toThrow('4 张图片')
+    expect(MAX_POST_IMAGES).toBe(9)
+    await expect(createTextPostRecord({ ...input, images: Array(10).fill(image) })).rejects.toThrow('9 张图片')
+    await expect(createTextPostRecord({ ...input, images: Array(5).fill(image) })).rejects.toThrow('图片尺寸无效')
+    await expect(createTextPostRecord({ ...input, images: Array(5).fill({ ...image, aspectRatio: { width: 0, height: 1 } }) })).rejects.toThrow('图片尺寸无效')
     await expect(createTextPostRecord({ ...input, images: [{ ...image, image: { ...image.image, size: MAX_POST_IMAGE_BYTES + 1 } }] })).rejects.toThrow('图片信息无效')
     expect(fetchMock).not.toHaveBeenCalled()
   })
@@ -95,12 +116,48 @@ describe('post images', () => {
     await expect(createTextPostRecord({ did: 'did:example', accessJwt: 'pds-token', text: post.record.text, category: 'post', rkey: 'recordkey', createdAt: post.indexedAt, images: [image] })).rejects.toThrow('上次提交的帖子已发布')
   })
 
+  it('recovers the same gallery after a lost response but rejects changed gallery items', async () => {
+    const images = Array.from({ length: 5 }, (_, index): PdsImage => ({ ...image, image: { ...image.image, ref: { $link: `bafkreiimage${index}` } }, aspectRatio: { width: 4, height: 3 } }))
+    const input = { did: 'did:example', accessJwt: 'pds-token', text: post.record.text, category: 'post' as const, rkey: 'recordkey', createdAt: post.indexedAt, images }
+    const stored = { uri: post.uri, cid: 'stored', value: { text: input.text, createdAt: input.createdAt, xjdaoCategory: input.category, embed: { $type: 'app.bsky.embed.gallery', items: images.map((item) => ({ $type: 'app.bsky.embed.gallery#image', ...item })) } } }
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValueOnce(new Error('response lost')).mockResolvedValueOnce(new Response(JSON.stringify(stored))))
+    await expect(createTextPostRecord(input)).resolves.toMatchObject({ uri: post.uri, cid: 'stored' })
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValueOnce(new Error('response lost')).mockResolvedValueOnce(new Response(JSON.stringify({ ...stored, value: { ...stored.value, embed: { ...stored.value.embed, items: stored.value.embed.items.map((item, index) => index === 4 ? { ...item, alt: '另一张' } : item) } } }))))
+    await expect(createTextPostRecord(input)).rejects.toThrow('上次提交的帖子已发布')
+  })
+
   it('normalizes raw repo embeds for feeds and detail without an arbitrary URL proxy', () => {
     const raw = { ...post, record: { ...post.record, embed: { $type: 'app.bsky.embed.images', images: [image] } } }
     const expected = [{ src: pdsBlobUrl(post.author.did, image.image.ref.$link), alt: image.alt }]
     expect(normalizePostFeed({ posts: [raw] }).posts[0].images).toEqual(expected)
     expect(normalizePostThread({ thread: { post: raw } }).post.images).toEqual(expected)
     expect(normalizePostImages({ ...post, embed: { $type: 'app.bsky.embed.images#view', images: [{ thumb: 'javascript:alert(1)', fullsize: 'data:text/html,test', alt: '' }] } }).images).toBeUndefined()
+  })
+
+  it('reads gallery thumbnails and record blobs, showing at most nine images', () => {
+    const items = Array.from({ length: 10 }, (_, index) => ({
+      $type: 'app.bsky.embed.gallery#image',
+      image: { ...image.image, ref: { $link: `bafkreigallery${index}` } },
+      alt: `图片 ${index + 1}`,
+      aspectRatio: { width: 4, height: 3 },
+    }))
+    const views = items.map((item, index) => ({
+      $type: 'app.bsky.embed.gallery#viewImage',
+      thumbnail: `https://cdn.example/${index}.jpg`,
+      fullsize: `https://cdn.example/${index}-full.jpg`,
+      alt: item.alt,
+      aspectRatio: item.aspectRatio,
+    }))
+    views[4].thumbnail = 'javascript:alert(1)'
+    views[4].fullsize = 'data:text/html,test'
+    const record = { ...post.record, embed: { $type: 'app.bsky.embed.gallery', items } }
+    const gallery = { ...post, record, embed: { $type: 'app.bsky.embed.gallery#view', items: views } }
+    const images = normalizePostFeed({ posts: [gallery] }).posts[0].images
+    expect(images).toHaveLength(9)
+    expect(images?.[0]).toEqual({ src: 'https://cdn.example/0.jpg', fullsize: 'https://cdn.example/0-full.jpg', alt: '图片 1', width: 4, height: 3 })
+    expect(images?.[4]).toEqual({ src: pdsBlobUrl(post.author.did, items[4].image.ref.$link), alt: '图片 5', width: 4, height: 3 })
+    expect(images?.[8]?.alt).toBe('图片 9')
+    expect(normalizePostThread({ thread: { post: { ...post, record } } }).post.images?.[0]?.src).toBe(pdsBlobUrl(post.author.did, items[0].image.ref.$link))
   })
 
   it('preserves external image URLs and maps only configured AppView origins to the same-origin gateway', () => {

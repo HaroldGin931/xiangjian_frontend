@@ -84,13 +84,17 @@ afterEach(() => {
   mock.recipient.mockReset(); mock.send.mockReset(); vi.unstubAllGlobals()
 })
 
-it.each(['@bob.example', '13800138000'])('previews %s with Rice auth before confirmation and writes the resolved id once while pending', async (identifier) => {
-  change('收款人', '@bob.example'); change('发送金额', '1.5')
+it.each(['@bob.example', '13800138000'])('checks %s after input and writes the resolved id once while pending', async (identifier) => {
+  change('收款人', identifier); change('发送金额', '1.5')
   expect(field('下一步')?.isDisabled).toBe(true)
   await action('下一步')()
   expect(mock.recipient).not.toHaveBeenCalled()
-  await confirmRecipient(identifier)
+  ;(field('收款人')!.onBlur as () => void)()
   expect(mock.recipient).toHaveBeenCalledWith({ data: { token: 'rice-alice', identifier } })
+  await vi.waitFor(() => expect(render().find((node) => node.props.role === 'status')).toBeDefined())
+  change('发送金额', '12'); change('留言', '谢谢')
+  await action('下一步')()
+  expect(mock.recipient).toHaveBeenCalledTimes(1)
   expect(mock.send).not.toHaveBeenCalled()
   expect(confirmation()).toBeDefined()
   let finish!: (value: typeof receipt) => void
@@ -125,24 +129,69 @@ it.each(['返回修改', '关闭或 Escape'])('returns from confirmation through
   expect(mock.send).not.toHaveBeenCalled()
 })
 
-it('does not transfer when a phone recipient cannot be resolved and keeps the input editable', async () => {
-  mock.recipient.mockRejectedValueOnce(new Error('收款人不存在。'))
-  await confirmRecipient('13800138000')
+it('reports an unknown phone after input and keeps the form editable', async () => {
+  mock.recipient.mockRejectedValue(new Error('收款人不存在。'))
+  change('收款人', '13800138000')
+  ;(field('收款人')!.onKeyDown as (event: unknown) => void)({ key: 'Enter', nativeEvent: { isComposing: true } })
+  expect(mock.recipient).not.toHaveBeenCalled()
+  ;(field('收款人')!.onBlur as () => void)()
+  await vi.waitFor(() => expect(render().find((node) => node.props.role === 'alert')?.props.children).toBe('收款人不存在。'))
+  ;(field('收款人')!.onKeyDown as (event: unknown) => void)({ key: 'Enter', nativeEvent: { isComposing: false } })
+  expect(mock.recipient).toHaveBeenCalledTimes(1)
+  change('发送金额', '12')
+  await action('下一步')()
   expect(render().find((node) => node.props.role === 'alert')?.props.children).toBe('收款人不存在。')
   expect(mock.send).not.toHaveBeenCalled()
   expect(field('确认发送')).toBeUndefined()
   expect(field('收款人')?.isDisabled).toBe(false)
 })
 
-it('fills a scanned recipient without looking up or sending until the user continues', () => {
+it('checks a scanned recipient once before sending', async () => {
   change('发送金额', '12')
   ;(field('扫描收款码')!.onClick as () => void)()
   const scanner = render().find((node) => typeof node.props.onRead === 'function')!
   ;(scanner.props.onRead as (value: string) => void)('13800138000')
   expect(field('收款人')?.value).toBe('13800138000')
   expect(render().some((node) => typeof node.props.onRead === 'function')).toBe(false)
-  expect(mock.recipient).not.toHaveBeenCalled()
+  expect(mock.recipient).toHaveBeenCalledWith({ data: { token: 'rice-alice', identifier: '13800138000' } })
+  await vi.waitFor(() => expect(render().find((node) => node.props.role === 'status')).toBeDefined())
+  ;(field('收款人')!.onBlur as () => void)()
+  expect(mock.recipient).toHaveBeenCalledTimes(1)
   expect(mock.send).not.toHaveBeenCalled()
+})
+
+it('reuses a blur lookup when the user immediately presses next', async () => {
+  let finish!: (value: typeof recipient) => void
+  mock.recipient.mockReturnValueOnce(new Promise((resolve) => { finish = resolve }))
+  change('收款人', '13800138000'); change('发送金额', '12')
+  ;(field('收款人')!.onBlur as () => void)()
+  expect(field('下一步')?.isDisabled).toBe(false)
+  const pending = action('下一步')()
+  expect(mock.recipient).toHaveBeenCalledTimes(1)
+  finish(recipient); await pending
+  expect(confirmation()).toBeDefined()
+})
+
+it('ignores a recipient lookup after the identifier changes', async () => {
+  let finish!: (value: typeof recipient) => void
+  mock.recipient.mockReturnValueOnce(new Promise((resolve) => { finish = resolve }))
+  change('收款人', '13800138000')
+  ;(field('收款人')!.onBlur as () => void)()
+  change('收款人', '13900139000')
+  finish(recipient); await Promise.resolve()
+  expect(render().find((node) => node.props.role === 'status')).toBeUndefined()
+  expect(field('收款人')?.value).toBe('13900139000')
+})
+
+it('ignores a recipient lookup after switching accounts', async () => {
+  let finish!: (value: typeof recipient) => void
+  mock.recipient.mockReturnValueOnce(new Promise((resolve) => { finish = resolve }))
+  change('收款人', '13800138000')
+  ;(field('收款人')!.onBlur as () => void)()
+  mock.session = { ...session, token: 'rice-carol' }; mock.stored = mock.session
+  render()
+  finish(recipient); await Promise.resolve()
+  expect(render().find((node) => node.props.role === 'status')).toBeUndefined()
 })
 
 it('removes sending and retry controls after an uncertain network failure', async () => {

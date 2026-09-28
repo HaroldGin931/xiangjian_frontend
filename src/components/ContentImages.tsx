@@ -1,4 +1,5 @@
 import { Button } from '@astryxdesign/core/Button'
+import { Grid } from '@astryxdesign/core/Grid'
 import { IconButton } from '@astryxdesign/core/IconButton'
 import { ImagePlus, X } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
@@ -20,18 +21,18 @@ function ContentImage({ src, alt, loading, canRetry = false }: PreviewImage & { 
 
 export function ImageCover({ images }: { images: PreviewImage[] }) {
   if (!images.length) return null
-  return <span className="content-image-cover"><ContentImage key={images[0].src} {...images[0]} loading="lazy" /><span className="content-image-count">{images.length} 张图片</span></span>
+  return <span className="content-image-cover"><ContentImage key={images[0].src} {...images[0]} loading="lazy" />{images.length > 1 && <span className="content-image-count">{images.length} 张图片</span>}</span>
 }
 
-export function ImageGroup({ images }: { images: PreviewImage[] }) {
+export function ImageGroup({ images, onOpen }: { images: PreviewImage[]; onOpen?: () => void }) {
   const [selected, setSelected] = useState<number | null>(null)
   const opener = useRef<HTMLButtonElement>(null)
   if (!images.length) return null
   return <>
-    <div className="content-image-group" aria-label="图片">
-      {images.map((image, index) => <button type="button" className="content-image-thumbnail" key={`${image.src}:${index}`} aria-label={`查看第 ${index + 1} 张图片${image.alt ? `：${image.alt}` : ''}`} onClick={(event) => { opener.current = event.currentTarget; setSelected(index) }}><ContentImage {...image} loading="lazy" /></button>)}
-    </div>
-    {selected !== null && <ImageViewer images={images} initialIndex={selected} opener={opener.current} onClose={() => setSelected(null)} />}
+    <Grid columns={images.length === 4 ? 2 : Math.min(images.length, 3)} className={`content-image-group${onOpen ? ' post-image-grid' : ''}`} aria-label="图片">
+      {images.map((image, index) => <button type="button" className="content-image-thumbnail" key={`${image.src}:${index}`} aria-label={`查看第 ${index + 1} 张图片${image.alt ? `：${image.alt}` : ''}`} onClick={(event) => { if (onOpen) return onOpen(); opener.current = event.currentTarget; setSelected(index) }}><ContentImage {...image} loading="lazy" /></button>)}
+    </Grid>
+    {!onOpen && selected !== null && <ImageViewer images={images} initialIndex={selected} opener={opener.current} onClose={() => setSelected(null)} />}
   </>
 }
 

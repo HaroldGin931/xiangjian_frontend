@@ -1,17 +1,7 @@
-const timestampOptions: Intl.DateTimeFormatOptions = {
-  month: 'numeric',
-  day: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-  timeZone: 'Asia/Shanghai',
-}
+import { beijingDateTimeValue } from './date-time'
 
-const shortTimestamp = new Intl.DateTimeFormat('zh-CN', timestampOptions)
-const longTimestamp = new Intl.DateTimeFormat('zh-CN', { ...timestampOptions, year: 'numeric' })
-
-export function formatTimestamp(value: string, includeYear = false) {
-  return (includeYear ? longTimestamp : shortTimestamp).format(new Date(value))
+export function formatTimestamp(value: string, _includeYear = false) {
+  return beijingDateTimeValue(value).replace('T', ' ')
 }
 
 type AuthorLabel = { handle: string; displayName?: string }

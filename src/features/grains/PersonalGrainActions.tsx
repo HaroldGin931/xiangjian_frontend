@@ -1,7 +1,7 @@
 import { Button } from '@astryxdesign/core/Button'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { IconButton } from '@astryxdesign/core/IconButton'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import QRCode from 'react-qr-code'
 import { QrCode, ScanLine } from 'lucide-react'
@@ -57,39 +57,82 @@ function SendGrainDialog({ session, to, onClose }: { session: RiceSession; to?: 
   const [amount, setAmount] = useState('')
   const [memo, setMemo] = useState('')
   const [recipient, setRecipient] = useState<RicePublicUser | null>(null)
+  const [confirming, setConfirming] = useState(false)
   const [receipt, setReceipt] = useState<PersonalTransfer | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [uncertain, setUncertain] = useState(false)
   const [scanning, setScanning] = useState(false)
-  const receiveCode = useCallback((value: string) => { setIdentifier(value); setScanning(false); setError('') }, [])
   const pending = useRef(false)
+  const lookupVersion = useRef(0)
+  const autoChecked = useRef('')
+  const pendingLookup = useRef<{ identifier: string; request: Promise<RicePublicUser> } | null>(null)
   const mounted = useRef(true)
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   const current = () => mounted.current && readStoredSession()?.token === session.token
   const amountError = amount ? integerInputError(amount, '发送金额', 1) : null
+  const changeIdentifier = (value: string) => {
+    lookupVersion.current++
+    autoChecked.current = ''
+    setIdentifier(value); setRecipient(null); setError('')
+  }
+  const lookup = async (value: string): Promise<RicePublicUser | null> => {
+    const query = value.trim()
+    if (!query || !current()) return null
+    if (recipient && query === identifier.trim()) return recipient
+    const version = lookupVersion.current
+    const request = pendingLookup.current?.identifier === query
+      ? pendingLookup.current.request
+      : getTransferRecipient({ data: { token: session.token, identifier: query } })
+    pendingLookup.current = { identifier: query, request }
+    setError('')
+    try {
+      const user = await request
+      if (!current() || version !== lookupVersion.current) return null
+      if (user.did === session.pds.did) throw new Error('不能转给自己。')
+      setRecipient(user)
+      return user
+    } catch (reason) {
+      if (current() && version === lookupVersion.current) {
+        setRecipient(null)
+        setError(reason instanceof Error ? reason.message : '未找到该收款人。')
+      }
+      return null
+    } finally {
+      if (pendingLookup.current?.request === request) pendingLookup.current = null
+    }
+  }
+  const autoCheck = (value: string) => {
+    const query = value.trim()
+    if (!query || autoChecked.current === query) return
+    autoChecked.current = query
+    void lookup(query)
+  }
+  useEffect(() => { if (to) autoCheck(to) }, [to])
+  const receiveCode = (value: string) => {
+    changeIdentifier(value); setScanning(false); autoCheck(value)
+  }
   const cancelConfirmation = () => {
     if (pending.current) return
     if (uncertain) { onClose(); return }
-    setRecipient(null); setError('')
+    setConfirming(false); setError('')
   }
   const run = async () => {
     if (!current() || pending.current || !identifier.trim() || !amount || amountError || uncertain) return
     pending.current = true; setBusy(true); setError('')
     try {
-      if (!recipient) {
-        const user = await getTransferRecipient({ data: { token: session.token, identifier } })
-        if (user.did === session.pds.did) throw new Error('不能转给自己。')
-        if (current()) setRecipient(user)
+      if (!confirming) {
+        const user = recipient ?? await lookup(identifier)
+        if (user && current()) setConfirming(true)
       } else {
-        const result = await sendPersonalGrains({ data: { token: session.token, to: recipient.id, amount: Number(amount), memo } })
+        const result = await sendPersonalGrains({ data: { token: session.token, to: recipient!.id, amount: Number(amount), memo } })
         if (current()) { window.dispatchEvent(new Event('rice-changed')); setReceipt(result) }
       }
     } catch (reason) {
       if (current()) {
         setError(reason instanceof Error ? reason.message : '发送失败。')
         // No automatic retry: this existing transfer API has no idempotency key.
-        if (recipient) setUncertain(true)
+        if (confirming) setUncertain(true)
       }
     } finally { pending.current = false; if (current()) setBusy(false) }
   }
@@ -98,16 +141,18 @@ function SendGrainDialog({ session, to, onClose }: { session: RiceSession; to?: 
       {receipt ? <><strong role="status">已向 @{receipt.to.handle} 发送 {receipt.amount} 稻米</strong><Link to="/me/grains" onClick={onClose}>查看稻米明细</Link><div className="form-actions"><Button label="完成" variant="primary" onClick={onClose} /></div></> : <>
         <p className="muted">个人测试稻米</p>
         <div className="grain-recipient-field">
-          <TextInput label="收款人" value={identifier} onChange={setIdentifier} description="填写手机号、完整用户名或 DID。" isDisabled={busy || !!recipient || uncertain} width="100%" />
-          <IconButton label="扫描收款码" icon={<ScanLine size={22} />} variant="ghost" isDisabled={busy || !!recipient || uncertain} onClick={() => setScanning(true)} />
+          <TextInput label="收款人" value={identifier} onChange={changeIdentifier} onBlur={() => autoCheck(identifier)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.nativeEvent.isComposing) autoCheck(identifier) }} description="填写手机号、完整用户名或 DID。" isDisabled={busy || confirming || uncertain} width="100%" />
+          <IconButton label="扫描收款码" icon={<ScanLine size={22} />} variant="ghost" isDisabled={busy || confirming || uncertain} onClick={() => setScanning(true)} />
         </div>
-        <TextInput label="发送金额" value={amount} onChange={setAmount} status={amountError ? { type: 'error', message: amountError } : undefined} isDisabled={busy || !!recipient || uncertain} width="100%" />
-        <TextInput label="留言" value={memo} onChange={setMemo} isDisabled={busy || !!recipient || uncertain} width="100%" isOptional />
-        {!recipient && <>{error && <p className="inline-error" role="alert">{error}</p>}<div className="form-actions"><Button label="下一步" variant="primary" isLoading={busy} isDisabled={busy || !identifier.trim() || !amount || !!amountError} clickAction={run} /></div></>}
+        {recipient && !confirming && <div role="status">收款人：<strong>{recipient.nickname || recipient.handle}</strong>（@{recipient.handle}）</div>}
+        {!confirming && error && <p className="inline-error" role="alert">{error}</p>}
+        <TextInput label="发送金额" value={amount} onChange={setAmount} status={amountError ? { type: 'error', message: amountError } : undefined} isDisabled={busy || confirming || uncertain} width="100%" />
+        <TextInput label="留言" value={memo} onChange={setMemo} isDisabled={busy || confirming || uncertain} width="100%" isOptional />
+        {!confirming && <div className="form-actions"><Button label="下一步" variant="primary" isLoading={busy} isDisabled={busy || !identifier.trim() || !amount || !!amountError} clickAction={run} /></div>}
       </>}
     </div>
     {scanning && <GrainScannerDialog onRead={receiveCode} onClose={() => setScanning(false)} />}
-    {recipient && !receipt && <DetailDialog title="确认发送稻米" className="post-dialog business-dialog compose-close-dialog" onClose={cancelConfirmation}>
+    {confirming && recipient && !receipt && <DetailDialog title="确认发送稻米" className="post-dialog business-dialog compose-close-dialog" onClose={cancelConfirmation}>
       <div className="business-panel form-stack">
         <section><Avatar name={recipient.nickname || recipient.handle} src={recipient.avatar?.url} /><strong>{recipient.nickname || recipient.handle}</strong><p>@{recipient.handle}</p><p>确认发送 {amount} 稻米？</p></section>
         {error && <p className="inline-error" role="alert">{error}</p>}

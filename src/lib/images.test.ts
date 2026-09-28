@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { DEFAULT_IMAGE_MAX_BYTES, preparePostImage, validateImageFiles } from './images'
+import { DEFAULT_IMAGE_MAX_BYTES, preparePostImage, readImageAspectRatio, validateImageFiles } from './images'
 import { MAX_POST_IMAGE_BYTES } from './pds'
 
 afterEach(() => vi.unstubAllGlobals())
@@ -27,6 +27,30 @@ it('compresses large static images to the upload boundary without silently flatt
   expect([canvas.width, canvas.height]).toEqual([2048, 1536])
   expect(bitmap.close).toHaveBeenCalledOnce()
   await expect(preparePostImage(new File([large], 'animated.gif', { type: 'image/gif' }), MAX_POST_IMAGE_BYTES)).rejects.toThrow('GIF 动图')
+})
+
+it('reads dimensions from a small GIF with the browser image decoder', async () => {
+  const revoke = vi.fn()
+  vi.stubGlobal('URL', { createObjectURL: () => 'blob:preview', revokeObjectURL: revoke })
+  vi.stubGlobal('Image', class {
+    naturalWidth = 640
+    naturalHeight = 480
+    onload: (() => void) | null = null
+    set src(_value: string) { queueMicrotask(() => this.onload?.()) }
+  })
+  await expect(readImageAspectRatio(new File(['gif'], 'animated.gif', { type: 'image/gif' }))).resolves.toEqual({ width: 640, height: 480 })
+  expect(revoke).toHaveBeenCalledWith('blob:preview')
+})
+
+it('rejects images whose dimensions cannot be decoded', async () => {
+  const revoke = vi.fn()
+  vi.stubGlobal('URL', { createObjectURL: () => 'blob:preview', revokeObjectURL: revoke })
+  vi.stubGlobal('Image', class {
+    onerror: (() => void) | null = null
+    set src(_value: string) { queueMicrotask(() => this.onerror?.()) }
+  })
+  await expect(readImageAspectRatio(new File(['broken'], 'broken.png', { type: 'image/png' }))).rejects.toThrow('无法读取“broken.png”的尺寸')
+  expect(revoke).toHaveBeenCalledWith('blob:preview')
 })
 
 it('counts existing images and applies the supplied upload limit', () => {

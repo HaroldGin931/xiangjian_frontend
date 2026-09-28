@@ -33,6 +33,24 @@ export function readFileBase64(file: File): Promise<string> {
   })
 }
 
+export function readImageAspectRatio(file: File): Promise<{ width: number; height: number }> {
+  const url = URL.createObjectURL(file)
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => {
+      URL.revokeObjectURL(url)
+      const { naturalWidth: width, naturalHeight: height } = image
+      if (width && height) resolve({ width, height })
+      else reject(new Error(`无法读取“${file.name}”的尺寸，请重新选择图片。`))
+    }
+    image.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error(`无法读取“${file.name}”的尺寸，请重新选择图片。`))
+    }
+    image.src = url
+  })
+}
+
 export async function preparePostImage(file: File, maxBytes: number): Promise<File> {
   if (file.size <= maxBytes) return file
   // Canvas cannot preserve animated GIF frames.

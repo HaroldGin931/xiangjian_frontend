@@ -5,7 +5,7 @@ import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref
 import { ImagePicker } from '~/components/ContentImages'
 import { DetailDialog, usePanelReady } from '~/components/DetailDialog'
 import { LoadingState } from '~/components/LoadingState'
-import { preparePostImage, readFileBase64 } from '~/lib/images'
+import { preparePostImage, readFileBase64, readImageAspectRatio } from '~/lib/images'
 import type { PdsImage } from '~/lib/models'
 import type { FormCloseState } from '~/lib/form-state'
 import { MAX_POST_IMAGE_BYTES, MAX_POST_IMAGES, newPostRecordKey } from '~/lib/pds'
@@ -164,8 +164,9 @@ function ComposeContent({ initialKind = 'post', onPublished, onClose, ref }: Com
         let image = uploadedImages.current.get(file)
         if (!image) {
           const prepared = await preparePostImage(file, MAX_POST_IMAGE_BYTES)
+          const aspectRatio = await readImageAspectRatio(prepared)
           const blob = await uploadPostImage({ data: { accessJwt: session.pds.access_jwt, contentType: prepared.type, base64: await readFileBase64(prepared) } })
-          image = { image: blob, alt: file.name.replace(/\.[^.]+$/, '') }
+          image = { image: blob, alt: file.name.replace(/\.[^.]+$/, ''), aspectRatio }
           uploadedImages.current.set(file, image)
         }
         images.push(image)

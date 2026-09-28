@@ -62,6 +62,12 @@ export function clearCachedFeed(did?: string) {
   }
 }
 
+function postImageEmbed(images: PdsImage[]) {
+  return images.length > 4
+    ? { $type: 'app.bsky.embed.gallery', items: images.map(({ image, alt, aspectRatio }) => ({ $type: 'app.bsky.embed.gallery#image' as const, image, alt, aspectRatio })) }
+    : { $type: 'app.bsky.embed.images', images }
+}
+
 export function createdPostView(
   created: {
     uri: string
@@ -89,7 +95,7 @@ export function createdPostView(
       createdAt: created.createdAt,
       ...(created.category ? { xjdaoCategory: created.category } : {}),
       ...(reply ? { reply } : {}),
-      ...(created.images?.length ? { embed: { $type: 'app.bsky.embed.images', images: created.images } } : {}),
+      ...(created.images?.length ? { embed: postImageEmbed(created.images) } : {}),
     },
     ...(created.images?.length ? { images: created.images.map((item) => ({ src: pdsBlobUrl(session.pds.did, item.image.ref.$link), alt: item.alt, ...item.aspectRatio })) } : {}),
     replyCount: 0,
@@ -178,19 +184,22 @@ async function hydrateAuthorNames(posts: PostView[]) {
 
 export function normalizePostImages(post: PostView): PostView {
   const imageEmbed = (value: unknown) => {
-    const embed = value as { $type?: string; images?: unknown[]; media?: unknown } | undefined
+    const embed = value as { $type?: string; images?: unknown[]; items?: unknown[]; media?: unknown } | undefined
     if (embed?.$type === 'app.bsky.embed.recordWithMedia#view' || embed?.$type === 'app.bsky.embed.recordWithMedia') return embed.media as typeof embed
     return embed
   }
   const view = imageEmbed(post.embed)
   const record = imageEmbed(post.record.embed)
-  const source = Array.isArray(view?.images) && view.images.length ? view : record
-  if (!Array.isArray(source?.images) || !source.images.length) return post
-  const images = source.images.slice(0, MAX_POST_IMAGES).flatMap((value, index): PostImage[] => {
+  const imageItems = (embed: typeof view) => embed?.$type === 'app.bsky.embed.gallery' || embed?.$type === 'app.bsky.embed.gallery#view' ? embed.items : embed?.images
+  const viewed = imageItems(view)
+  const originals = imageItems(record)
+  const source = Array.isArray(viewed) && viewed.length ? viewed : originals
+  if (!Array.isArray(source) || !source.length) return post
+  const images = source.slice(0, 9).flatMap((value, index): PostImage[] => {
     if (!value || typeof value !== 'object') return []
-    const item = value as { thumb?: unknown; fullsize?: unknown; alt?: unknown; image?: { ref?: { $link?: unknown }; cid?: unknown }; aspectRatio?: { width?: number; height?: number } }
+    const item = value as { thumb?: unknown; thumbnail?: unknown; fullsize?: unknown; alt?: unknown; image?: { ref?: { $link?: unknown }; cid?: unknown }; aspectRatio?: { width?: number; height?: number } }
     const httpUrl = (url: unknown) => typeof url === 'string' && /^https?:\/\//i.test(url) ? url : undefined
-    const original = record?.images?.[index] as typeof item | undefined
+    const original = originals?.[index] as typeof item | undefined
     const cid = item.image?.ref?.$link ?? item.image?.cid ?? original?.image?.ref?.$link ?? original?.image?.cid
     const blobUrl = typeof cid === 'string' && /^[a-z0-9]+$/i.test(cid) ? pdsBlobUrl(post.author.did, cid) : undefined
     const viewUrl = (value: unknown) => {
@@ -199,7 +208,7 @@ export function normalizePostImages(post: PostView): PostView {
       return appviewImageUrl(url)
     }
     const fullsize = viewUrl(item.fullsize)
-    const src = viewUrl(item.thumb) ?? fullsize ?? blobUrl
+    const src = viewUrl(item.thumb) ?? viewUrl(item.thumbnail) ?? fullsize ?? blobUrl
     if (!src) return []
     return [{ src, ...(fullsize ? { fullsize } : {}), alt: typeof item.alt === 'string' ? item.alt : '', ...item.aspectRatio }]
   })
@@ -406,8 +415,9 @@ export async function createTextPostRecord(data: TextPostInput) {
     if (!Array.isArray(images)) throw new Error('图片信息无效，请重新添加。')
     if (!text && !images.length) throw new Error('请填写帖子内容或添加图片')
     if (text.length > 300) throw new Error('帖子内容最多 300 个字符')
-    if (images.length > MAX_POST_IMAGES) throw new Error('帖子最多添加 4 张图片。')
+    if (images.length > MAX_POST_IMAGES) throw new Error(`帖子最多添加 ${MAX_POST_IMAGES} 张图片。`)
     if (images.some((item) => item.image?.$type !== 'blob' || !item.image.ref?.$link || !POST_IMAGE_TYPES.includes(item.image.mimeType) || !Number.isFinite(item.image.size) || item.image.size <= 0 || item.image.size > MAX_POST_IMAGE_BYTES || typeof item.alt !== 'string')) throw new Error('图片信息无效，请重新添加。')
+    if (images.length > 4 && images.some((item) => !item.aspectRatio || !Number.isInteger(item.aspectRatio.width) || item.aspectRatio.width < 1 || !Number.isInteger(item.aspectRatio.height) || item.aspectRatio.height < 1)) throw new Error('图片尺寸无效，请重新添加。')
     if (!['post', 'activity', 'product'].includes(data.category)) {
       throw new Error('内容分类无效')
     }
@@ -415,7 +425,7 @@ export async function createTextPostRecord(data: TextPostInput) {
     const createdAt = data.createdAt
     const record = {
       $type: 'app.bsky.feed.post', text, langs: ['zh'], xjdaoCategory: data.category, createdAt,
-      ...(images.length ? { embed: { $type: 'app.bsky.embed.images', images } } : {}),
+      ...(images.length ? { embed: postImageEmbed(images) } : {}),
     }
     let body: { uri: string; cid: string }
     try { body = await createPdsRecord(data.accessJwt, {
@@ -428,7 +438,7 @@ export async function createTextPostRecord(data: TextPostInput) {
       // never retry by creating another record or overwrite the published one.
       const query = new URLSearchParams({ repo: data.did, collection: 'app.bsky.feed.post', rkey: data.rkey })
       const existing = await requestJson<{ uri: string; cid: string; value: typeof record }>(`${BACKEND_BASE}/pds/xrpc/com.atproto.repo.getRecord?${query}`, { headers: { Authorization: `Bearer ${data.accessJwt}` } }).catch(() => { throw error })
-      const imageIdentity = (embed: typeof record.embed) => (embed?.images ?? []).map((item) => [item.image.ref.$link, item.alt, item.aspectRatio?.width, item.aspectRatio?.height])
+      const imageIdentity = (embed: typeof record.embed) => [embed?.$type, (embed?.images ?? embed?.items ?? []).map((item) => [item.image.ref.$link, item.alt, item.aspectRatio?.width, item.aspectRatio?.height])]
       if (existing.value.text !== text || existing.value.createdAt !== createdAt || existing.value.xjdaoCategory !== data.category || JSON.stringify(imageIdentity(existing.value.embed)) !== JSON.stringify(imageIdentity(record.embed))) throw new Error('上次提交的帖子已发布。请关闭发布窗口后查看，再发布新内容。')
       body = existing
     }

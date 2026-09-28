@@ -3,8 +3,9 @@ import { describe, expect, it } from 'vitest'
 import { authorDisplayName, formatTimestamp } from './format'
 
 describe('timestamp formatting', () => {
-  it('uses one explicit timezone for SSR and browser rendering', () => {
-    expect(formatTimestamp('2026-09-01T00:00:00.000Z')).toContain('08:00')
+  it('shows the complete Beijing date and time', () => {
+    expect(formatTimestamp('2026-09-28T08:02:00.000Z')).toBe('2026-09-28 16:02')
+    expect(formatTimestamp('2026-09-27T16:02:00.000Z', true)).toBe('2026-09-28 00:02')
   })
 })
 

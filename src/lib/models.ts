@@ -70,6 +70,7 @@ type PostImageEmbed = {
     alt: string
     aspectRatio?: { width: number; height: number }
   }>
+  items?: Array<PdsImage & { $type: 'app.bsky.embed.gallery#image' }>
 }
 type PostEmbed = PostImageEmbed & { media?: PostImageEmbed }
 

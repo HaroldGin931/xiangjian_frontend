@@ -4,7 +4,7 @@ import { Repeat2 } from 'lucide-react'
 import { useState } from 'react'
 
 import { ContentCardHeader } from '~/components/ContentCardHeader'
-import { ImageCover } from '~/components/ContentImages'
+import { ImageCover, ImageGroup } from '~/components/ContentImages'
 import { PostText } from '~/components/PostText'
 import { PostActions, type RepostChange } from '~/components/PostActions'
 import { isPostHidden } from '~/features/feed/api'
@@ -110,7 +110,10 @@ export function PostCard({
       >
         <PostText text={postDisplayText(post.record.text, category)} />
       </p>
-      {post.images?.length ? <button type="button" className="post-image-link" onClick={openPost} aria-label="查看帖子图片"><ImageCover images={post.images} /></button> : null}
+      {post.images?.length ? post.images.length === 1
+        ? <button type="button" className="post-image-link" onClick={openPost} aria-label="查看帖子图片"><ImageCover images={post.images} /></button>
+        : <ImageGroup images={post.images} onOpen={openPost} />
+        : null}
       <PostActions
         post={post}
         onOpenComments={onOpenPost ? () => onOpenPost(post, true) : undefined}

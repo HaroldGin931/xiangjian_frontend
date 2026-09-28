@@ -3,7 +3,7 @@ import type { PdsImage } from './models'
 
 // The deployed PDS image lexicon still limits each blob to 1,000,000 bytes.
 export const MAX_POST_IMAGE_BYTES = 1_000_000
-export const MAX_POST_IMAGES = 4
+export const MAX_POST_IMAGES = 9
 export const POST_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 
 export async function uploadPdsImage(accessJwt: string, base64: string, contentType: string) {
