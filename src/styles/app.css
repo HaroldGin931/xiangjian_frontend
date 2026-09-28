@@ -727,6 +727,8 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 .receipt-reference summary { cursor: pointer; }
 @media (max-width: 620px) {
   .business-panel { padding: 20px; }
+  .my-task-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: visible; }
+  .my-task-tabs button { width: 100%; min-width: 0; padding-inline: 4px; font-size: var(--xj-font-caption); }
   .task-hero h1 { font-size: 36px; }
   .business-card h2 { font-size: 22px; }
   .topbar-actions { gap: 3px; }

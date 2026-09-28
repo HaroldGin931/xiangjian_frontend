@@ -78,6 +78,13 @@ it('does not guess task role tabs or zero counts before the personal history has
   expect(html).not.toContain('这里还没有任务')
 })
 
+it('renders prefetched personal task tabs on the first paint', () => {
+  const html = renderToStaticMarkup(<MyTasksPage initialData={{ accountId: 'member', sessionToken: 'token', tasks: [] }} />)
+  expect(html).toContain('my-task-tabs')
+  expect(html).toContain('这里还没有任务')
+  expect(html).not.toContain('正在加载任务')
+})
+
 it('loads wallet history for the current route instead of reusing the profile balance', () => {
   const html = renderToStaticMarkup(<GrainHistoryPage nodeId="community" />)
   expect(html).toContain('节点稻米')

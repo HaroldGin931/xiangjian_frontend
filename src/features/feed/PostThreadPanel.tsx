@@ -34,6 +34,8 @@ import {
 type PostThreadPanelProps = {
   uri: string
   focusReply?: boolean
+  initialThread?: PostThread | null
+  initialError?: string
 }
 
 export function PostThreadPanel(props: PostThreadPanelProps) {
@@ -44,11 +46,13 @@ export function PostThreadPanel(props: PostThreadPanelProps) {
 function PostThreadContent({
   uri,
   focusReply = false,
+  initialThread,
+  initialError = '',
 }: PostThreadPanelProps) {
   const { session, isReady } = useStoredSession()
   const navigate = useNavigate()
-  const [thread, setThread] = useState<PostThread | null>(() => readCachedThread(uri, session?.pds.did))
-  const [error, setError] = useState('')
+  const [thread, setThread] = useState<PostThread | null>(() => initialThread ?? readCachedThread(uri, session?.pds.did))
+  const [error, setError] = useState(initialError)
   const [replyText, setReplyText] = useState('')
   const [replyTo, setReplyTo] = useState<PostView | null>(null)
   const [replyNotice, setReplyNotice] = useState('')
@@ -71,7 +75,7 @@ function PostThreadContent({
   useEffect(() => {
     if (!isReady) return
     if (!uri) { setError('帖子不存在'); return }
-    if (thread) return
+    if (thread || initialError) return
     let active = true
     setError('')
     loadCachedThread({
@@ -87,7 +91,7 @@ function PostThreadContent({
         if (active) setError(reason instanceof Error ? reason.message : '帖子暂时无法显示')
       })
     return () => { active = false }
-  }, [isReady, session?.pds.access_jwt, session?.pds.did, thread, uri])
+  }, [isReady, session?.pds.access_jwt, session?.pds.did, thread, uri, initialError])
 
   useEffect(() => {
     if ((!focusReply && !focusRequested.current) || !thread) return

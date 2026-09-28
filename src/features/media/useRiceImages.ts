@@ -24,8 +24,8 @@ export async function uploadImageSelection(
   return ids
 }
 
-export function useRiceImages() {
-  const [images, setImages] = useState<SelectedImage[]>([])
+export function useRiceImages(initialAttachments: RiceAttachment[] = []) {
+  const [images, setImages] = useState<SelectedImage[]>(() => attachmentImages(initialAttachments).map((image, index) => ({ ...image, attachment: initialAttachments[index] })))
   const urls = useRef(new Set<string>())
   const uploaded = useRef(new WeakMap<File, RiceAttachment>())
   useEffect(() => () => { urls.current.forEach((url) => URL.revokeObjectURL(url)); urls.current.clear() }, [])

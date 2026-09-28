@@ -13,28 +13,30 @@ import { integerInputError } from '~/lib/integer-input'
 import type { CommunityNode } from '../nodes/api'
 import type { RiceSession } from '~/lib/models'
 import { createTask, getTask, getTasks, publishTask, updateTaskDraft } from './api'
+import type { RiceTask } from './types'
 
-export function TaskCreatePage({ session, nodes, onPublished, active, onCloseStateChange }: { session: RiceSession; nodes: CommunityNode[]; onPublished: (id: string) => void; active: boolean; onCloseStateChange: (state: FormCloseState) => void }) {
+export function TaskCreatePage({ session, nodes, initialDraft, initialError = '', onPublished, active, onCloseStateChange }: { session: RiceSession; nodes: CommunityNode[]; initialDraft?: RiceTask | null; initialError?: string; onPublished: (id: string) => void; active: boolean; onCloseStateChange: (state: FormCloseState) => void }) {
   const mounted = useRef(false)
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
-  const [nodeId, setNodeId] = useState('')
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [organizerContact, setOrganizerContact] = useState('')
-  const [requirement, setRequirement] = useState('')
-  const [applicationDeadline, setApplicationDeadline] = useState('')
-  const [executionDeadline, setExecutionDeadline] = useState('')
-  const [rewardAmount, setRewardAmount] = useState('')
-  const [editingDraftId, setEditingDraftId] = useState<string | null>(null)
-  const [draftLoading, setDraftLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [nodeId, setNodeId] = useState(initialDraft === undefined ? '' : initialDraft?.node?.id ?? nodes[0]?.id ?? '')
+  const [title, setTitle] = useState(initialDraft?.title ?? '')
+  const [description, setDescription] = useState(initialDraft?.description ?? '')
+  const [organizerContact, setOrganizerContact] = useState(initialDraft?.organizer_contact ?? '')
+  const [requirement, setRequirement] = useState(initialDraft?.requirement ?? '')
+  const [applicationDeadline, setApplicationDeadline] = useState(initialDraft?.application_deadline ? roundedTimeValue(initialDraft.application_deadline) : '')
+  const [executionDeadline, setExecutionDeadline] = useState(initialDraft?.execution_deadline ? roundedTimeValue(initialDraft.execution_deadline) : '')
+  const [rewardAmount, setRewardAmount] = useState(initialDraft ? String(initialDraft.reward_amount) : '')
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(initialDraft?.id ?? null)
+  const [draftLoading, setDraftLoading] = useState(initialDraft === undefined)
+  const [error, setError] = useState(initialError)
   const [notice, setNotice] = useState('')
   const [submitting, setSubmitting] = useState<'draft' | 'open' | null>(null)
   const requestId = useRef('')
-  const imageSelection = useRiceImages()
+  const imageSelection = useRiceImages(initialDraft?.attachments ?? [])
   const markSaved = useFormCloseState(JSON.stringify([nodeId, title, description, organizerContact, requirement, applicationDeadline, executionDeadline, rewardAmount, imageSelection.images.map(image => image.src)]), !draftLoading, !!submitting, onCloseStateChange, () => submit('draft'))
   const restoreImages = imageSelection.restore
   useEffect(() => {
+    if (initialDraft !== undefined) return
     let active = true; setDraftLoading(true)
     void getTasks({ data: { token: session.token, mine: 'created', status: 'draft', limit: 1 } }).then(([draft]) => {
       if (!active) return
@@ -42,7 +44,7 @@ export function TaskCreatePage({ session, nodes, onPublished, active, onCloseSta
       if (draft) { setEditingDraftId(draft.id); restoreImages(draft.attachments ?? []); setTitle(draft.title); setDescription(draft.description); setOrganizerContact(draft.organizer_contact ?? ''); setRequirement(draft.requirement ?? ''); setApplicationDeadline(draft.application_deadline ? roundedTimeValue(draft.application_deadline) : ''); setExecutionDeadline(draft.execution_deadline ? roundedTimeValue(draft.execution_deadline) : ''); setRewardAmount(String(draft.reward_amount)) }
     }).catch((e) => { if (active) setError(e.message) }).finally(() => { if (active) setDraftLoading(false) })
     return () => { active = false }
-  }, [session.token, restoreImages, nodes])
+  }, [session.token, restoreImages, nodes, initialDraft])
   if (draftLoading) return <LoadingState label="正在恢复草稿…" />
   function validate(step: number, publishing = false): string | null {
     if (step === 0) {

@@ -7,7 +7,7 @@ import { Button } from '@astryxdesign/core/Button'
 import { TextArea } from '~/components/AutoTextArea'
 import { Link } from '@tanstack/react-router'
 import { CheckCircle2, CircleAlert, Sprout } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { formatTimestamp } from '~/lib/format'
 
@@ -30,17 +30,22 @@ import {
   type TaskSubmission,
 } from './types'
 
-export function TaskDetailPage({ taskId }: { taskId: string }) {
-  const { session } = useStoredSession()
-  return <TaskDetails key={`${taskId}:${session?.user.id ?? 'guest'}`} taskId={taskId} />
+type TaskDetailInitial = { task: RiceTask | null; error: string; viewerToken: string | null }
+
+export function TaskDetailPage({ taskId, initial }: { taskId: string; initial?: TaskDetailInitial }) {
+  const { session, isReady } = useStoredSession()
+  if (!isReady) return <LoadingState label="正在加载任务…" className="page loading-line" />
+  const prepared = initial?.viewerToken === (session?.token ?? null) ? initial : undefined
+  return <TaskDetails key={`${taskId}:${session?.user.id ?? 'guest'}`} taskId={taskId} initial={prepared} />
 }
 
-function TaskDetails({ taskId }: { taskId: string }) {
+function TaskDetails({ taskId, initial }: { taskId: string; initial?: TaskDetailInitial }) {
   const { session, isReady } = useStoredSession()
-  const [task, setTask] = useState<RiceTask | null>(null)
+  const [task, setTask] = useState<RiceTask | null>(initial?.task ?? null)
   const now = useTimeBoundary(task?.status === 'open' ? [task.application_deadline] : task && ['in_progress', 'under_review'].includes(task.status) ? [task.execution_deadline] : [])
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(initial?.error ?? '')
+  const [loading, setLoading] = useState(!initial)
+  const skipInitialFetch = useRef(Boolean(initial))
   const [busy, setBusy] = useState(false)
   const [applyOpen, setApplyOpen] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
@@ -53,6 +58,7 @@ function TaskDetails({ taskId }: { taskId: string }) {
 
   useEffect(() => {
     if (!isReady) return
+    if (skipInitialFetch.current) { skipInitialFetch.current = false; return }
     let active = true
     setLoading(true)
     setError('')

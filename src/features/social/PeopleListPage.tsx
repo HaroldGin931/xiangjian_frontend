@@ -1,11 +1,10 @@
 import { EmptyState } from '@astryxdesign/core/EmptyState'
-import { Link } from '@tanstack/react-router'
+import { Link, useRouter } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 
 import { authorDisplayName } from '~/lib/format'
 import { Avatar } from '~/components/Avatar'
 import { AutoLoadMore } from '~/components/AutoLoadMore'
-import { LoadingState } from '~/components/LoadingState'
 import type { SocialConnectionPage } from '~/lib/models'
 
 import { useStoredSession } from '../session/session'
@@ -17,39 +16,46 @@ import {
 export function PeopleListPage({
   actor,
   kind,
+  initialPage,
+  loaderAccessJwt,
 }: {
   actor: string
   kind: SocialConnectionKind
+  initialPage: SocialConnectionPage
+  loaderAccessJwt: string | null
 }) {
-  const { session } = useStoredSession()
-  const [page, setPage] = useState<SocialConnectionPage | null>(null)
-  const [error, setError] = useState('')
+  const { session, isReady } = useStoredSession()
+  const router = useRouter()
+  const [more, setMore] = useState<{ base: SocialConnectionPage; page: SocialConnectionPage } | null>(null)
+  const [failure, setFailure] = useState<{ base: SocialConnectionPage; message: string } | null>(null)
   const [isLoading, setLoading] = useState(false)
   const request = useRef(0)
+  const page = more?.base === initialPage ? more.page : initialPage
+  const error = failure?.base === initialPage ? failure.message : ''
   const title = kind === 'followers' ? '粉丝' : '关注'
 
-  const load = async (cursor?: string) => {
-    if (cursor && isLoading) return
+  const load = async () => {
+    if (!page.cursor || isLoading || loaderAccessJwt !== (session?.pds.access_jwt ?? null)) return
     const currentRequest = request.current
     setLoading(true)
-    setError('')
+    setFailure(null)
     try {
       const next = await getSocialConnections({
         data: {
           actor,
           kind,
-          ...(cursor ? { cursor } : {}),
-          accessJwt: session?.pds.access_jwt,
+          cursor: page.cursor,
+          accessJwt: loaderAccessJwt ?? undefined,
         },
       })
       if (currentRequest !== request.current) return
-      setPage((current) => cursor && current ? {
+      setMore({ base: initialPage, page: {
         subject: next.subject,
-        profiles: [...new Map([...current.profiles, ...next.profiles].map((profile) => [profile.did, profile])).values()],
+        profiles: [...new Map([...page.profiles, ...next.profiles].map((profile) => [profile.did, profile])).values()],
         cursor: next.cursor,
-      } : next)
+      } })
     } catch (reason) {
-      if (currentRequest === request.current) setError(reason instanceof Error ? reason.message : `${title}列表暂时无法显示`)
+      if (currentRequest === request.current) setFailure({ base: initialPage, message: reason instanceof Error ? reason.message : `${title}列表暂时无法显示` })
     } finally {
       if (currentRequest === request.current) setLoading(false)
     }
@@ -57,17 +63,16 @@ export function PeopleListPage({
 
   useEffect(() => {
     ++request.current
-    setPage(null)
-    void load()
+    setLoading(false)
+    setFailure(null)
     return () => { ++request.current }
-    // load only when the route or active PDS session changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [actor, kind, session?.pds.access_jwt])
+  }, [actor, kind, initialPage, session?.pds.access_jwt])
+  useEffect(() => { if (isReady && loaderAccessJwt !== (session?.pds.access_jwt ?? null)) void router.invalidate({ filter: (match) => match.routeId === `/profile/$actor/${kind}` }) }, [isReady, loaderAccessJwt, session?.pds.access_jwt, kind, router])
 
   return (
     <div className="page people-list-page">
       {error ? <div className="form-error" role="alert">{error}</div> : null}
-      {page?.profiles.length ? (
+      {page.profiles.length ? (
         <div className="people-list">
           {page.profiles.map((profile) => (
             <Link
@@ -85,17 +90,15 @@ export function PeopleListPage({
             </Link>
           ))}
         </div>
-      ) : page && !error ? (
+      ) : !error ? (
         <div className="empty-panel">
           <EmptyState
             title={kind === 'followers' ? '还没有粉丝' : '还没有关注任何人'}
             description="这里会显示真实的关注关系。"
           />
         </div>
-      ) : !error ? (
-        <LoadingState label={`正在加载${title}列表…`} />
       ) : null}
-      {page?.cursor && <AutoLoadMore key={`${actor}:${kind}:${session?.pds.did}`} cursor={page.cursor} loading={isLoading} failed={!!error} onLoadMore={() => load(page.cursor)} />}
+      {page.cursor && <AutoLoadMore key={`${actor}:${kind}:${session?.pds.did}`} cursor={page.cursor} loading={isLoading} failed={!!error} onLoadMore={load} />}
     </div>
   )
 }

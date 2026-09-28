@@ -12,7 +12,7 @@ import { useFormCloseState, type FormCloseState } from '~/lib/form-state'
 import { integerInputError } from '~/lib/integer-input'
 import type { CommunityNode } from '../nodes/api'
 import type { RiceSession } from '~/lib/models'
-import { getEvents, saveEvent } from './api'
+import { getEvents, saveEvent, type RiceEvent } from './api'
 
 const emptyFields = { node_id: '', title: '', description: '', organizer_contact: '', location: '', application_deadline: '', starts_at: '', ends_at: '', fee_amount: '0', capacity: '' }
 type EventTimes = Pick<typeof emptyFields, 'application_deadline' | 'starts_at' | 'ends_at'>
@@ -41,24 +41,29 @@ export function changeEventTime<T extends EventTimes>(fields: T, key: keyof Even
 
 const durationMinutes = (fields: EventTimes) => Math.round((beijingTime(fields.ends_at) - beijingTime(fields.starts_at)) / 60_000)
 const durationValue = (fields: EventTimes) => durations.some(([minutes]) => minutes === durationMinutes(fields)) ? String(durationMinutes(fields)) : 'custom'
+function draftFields(draft: RiceEvent) {
+  const restored = { node_id: draft.node.id, title: draft.title, description: draft.description, organizer_contact: draft.organizer_contact ?? '', location: draft.location, application_deadline: roundedTimeValue(draft.application_deadline), starts_at: roundedTimeValue(draft.starts_at), ends_at: roundedTimeValue(draft.ends_at), fee_amount: String(draft.fee_amount), capacity: String(draft.capacity) }
+  if (restored.ends_at <= restored.starts_at) restored.ends_at = addMinutes(restored.starts_at, 15)
+  return restored
+}
 export function eventDurationLabel(fields: EventTimes) {
   const minutes = durationMinutes(fields)
   if (!(minutes > 0)) return '请选择有效的开始和结束时间'
   return [Math.floor(minutes / 1440) ? `${Math.floor(minutes / 1440)} 天` : '', Math.floor(minutes % 1440 / 60) ? `${Math.floor(minutes % 1440 / 60)} 小时` : '', minutes % 60 ? `${minutes % 60} 分钟` : ''].filter(Boolean).join(' ')
 }
 
-export function EventCreateForm({ session, nodes, onPublished, active, onCloseStateChange }: { session: RiceSession; nodes: CommunityNode[]; onPublished: () => void; active: boolean; onCloseStateChange: (state: FormCloseState) => void }) {
+export function EventCreateForm({ session, nodes, initialDraft, initialError = '', onPublished, active, onCloseStateChange }: { session: RiceSession; nodes: CommunityNode[]; initialDraft?: RiceEvent | null; initialError?: string; onPublished: () => void; active: boolean; onCloseStateChange: (state: FormCloseState) => void }) {
   const mounted = useRef(false)
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
-  const [fields, setFields] = useState(() => { const start = nextTimeSlot(); return { ...emptyFields, application_deadline: start, starts_at: start, ends_at: addMinutes(start, 120) } })
-  const [duration, setDuration] = useState('120')
-  const [draftId, setDraftId] = useState<string>()
-  const [loading, setLoading] = useState(true)
+  const [fields, setFields] = useState(() => { if (initialDraft) return draftFields(initialDraft); const start = nextTimeSlot(); return { ...emptyFields, node_id: initialDraft === null ? nodes[0]?.id ?? '' : '', application_deadline: start, starts_at: start, ends_at: addMinutes(start, 120) } })
+  const [duration, setDuration] = useState(() => initialDraft ? durationValue(fields) : '120')
+  const [draftId, setDraftId] = useState<string | undefined>(initialDraft?.id)
+  const [loading, setLoading] = useState(initialDraft === undefined)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(initialError)
   const [notice, setNotice] = useState('')
   const requestId = useRef('')
-  const imageSelection = useRiceImages()
+  const imageSelection = useRiceImages(initialDraft?.attachments ?? [])
   const markSaved = useFormCloseState(JSON.stringify([fields, imageSelection.images.map(image => image.src)]), !loading, busy, onCloseStateChange, () => submit('draft'))
   const restoreImages = imageSelection.restore
   const set = (key: keyof typeof fields, value: string) => { setFields((f) => ({ ...f, [key]: value })); setError(''); setNotice('') }
@@ -68,19 +73,19 @@ export function EventCreateForm({ session, nodes, onPublished, active, onCloseSt
     if (key === 'ends_at') setDuration(durationValue(next))
   }
   useEffect(() => {
+    if (initialDraft !== undefined) return
     let active = true
     void getEvents({ data: { token: session.token, mine: 'created', status: 'draft' } }).then((page) => {
       if (!active) return
       const draft = page.data[0]
       if (draft) {
-        const restored = { node_id: draft.node.id, title: draft.title, description: draft.description, organizer_contact: draft.organizer_contact ?? '', location: draft.location, application_deadline: roundedTimeValue(draft.application_deadline), starts_at: roundedTimeValue(draft.starts_at), ends_at: roundedTimeValue(draft.ends_at), fee_amount: String(draft.fee_amount), capacity: String(draft.capacity) }
-        if (restored.ends_at <= restored.starts_at) restored.ends_at = addMinutes(restored.starts_at, 15)
+        const restored = draftFields(draft)
         setDraftId(draft.id); restoreImages(draft.attachments ?? []); setFields(restored); setDuration(durationValue(restored))
       }
       else setFields((f) => ({ ...f, node_id: nodes[0]?.id ?? '' }))
     }).catch((e) => { if (active) setError(e.message) }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [session.token, restoreImages, nodes])
+  }, [session.token, restoreImages, nodes, initialDraft])
   if (loading) return <LoadingState label="正在恢复草稿…" />
   async function submit(status: 'draft' | 'open'): Promise<boolean> {
     if (busy) return false

@@ -7,23 +7,28 @@ import { Button } from '@astryxdesign/core/Button'
 import { TextArea } from '~/components/AutoTextArea'
 import { Link } from '@tanstack/react-router'
 import { Sprout } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { formatTimestamp } from '~/lib/format'
 import { useStoredSession } from '../session/session'
 import { LoginLink } from '../session/LoginLink'
 import { applicationStatusLabel, eventAcceptsApplications, eventAction, eventDisplayStatus, eventStatusLabel, getEvent, type EventActionInput, type RiceEvent } from './api'
 
 const historyLabels: Record<string, string> = { applied: '提交申请', completed: '活动结束', application_completed: '完成参与记录', application_cancelled: '报名已取消', application_withdrawn: '撤销申请', created: '创建活动', published: '发布活动', application_created: '提交申请', application_approved: '通过申请', application_rejected: '拒绝申请', application_removed: '移除报名', started: '活动开始', finished: '活动结束', cancelled: '活动取消', application_not_selected: '申请未入选' }
-export function EventDetail({ eventId }: { eventId: string }) {
-  const { session } = useStoredSession()
-  return <EventDetails key={`${eventId}:${session?.user.id ?? 'guest'}`} eventId={eventId} />
+type EventDetailInitial = { event: RiceEvent | null; error: string; viewerToken: string | null }
+
+export function EventDetail({ eventId, initial }: { eventId: string; initial?: EventDetailInitial }) {
+  const { session, isReady } = useStoredSession()
+  if (!isReady) return <LoadingState label="正在加载活动…" className="page loading-line" />
+  const prepared = initial?.viewerToken === (session?.token ?? null) ? initial : undefined
+  return <EventDetails key={`${eventId}:${session?.user.id ?? 'guest'}`} eventId={eventId} initial={prepared} />
 }
 
-function EventDetails({ eventId }: { eventId: string }) {
+function EventDetails({ eventId, initial }: { eventId: string; initial?: EventDetailInitial }) {
   const { session, isReady } = useStoredSession()
-  const [event, setEvent] = useState<RiceEvent | null>(null)
+  const [event, setEvent] = useState<RiceEvent | null>(initial?.event ?? null)
   const now = useTimeBoundary(event && ['open', 'in_progress'].includes(event.status) ? [event.application_deadline, event.starts_at, event.ends_at] : [])
-  const [error, setError] = useState('')
+  const [error, setError] = useState(initial?.error ?? '')
+  const skipInitialFetch = useRef(Boolean(initial))
   const [reason, setReason] = useState('')
   const [contact, setContact] = useState('')
   const [confirm, setConfirm] = useState<'apply' | 'withdraw' | 'finish' | 'cancel' | null>(null)
@@ -31,6 +36,7 @@ function EventDetails({ eventId }: { eventId: string }) {
   const [busy, setBusy] = useState(false)
   useEffect(() => {
     if (!isReady) return
+    if (skipInitialFetch.current) { skipInitialFetch.current = false; return }
     let active = true
     setError('')
     void getEvent({ data: { id: eventId, token: session?.token } }).then((value) => { if (active) setEvent(value) }).catch((e) => { if (active) setError(e.message) })

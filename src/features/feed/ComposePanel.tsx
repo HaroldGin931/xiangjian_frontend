@@ -8,6 +8,8 @@ import { LoadingState } from '~/components/LoadingState'
 import { preparePostImage, readFileBase64, readImageAspectRatio } from '~/lib/images'
 import type { PdsImage } from '~/lib/models'
 import type { FormCloseState } from '~/lib/form-state'
+import type { RiceTask } from '../tasks/types'
+import type { RiceEvent } from '../events/api'
 import { MAX_POST_IMAGE_BYTES, newPostRecordKey } from '~/lib/pds'
 import { LoginPage } from '../session/LoginPage'
 import { getNodes, type CommunityNode } from '../nodes/api'
@@ -15,26 +17,40 @@ import { EventCreateForm } from '../events/EventCreateForm'
 import { TaskCreatePage } from '../tasks/TaskCreatePage'
 import { useStoredSession } from '../session/session'
 import { createTextPost, createdPostView, prependCachedPost, uploadPostImage } from './api'
-import { deletePostDraft, readPostDraft, savePostDraft } from './post-draft'
+import { deletePostDraft, readPostDraft, savePostDraft, type PostDraft } from './post-draft'
 
 export type ComposeKind = 'post' | 'activity' | 'task'
 export const composeKinds: Array<{ value: ComposeKind; label: string }> = [{ value: 'post', label: '发帖' }, { value: 'task', label: '发任务' }, { value: 'activity', label: '发活动' }]
-type ComposePanelProps = { initialKind?: ComposeKind }
+export type ComposeInitialData = {
+  token: string
+  kind: ComposeKind
+  managedNodes: CommunityNode[]
+  nodesError: string
+  postDraft: PostDraft | null
+  postDraftError: string
+  taskDraft: RiceTask | null
+  taskDraftError: string
+  eventDraft: RiceEvent | null
+  eventDraftError: string
+}
+type ComposePanelProps = { initialKind?: ComposeKind; initialData?: ComposeInitialData | null }
 export function ComposePanel(props: ComposePanelProps) {
   const { session } = useStoredSession()
   return <ComposeContent key={session?.user.id ?? 'guest'} {...props} />
 }
 
-function ComposeContent({ initialKind = 'post' }: ComposePanelProps) {
+function ComposeContent({ initialKind = 'post', initialData }: ComposePanelProps) {
   const { session, isReady } = useStoredSession()
+  const loaded = initialData?.token === session?.token ? initialData : null
+  const startingKind = loaded && !loaded.managedNodes.length ? 'post' : initialKind
   const navigate = useNavigate()
   const mounted = useRef(false)
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
-  const [kind, setKind] = useState(initialKind)
-  const [visitedKinds, setVisitedKinds] = useState<ComposeKind[]>([initialKind])
-  const [managedNodes, setManagedNodes] = useState<CommunityNode[] | null>(null)
+  const [kind, setKind] = useState(startingKind)
+  const [visitedKinds, setVisitedKinds] = useState<ComposeKind[]>([startingKind])
+  const [managedNodes, setManagedNodes] = useState<CommunityNode[] | null>(loaded?.managedNodes ?? null)
   useEffect(() => {
-    if (!session) return
+    if (!session || loaded) return
     let active = true
     setManagedNodes(null)
     // Managed nodes use the same owner check as task and activity creation.
@@ -53,26 +69,26 @@ function ComposeContent({ initialKind = 'post' }: ComposePanelProps) {
       })
     return () => { active = false }
   }, [session?.token])
-  const [text, setText] = useState('')
-  const [error, setError] = useState('')
+  const [text, setText] = useState(loaded?.postDraft?.text ?? '')
+  const [error, setError] = useState(loaded?.nodesError || loaded?.postDraftError || '')
   const [busy, setBusy] = useState(false)
-  const [draftReady, setDraftReady] = useState(false)
-  const [savedPost, setSavedPost] = useState<{ text: string; files: File[] }>({ text: '', files: [] })
-  const [postDraftStored, setPostDraftStored] = useState(false)
+  const [draftReady, setDraftReady] = useState(Boolean(loaded))
+  const [savedPost, setSavedPost] = useState<{ text: string; files: File[] }>(loaded?.postDraft ?? { text: '', files: [] })
+  const [postDraftStored, setPostDraftStored] = useState(Boolean(loaded?.postDraft))
   const [confirmClose, setConfirmClose] = useState(false)
   const [savingDrafts, setSavingDrafts] = useState(false)
   const [closeError, setCloseError] = useState('')
   const decision = useRef<((leave: boolean) => void) | null>(null)
-  const [notice, setNotice] = useState('')
+  const [notice, setNotice] = useState(loaded?.postDraft ? '已恢复帖子草稿（保存在当前浏览器）。' : '')
   const [childStates, setChildStates] = useState<Record<'activity' | 'task', FormCloseState>>({ activity: { dirty: false, busy: false }, task: { dirty: false, busy: false } })
   const updateActivity = useCallback((state: FormCloseState) => setChildStates(current => current.activity.dirty === state.dirty && current.activity.busy === state.busy ? current : { ...current, activity: state }), [])
   const updateTask = useCallback((state: FormCloseState) => setChildStates(current => current.task.dirty === state.dirty && current.task.busy === state.busy ? current : { ...current, task: state }), [])
-  const [files, setFiles] = useState<File[]>([])
+  const [files, setFiles] = useState<File[]>(loaded?.postDraft?.files ?? [])
   const [previews, setPreviews] = useState<Array<{ src: string; alt: string }>>([])
   const uploadedImages = useRef(new Map<File, PdsImage>())
-  const postRequest = useRef<{ rkey: string; createdAt: string } | null>(null)
+  const postRequest = useRef<{ rkey: string; createdAt: string } | null>(loaded?.postDraft?.request ?? null)
   useEffect(() => {
-    if (!session) return
+    if (!session || loaded) return
     let active = true
     void readPostDraft(session.pds.did).then(draft => {
       if (!active || !draft) return
@@ -184,8 +200,8 @@ function ComposeContent({ initialKind = 'post' }: ComposePanelProps) {
   const selectKind = (value: ComposeKind) => { setKind(value); setVisitedKinds((visited) => visited.includes(value) ? visited : [...visited, value]) }
   return <div className="page compose-page">{availableKinds.length > 1 && <div className="compose-type-tabs filter-buttons" role="group" aria-label="发布类型">{availableKinds.map((item) => <Button label={item.label} variant="ghost" className={kind === item.value ? 'active' : undefined} aria-pressed={kind === item.value} isDisabled={submitting} onClick={() => selectKind(item.value)} key={item.value} />)}</div>}{notice && <p className="form-notice" role="status">{notice}</p>}
     <div hidden={kind !== 'post'}><div className="form-stack"><div><TextArea isDisabled={busy} label="想分享什么" value={text} onChange={setText} placeholder="分享社区里的见闻、想法或近况… 输入 #话题" width="100%" /><p className="compose-character-count">{text.trim().length}/300</p></div><ImagePicker images={previews} onSelect={(selected) => setFiles((current) => [...current, ...selected])} onRemove={(index) => setFiles((current) => current.filter((_, i) => i !== index))} disabled={busy} />{error && <p className="form-error" role="alert">{error}</p>}<div className="publish-step-actions"><Button label="发布帖子" variant="primary" isLoading={busy} isDisabled={!session || (!text.trim() && !files.length) || text.trim().length > 300 || busy} clickAction={submit} /></div></div></div>
-    {canPublishCommunity && visitedKinds.includes('activity') && <div hidden={kind !== 'activity'}><EventCreateForm key={session.token} session={session} nodes={managedNodes} active={kind === 'activity'} onPublished={() => { void published('activity') }} onCloseStateChange={updateActivity} /></div>}
-    {canPublishCommunity && visitedKinds.includes('task') && <div hidden={kind !== 'task'}><TaskCreatePage key={session.token} session={session} nodes={managedNodes} active={kind === 'task'} onPublished={id => { void published('task', id) }} onCloseStateChange={updateTask} /></div>}
+    {canPublishCommunity && visitedKinds.includes('activity') && <div hidden={kind !== 'activity'}><EventCreateForm key={session.token} session={session} nodes={managedNodes} initialDraft={loaded?.kind === 'activity' ? loaded.eventDraft : undefined} initialError={loaded?.eventDraftError} active={kind === 'activity'} onPublished={() => { void published('activity') }} onCloseStateChange={updateActivity} /></div>}
+    {canPublishCommunity && visitedKinds.includes('task') && <div hidden={kind !== 'task'}><TaskCreatePage key={session.token} session={session} nodes={managedNodes} initialDraft={loaded?.kind === 'task' ? loaded.taskDraft : undefined} initialError={loaded?.taskDraftError} active={kind === 'task'} onPublished={id => { void published('task', id) }} onCloseStateChange={updateTask} /></div>}
     {confirmClose && <DetailDialog title="保存草稿" className="post-dialog business-dialog compose-close-dialog" onClose={() => { if (!savingDrafts) finishClose(false) }}><div className="business-panel form-stack"><p>有内容尚未保存。请问是保存草稿还是直接关闭？</p>{dirtyPost && <p className="muted">帖子草稿含图片，仅保存在当前浏览器，重新打开发布页面可继续编辑。</p>}{closeError && <p className="form-error" role="alert">{closeError}</p>}<div className="form-actions"><Button label="直接关闭" variant="secondary" isDisabled={savingDrafts} clickAction={() => finishClose(true)} /><Button label="保存草稿" variant="primary" isLoading={savingDrafts} isDisabled={savingDrafts} clickAction={saveAndClose} /></div></div></DetailDialog>}
   </div>
 }

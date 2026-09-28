@@ -24,7 +24,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigating = useRouterState({ select: (state) => state.isLoading && state.location.href !== state.resolvedLocation?.href })
   const href = useRouterState({ select: (state) => state.location.href })
   useEffect(() => {
-    const refresh = () => { void router.invalidate({ filter: (match) => ['/tasks/', '/events', '/me/'].includes(match.routeId) }) }
+    const refresh = () => { void router.invalidate({ filter: (match) => ['/tasks/', '/events', '/me/', '/me/tasks'].includes(match.routeId) }) }
     window.addEventListener('rice-changed', refresh)
     return () => window.removeEventListener('rice-changed', refresh)
   }, [router])
@@ -32,8 +32,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     if (!isReady) return
     const previous = previousSession.current
     if (previous && (previous.accountId !== session?.user.id || previous.token !== session?.token)) {
-      router.clearCache({ filter: (match) => match.routeId === '/me/' })
-      void router.invalidate({ filter: (match) => match.routeId === '/me/' })
+      router.clearCache({ filter: (match) => match.routeId === '/me/' || match.routeId === '/me/tasks' })
+      void router.invalidate({ filter: (match) => match.routeId === '/me/' || match.routeId === '/me/tasks' })
     }
     previousSession.current = { accountId: session?.user.id, token: session?.token }
   }, [router, isReady, session?.user.id, session?.token])
