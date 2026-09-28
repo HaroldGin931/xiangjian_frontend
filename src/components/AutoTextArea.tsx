@@ -23,5 +23,5 @@ export function TextArea(props: Omit<TextAreaProps, 'rows' | 'ref'>) {
     observer.observe(element)
     return () => observer.disconnect()
   }, [])
-  return <AstryxTextArea {...props} className={`auto-text-area ${props.className ?? ''}`} rows={2} ref={ref} />
+  return <AstryxTextArea {...props} className={`auto-text-area ${props.className ?? ''}`} rows={1} ref={ref} />
 }

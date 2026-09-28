@@ -483,6 +483,7 @@ button.notification-row:focus-visible { outline: 2px solid var(--xj-green, #1b60
 .special-compose-form header span { color: var(--xj-muted); font-size: var(--xj-font-caption); }
 .compose-page .astryx-field, .compose-page .astryx-date-time-input { width: 100%; min-width: 0; max-width: 100%; }
 .auto-text-area .astryx-text-area-control { resize: none; overflow-y: hidden; }
+.auto-text-area:has(.astryx-text-area-counter) .astryx-text-area-control { padding-bottom: 0; padding-inline-end: 68px; }
 .compose-page .astryx-date-time-input { flex-wrap: nowrap !important; }
 .compose-page .astryx-date-time-input-date-segment { flex: 3 1 0 !important; }
 .compose-page .astryx-date-time-input-time-segment { flex: 2 1 0 !important; }
@@ -517,7 +518,6 @@ button.notification-row:focus-visible { outline: 2px solid var(--xj-green, #1b60
 .publish-steps :is(.astryx-text-input, .astryx-text-area, .native-field input, .native-field select) { min-height: 44px; padding: 8px 0; border: 0; border-bottom: 1px solid var(--xj-line); border-radius: 0; background: transparent; box-shadow: none; font-size: 16px; }
 .publish-steps :is(input, textarea, select) { font-size: 16px; }
 .publish-steps :is(.astryx-text-input-control, .astryx-text-area-control) { padding: 0; background: transparent; font-size: 16px; }
-.publish-steps .astryx-text-area { padding-bottom: 26px; }
 .publish-steps :is(.astryx-field > span, .astryx-text-area-counter, .astryx-field-label > span, .content-image-help, .muted) { font-size: 12px; color: var(--xj-muted); }
 .publish-steps :is(.astryx-text-input, .astryx-text-area):focus-within { border-color: var(--xj-accent); }
 .publish-steps :is(.astryx-text-input, .astryx-text-area)[data-status="error"] { border-color: var(--xj-error); }
