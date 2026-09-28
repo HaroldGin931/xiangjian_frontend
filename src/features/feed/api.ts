@@ -7,7 +7,28 @@ import { appviewImageUrl, createPdsRecord, deletePdsRecord, MAX_POST_IMAGE_BYTES
 import { hasPostTag, postCategory } from './tags'
 
 let clientFeedCache: { owner: string | null; feed: PostFeed } | null = null
+let clientSelectedPost: { owner: string | null; post: PostView } | null = null
 const clientDeletedPostUris = new Set<string>()
+const clientThreadCache = new Map<string, { thread: PostThread; savedAt: number }>()
+const threadCacheKey = (uri: string, did?: string) => `${did ?? ''}\0${uri}`
+
+export function readCachedThread(uri: string, did?: string) {
+  if (typeof window === 'undefined' || clientDeletedPostUris.has(uri)) return null
+  const key = threadCacheKey(uri, did)
+  const cached = clientThreadCache.get(key)
+  if (!cached) return null
+  if (Date.now() - cached.savedAt < 30_000) return cached.thread
+  clientThreadCache.delete(key)
+  return null
+}
+
+export function writeCachedThread(thread: PostThread, did?: string) {
+  if (typeof window === 'undefined') return
+  const key = threadCacheKey(thread.post.uri, did)
+  clientThreadCache.delete(key)
+  clientThreadCache.set(key, { thread, savedAt: Date.now() })
+  if (clientThreadCache.size > 25) clientThreadCache.delete(clientThreadCache.keys().next().value!)
+}
 
 export function readCachedFeed(did?: string) {
   if (typeof window === 'undefined') return null
@@ -17,6 +38,20 @@ export function readCachedFeed(did?: string) {
 export function writeCachedFeed(feed: PostFeed, did?: string) {
   if (typeof window === 'undefined') return
   clientFeedCache = { owner: did ?? null, feed }
+}
+
+export function rememberPost(post: PostView, did?: string) {
+  if (typeof window === 'undefined') return
+  clientSelectedPost = { owner: did ?? null, post }
+}
+
+export function readRememberedPost(uri: string, did?: string) {
+  if (typeof window === 'undefined' || clientDeletedPostUris.has(uri)) return null
+  const owner = did ?? null
+  if (clientSelectedPost?.owner === owner && clientSelectedPost.post.uri === uri) return clientSelectedPost.post
+  return clientFeedCache?.owner === owner
+    ? clientFeedCache.feed.posts.find((post) => post.uri === uri) ?? null
+    : null
 }
 
 export function prependCachedPost(post: PostView, did?: string) {
@@ -37,6 +72,10 @@ export function prependCachedPost(post: PostView, did?: string) {
 export function hideDeletedPost(uri: string, did?: string) {
   if (typeof window === 'undefined') return
   clientDeletedPostUris.add(uri)
+  for (const key of clientThreadCache.keys()) {
+    if (key.endsWith(`\0${uri}`)) clientThreadCache.delete(key)
+  }
+  if (clientSelectedPost?.post.uri === uri) clientSelectedPost = null
 
   if (clientFeedCache?.owner === (did ?? null)) {
     clientFeedCache = {
@@ -54,6 +93,9 @@ export function isPostHidden(uri: string) {
 }
 
 export function clearCachedFeed(did?: string) {
+  for (const key of clientThreadCache.keys()) {
+    if (key.startsWith(`${did ?? ''}\0`)) clientThreadCache.delete(key)
+  }
   if (
     typeof window !== 'undefined' &&
     clientFeedCache?.owner === (did ?? null)
@@ -397,6 +439,23 @@ export async function loadPostThread(data: PostThreadInput): Promise<PostThread>
 export const getPostThread = createServerFn({ method: 'POST' })
   .validator((data: PostThreadInput) => data)
   .handler(({ data }) => loadPostThread(data))
+
+const clientThreadRequests = new Map<string, Promise<PostThread>>()
+
+export function loadCachedThread(data: PostThreadInput): Promise<PostThread> {
+  const cached = readCachedThread(data.uri, data.did)
+  if (cached) return Promise.resolve(cached)
+  const key = threadCacheKey(data.uri, data.did)
+  let request = clientThreadRequests.get(key)
+  if (!request) {
+    request = getPostThread({ data }).then((thread) => {
+      writeCachedThread(thread, data.did)
+      return thread
+    }).finally(() => clientThreadRequests.delete(key))
+    clientThreadRequests.set(key, request)
+  }
+  return request
+}
 
 type TextPostInput = {
     did: string

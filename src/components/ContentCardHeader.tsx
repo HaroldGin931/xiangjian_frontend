@@ -17,29 +17,21 @@ export function ContentCardHeader({
   avatarUrl?: string
   onAuthorClick?: () => void
 }) {
-  const author = (
-    <>
-      <Avatar name={name} src={avatarUrl} />
-      <span className="content-card-author-copy">
-        <strong>{name}</strong>
-        <time className="content-card-time">{timestamp}</time>
-      </span>
-    </>
-  )
+  const authorTarget = (content: ReactNode, className: string, label?: string) => onAuthorClick ? (
+    <button type="button" className={className} aria-label={label} onClick={onAuthorClick}>{content}</button>
+  ) : profileActor ? (
+    <Link to="/profile/$actor" params={{ actor: profileActor }} className={className} aria-label={label}>{content}</Link>
+  ) : content
 
   return (
     <header className="content-card-header">
-      {onAuthorClick ? <button type="button" className="content-card-author" onClick={onAuthorClick}>{author}</button> : profileActor ? (
-        <Link
-          to="/profile/$actor"
-          params={{ actor: profileActor }}
-          className="content-card-author"
-        >
-          {author}
-        </Link>
-      ) : (
-        <span className="content-card-author">{author}</span>
-      )}
+      <div className="content-card-author">
+        {authorTarget(<Avatar name={name} src={avatarUrl} />, 'content-card-avatar-link', `查看 ${name} 的详情`)}
+        <span className="content-card-author-copy">
+          {authorTarget(<strong>{name}</strong>, 'content-card-name-link')}
+          <time className="content-card-time">{timestamp}</time>
+        </span>
+      </div>
       {aside}
     </header>
   )

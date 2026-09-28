@@ -1,9 +1,11 @@
 import { renderToStaticMarkup } from 'react-dom/server'
+import type { ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { PostView, RiceSession } from '~/lib/models'
 
 const state = vi.hoisted(() => ({ session: null as RiceSession | null }))
 vi.mock('~/features/session/session', () => ({ useStoredSession: () => ({ session: state.session }) }))
+vi.mock('@tanstack/react-router', () => ({ Link: ({ children, 'aria-label': label }: { children: ReactNode; 'aria-label'?: string }) => <a aria-label={label}>{children}</a> }))
 import { PostActions } from './PostActions'
 
 afterEach(() => { state.session = null })
@@ -37,5 +39,15 @@ describe('post interaction rendering', () => {
     state.session = { user: { id: 'alice' }, pds: { did: 'did:alice' } } as RiceSession
     expect(renderToStaticMarkup(<PostActions post={post} onOpenComments={() => undefined} commentAction="reply" />)).toContain('回复评论')
     expect(renderToStaticMarkup(<PostActions post={post} commentAction="hidden" />)).not.toContain('条评论')
+  })
+
+  it('shows the exact two-level comment count only after it is known', () => {
+    state.session = { user: { id: 'alice' }, pds: { did: 'did:alice' } } as RiceSession
+    const directOnly = { ...post, replyCount: 1 }
+    const pending = renderToStaticMarkup(<PostActions post={directOnly} />)
+    expect(pending).toContain('aria-label="评论"')
+    expect(pending).not.toContain('1 条评论')
+    const loaded = renderToStaticMarkup(<PostActions post={directOnly} commentCount={2} />)
+    expect(loaded).toContain('aria-label="2 条评论"')
   })
 })

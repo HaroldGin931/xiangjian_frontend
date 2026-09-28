@@ -8,6 +8,7 @@ import {
   clearCachedFeed,
   deletePost,
   hideDeletedPost,
+  loadCachedThread,
   ownedInteractionUri,
   toggleLike,
   toggleRepost,
@@ -23,6 +24,7 @@ export type RepostChange = {
 
 type PostActionsProps = {
   post: PostView
+  commentCount?: number
   onOpenComments?: () => void
   commentAction?: 'reply' | 'hidden'
   onRepostChange?: (change: RepostChange) => void
@@ -34,7 +36,7 @@ export function PostActions(props: PostActionsProps) {
   return session ? <SessionPostActions key={`${props.post.uri}:${session.pds.did}`} {...props} session={session} /> : null
 }
 
-function SessionPostActions({ post, onOpenComments, commentAction, onRepostChange, onPostDeleted, session }: PostActionsProps & { session: RiceSession }) {
+function SessionPostActions({ post, commentCount, onOpenComments, commentAction, onRepostChange, onPostDeleted, session }: PostActionsProps & { session: RiceSession }) {
   const [likeUri, setLikeUri] = useState(() => ownedInteractionUri(post.viewer?.like, session.pds.did, 'app.bsky.feed.like'))
   const [repostUri, setRepostUri] = useState(() => ownedInteractionUri(post.viewer?.repost, session.pds.did, 'app.bsky.feed.repost'))
   const mounted = useRef(true)
@@ -44,6 +46,13 @@ function SessionPostActions({ post, onOpenComments, commentAction, onRepostChang
   const [pending, setPending] = useState<'like' | 'repost' | 'delete' | null>(null)
   const [error, setError] = useState('')
   const category = postCategory(post.record)
+  const actions = useRef<HTMLDivElement>(null)
+  const [resolvedCount, setResolvedCount] = useState<{ uri: string; direct: number; total: number } | null>(null)
+  const needsCount = category === 'post' && !onOpenComments && !commentAction && commentCount === undefined && post.replyCount > 0
+  const exactCount = commentCount ?? (needsCount
+    ? resolvedCount?.uri === post.uri && resolvedCount.direct === post.replyCount ? resolvedCount.total : undefined
+    : !onOpenComments && post.replyCount === 0 ? 0 : undefined)
+  const commentLabel = exactCount === undefined ? '评论' : `${exactCount} 条评论`
   const fields = postFieldValues(post.record.text, category)
   const canDelete = Boolean(
     session &&
@@ -57,6 +66,20 @@ function SessionPostActions({ post, onOpenComments, commentAction, onRepostChang
     setLikeCount(post.likeCount ?? 0)
     setRepostCount(post.repostCount ?? 0)
   }, [post, session.pds.did])
+
+  useEffect(() => {
+    if (!needsCount || exactCount !== undefined || !actions.current) return
+    let active = true
+    const observer = new IntersectionObserver((entries) => {
+      if (!active || !entries.some((entry) => entry.isIntersecting)) return
+      observer.disconnect()
+      void loadCachedThread({ uri: post.uri, did: session.pds.did, accessJwt: session.pds.access_jwt }).then((thread) => {
+        if (active) setResolvedCount({ uri: post.uri, direct: post.replyCount, total: thread.replies.length })
+      }).catch(() => { /* Keep the count hidden if the thread cannot be loaded. */ })
+    })
+    observer.observe(actions.current)
+    return () => { active = false; observer.disconnect() }
+  }, [needsCount, exactCount, post.uri, post.replyCount, session])
 
   const handleLike = async () => {
     const activeSession = session
@@ -152,7 +175,7 @@ function SessionPostActions({ post, onOpenComments, commentAction, onRepostChang
 
   return (
     <>
-      <div className="content-card-actions post-actions" aria-label="帖子互动">
+      <div ref={actions} className="content-card-actions post-actions" aria-label="帖子互动">
         {commentAction === 'hidden' ? null : category === 'activity' ? (
           <span className="post-action special-post-state" aria-label={`${post.replyCount ?? 0} 人参与`}>
             <Users size={18} aria-hidden="true" /> 参与 {post.replyCount ?? 0}
@@ -163,14 +186,14 @@ function SessionPostActions({ post, onOpenComments, commentAction, onRepostChang
           </span>
         ) : onOpenComments ? (
           <Button
-            label={commentAction === 'reply' ? '回复评论' : `${post.replyCount ?? 0} 条评论`}
+            label={commentAction === 'reply' ? '回复评论' : commentLabel}
             variant="ghost"
             size="sm"
             icon={<MessageCircle size={18} aria-hidden="true" />}
             className="post-action"
             onClick={onOpenComments}
           >
-            {commentAction === 'reply' ? '回复' : post.replyCount ?? 0}
+            {commentAction === 'reply' ? '回复' : exactCount ?? '评论'}
           </Button>
         ) : (
           <Link
@@ -178,10 +201,10 @@ function SessionPostActions({ post, onOpenComments, commentAction, onRepostChang
             search={{ uri: post.uri }}
             hash="reply"
             className="post-action"
-            aria-label={`${post.replyCount ?? 0} 条评论`}
+            aria-label={commentLabel}
           >
             <MessageCircle size={18} aria-hidden="true" />
-            {post.replyCount ?? 0}
+            {exactCount ?? '评论'}
           </Link>
         )}
         {category === 'post' ? (

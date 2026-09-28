@@ -17,8 +17,12 @@ import {
   normalizePostThread,
   prependCachedPost,
   readCachedFeed,
+  readCachedThread,
+  readRememberedPost,
+  rememberPost,
   updateInteractionRecord,
   writeCachedFeed,
+  writeCachedThread,
 } from './api'
 import {
   hasPostTag,
@@ -229,6 +233,19 @@ describe('feed data', () => {
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes('listRecords'))).toBe(false)
   })
 
+  it('keeps a fetched thread for the same account and clears it with the feed', () => {
+    vi.stubGlobal('window', {})
+    const root = { ...post, uri: `${post.uri}-cached` }
+    const reply = { ...post, uri: `${post.uri}-cached-reply` }
+    const child = { ...post, uri: `${post.uri}-cached-child` }
+    const thread = { post: root, replies: [{ post: reply, parentUri: root.uri }, { post: child, parentUri: reply.uri }] }
+    writeCachedThread(thread, 'did:example')
+    expect(readCachedThread(root.uri, 'did:example')).toBe(thread)
+    expect(readCachedThread(root.uri, 'did:other')).toBeNull()
+    clearCachedFeed('did:example')
+    expect(readCachedThread(root.uri, 'did:example')).toBeNull()
+  })
+
   it.each([undefined, '真实帖子'])('uses local author names in list/search and preserves external authors (query=%s)', async (query) => {
     const external = { ...post, uri: `${post.uri}-external`, author: { did: 'did:external', handle: 'outside.test', displayName: '外部作者' } }
     const fetchMock = vi.fn(async (input: string | URL) => {
@@ -371,6 +388,19 @@ describe('feed data', () => {
     expect(readCachedFeed('did:alice')).toBe(feed)
     clearCachedFeed('did:alice')
     expect(readCachedFeed('did:alice')).toBeNull()
+  })
+
+  it('shows the selected post immediately only for the same account', () => {
+    vi.stubGlobal('window', {})
+    const selected = { ...post, uri: `${post.uri}-selected` }
+    rememberPost(selected, 'did:alice')
+
+    expect(readRememberedPost(selected.uri, 'did:alice')).toBe(selected)
+    expect(readRememberedPost(selected.uri, 'did:bob')).toBeNull()
+    expect(readRememberedPost(post.uri, 'did:alice')).toBeNull()
+
+    hideDeletedPost(selected.uri, 'did:alice')
+    expect(readRememberedPost(selected.uri, 'did:alice')).toBeNull()
   })
 
   it('shows a newly created post from cache without waiting for indexing', () => {

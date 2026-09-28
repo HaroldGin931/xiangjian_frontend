@@ -110,7 +110,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="app-shell">
-      <div className="test-environment">测试环境 · 仅使用测试稻米</div>
       <header className="topbar">
         <div className="topbar-inner">
           {isMainPage ? <Link to="/" className="brand" aria-label="返回乡建 DAO 广场">
@@ -126,7 +125,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
-      <main key={session?.user.id ?? 'guest'} className="page-frame">{recoveryError && <p className="inline-error" role="alert">{recoveryError}</p>}{session && notificationError && <p className="inline-error" role="alert">{notificationError}</p>}{isReady ? children : <LoadingState label="正在恢复登录状态" className="page initial-loading loading-line" />}</main>
+      <main key={session?.user.id ?? 'guest'} className={pathname === '/compose' ? 'page-frame compose-frame' : 'page-frame'}>{recoveryError && <p className="inline-error" role="alert">{recoveryError}</p>}{session && notificationError && <p className="inline-error" role="alert">{notificationError}</p>}{isReady ? children : <LoadingState label="正在恢复登录状态" className="page initial-loading loading-line" />}</main>
       {navigating && <LoadingProgress label="正在加载页面…" />}
 
       <nav className="bottom-nav" aria-label="主要导航">

@@ -2,11 +2,12 @@ import { Button } from '@astryxdesign/core/Button'
 import { EmptyState } from '@astryxdesign/core/EmptyState'
 import { TextArea } from '~/components/AutoTextArea'
 import { useNavigate } from '@tanstack/react-router'
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 
 import { ContentCardHeader } from '~/components/ContentCardHeader'
 import { LoadingState } from '~/components/LoadingState'
 import { ImageGroup } from '~/components/ContentImages'
+import { PostCard } from '~/components/PostList'
 import { PostText } from '~/components/PostText'
 import { PostActions } from '~/components/PostActions'
 import { authorDisplayName, formatTimestamp } from '~/lib/format'
@@ -17,14 +18,16 @@ import {
   clearCachedFeed,
   createdPostView,
   createReply,
-  getPostThread,
+  loadCachedThread,
+  readCachedThread,
+  readRememberedPost,
+  writeCachedThread,
 } from './api'
 import {
   ACTIVITY_PARTICIPATION_TEXT,
   formatPostFieldValue,
   POST_CATEGORIES,
   postCategory,
-  postDisplayText,
   postFieldValues,
 } from './tags'
 
@@ -44,13 +47,15 @@ function PostThreadContent({
 }: PostThreadPanelProps) {
   const { session, isReady } = useStoredSession()
   const navigate = useNavigate()
-  const [thread, setThread] = useState<PostThread | null>(null)
+  const [thread, setThread] = useState<PostThread | null>(() => readCachedThread(uri, session?.pds.did))
   const [error, setError] = useState('')
   const [replyText, setReplyText] = useState('')
   const [replyTo, setReplyTo] = useState<PostView | null>(null)
   const [replyNotice, setReplyNotice] = useState('')
   const [isReplying, setReplying] = useState(false)
+  const focusRequested = useRef(false)
   const replyComposerId = useId()
+  const shownPost = thread?.post ?? readRememberedPost(uri, session?.pds.did)
   const category = thread ? postCategory(thread.post.record) : 'post'
   const fields = thread ? postFieldValues(thread.post.record.text, category) : {}
   const participants = thread?.replies.filter(
@@ -66,24 +71,27 @@ function PostThreadContent({
   useEffect(() => {
     if (!isReady) return
     if (!uri) { setError('帖子不存在'); return }
+    if (thread) return
     let active = true
     setError('')
-    getPostThread({
-      data: {
-        uri,
-        accessJwt: session?.pds.access_jwt,
-        did: session?.pds.did,
-      },
+    loadCachedThread({
+      uri,
+      accessJwt: session?.pds.access_jwt,
+      did: session?.pds.did,
     })
-      .then((next) => { if (active) setThread(next) })
+      .then((next) => {
+        if (!active) return
+        setThread(next)
+      })
       .catch((reason) => {
         if (active) setError(reason instanceof Error ? reason.message : '帖子暂时无法显示')
       })
     return () => { active = false }
-  }, [isReady, session?.pds.access_jwt, session?.pds.did, uri])
+  }, [isReady, session?.pds.access_jwt, session?.pds.did, thread, uri])
 
   useEffect(() => {
-    if (!focusReply || !thread) return
+    if ((!focusReply && !focusRequested.current) || !thread) return
+    focusRequested.current = false
     window.requestAnimationFrame(() => {
       const composer = document.getElementById(replyComposerId)
       composer?.scrollIntoView({ block: 'end' })
@@ -94,6 +102,7 @@ function PostThreadContent({
   const focusComposer = (target: PostView | null = null) => {
     setReplyTo(target)
     setReplyNotice('')
+    if (!thread) focusRequested.current = true
     const composer = document.getElementById(replyComposerId)
     composer?.scrollIntoView({ behavior: 'smooth', block: 'end' })
     composer?.querySelector('textarea')?.focus()
@@ -112,20 +121,22 @@ function PostThreadContent({
       },
     })
     const post = createdPostView(result, session, reply)
-    setThread((current) => current ? {
-      ...current,
+    const nextThread = {
+      ...thread,
       post: {
-        ...current.post,
-        replyCount: (current.post.replyCount ?? 0) + 1,
+        ...thread.post,
+        replyCount: (thread.post.replyCount ?? 0) + (target ? 0 : 1),
       },
       replies: [
-        ...current.replies.map((item) => target?.uri === item.post.uri
+        ...thread.replies.map((item) => target?.uri === item.post.uri
           ? { ...item, post: { ...item.post, replyCount: (item.post.replyCount ?? 0) + 1 } }
           : item),
         { post, parentUri: reply.parent.uri },
       ],
-    } : current)
+    }
+    setThread(nextThread)
     clearCachedFeed(session.pds.did)
+    writeCachedThread(nextThread, session.pds.did)
   }
 
   const submitComment = async (
@@ -164,32 +175,16 @@ function PostThreadContent({
   return (
     <div className="post-thread-panel">
       {error ? <div className="form-error">{error}</div> : null}
-      {thread ? (
-        <>
-          <article className="content-card post-detail-card">
-            <ContentCardHeader
-              name={authorDisplayName(thread.post.author)}
-              timestamp={formatTimestamp(
-                thread.post.record.createdAt || thread.post.indexedAt,
-                true,
-              )}
-              profileActor={thread.post.author.did}
-              avatarUrl={thread.post.author.avatar}
-            />
-            <p className="post-detail-copy">
-              <PostText text={postDisplayText(thread.post.record.text, category)} />
-            </p>
-            <ImageGroup images={(thread.post.images ?? []).map((image) => ({ ...image, src: image.fullsize ?? image.src }))} />
-            <div className="detail-actions">
-              <PostActions
-                post={thread.post}
-                onOpenComments={() => focusComposer()}
-                onPostDeleted={() => { void navigate({ to: '/' }) }}
-              />
-            </div>
-          </article>
-
-          {category === 'post' ? (
+      {shownPost ? (
+        <PostCard
+          post={shownPost}
+          detail
+          commentCount={thread?.replies.length}
+          onOpenComments={() => focusComposer()}
+          onPostDeleted={() => { void navigate({ to: '/' }) }}
+        />
+      ) : !error ? <LoadingState label="正在加载帖子…" /> : null}
+      {thread && (category === 'post' ? (
             <section className="reply-section" aria-label="评论">
               {session && <div className="reply-composer" id={replyComposerId}>
                 {replyTo && <div className="reply-composer-target"><span>回复 {authorDisplayName(replyTo.author)}</span><Button label="取消回复" variant="ghost" size="sm" onClick={() => setReplyTo(null)} /></div>}
@@ -258,11 +253,7 @@ function PostThreadContent({
                 </div>
               ) : null}
             </section>
-          )}
-        </>
-      ) : !error ? (
-        <LoadingState label="正在加载帖子…" />
-      ) : null}
+          ))}
     </div>
   )
 }

@@ -48,7 +48,7 @@ function EventDetails({ eventId }: { eventId: string }) {
   const canApply = acceptsApplications && Boolean(event?.allowed_actions.includes('apply'))
   const canWithdraw = Boolean(event?.my_application?.allowed_actions.includes('withdraw') && Date.parse(event.starts_at) > now)
   const hasEventActions = canApply || canWithdraw || event?.allowed_actions.some(action => ['finish', 'cancel', 'edit'].includes(action))
-  return <div className="page business-panel">{error && <p className="inline-error" role="alert">{error}</p>}{!event && !error && <LoadingState label="正在加载活动…" />}{event && <>
+  return <div className="page business-panel event-detail-page">{error && <p className="inline-error" role="alert">{error}</p>}{!event && !error && <LoadingState label="正在加载活动…" />}{event && <>
     <span className={`task-status status-${event.status}`}>{eventDisplayStatus(event, now)}</span><h1>{event.title}</h1><p className="muted">{event.node.name} · {event.creator.nickname || event.creator.handle}发起</p>
     <div className="business-money"><strong className="rice-amount">{event.fee_amount ? <><Sprout size={25} />{event.fee_amount}<small> / 人</small></> : '免费'}</strong></div>
     <p>{formatTimestamp(event.starts_at, true)} — {formatTimestamp(event.ends_at, true)}</p><p>{event.location}</p><p className="muted">报名截止：{formatTimestamp(event.application_deadline, true)}</p>

@@ -7,7 +7,8 @@ import { ContentCardHeader } from '~/components/ContentCardHeader'
 import { ImageGroup } from '~/components/ContentImages'
 import { PostText } from '~/components/PostText'
 import { PostActions, type RepostChange } from '~/components/PostActions'
-import { isPostHidden } from '~/features/feed/api'
+import { isPostHidden, rememberPost } from '~/features/feed/api'
+import { useStoredSession } from '~/features/session/session'
 import { postCategory, postDisplayText } from '~/features/feed/tags'
 import { authorDisplayName, formatTimestamp } from '~/lib/format'
 import type { PostView } from '~/lib/models'
@@ -56,22 +57,33 @@ export function PostList({
 
 export function PostCard({
   post,
+  detail = false,
+  commentCount,
+  onOpenComments,
   onRepostChange,
   onPostDeleted,
 }: {
   post: PostView
+  detail?: boolean
+  commentCount?: number
+  onOpenComments?: () => void
   onRepostChange?: (change: RepostChange) => void
   onPostDeleted?: (uri: string) => void
 }) {
   const navigate = useNavigate()
+  const { session } = useStoredSession()
   const category = postCategory(post.record)
   const openPost = () => {
+    rememberPost(post, session?.pds.did)
     void navigate({ to: '/posts', search: { uri: post.uri } })
   }
 
   return (
-    <article className={`content-card post-row ${category === 'post' ? '' : `${category}-post`}`}>
-      {post.reason ? (
+    <article
+      className={`content-card post-row ${category === 'post' ? '' : `${category}-post`}`}
+      onClickCapture={detail ? undefined : () => rememberPost(post, session?.pds.did)}
+    >
+      {!detail && post.reason ? (
         <div className="post-reason">
           <Repeat2 size={14} aria-hidden="true" />
           <Link to="/profile/$actor" params={{ actor: post.reason.by.did }}>
@@ -87,11 +99,12 @@ export function PostCard({
         avatarUrl={post.author.avatar}
       />
       <p
-        className="post-copy post-copy-link"
-        role="link"
-        tabIndex={0}
-        onClick={openPost}
+        className={`post-copy${detail ? '' : ' post-copy-link'}`}
+        role={detail ? undefined : 'link'}
+        tabIndex={detail ? undefined : 0}
+        onClick={detail ? undefined : openPost}
         onKeyDown={(event) => {
+          if (detail) return
           if (event.target !== event.currentTarget) return
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault()
@@ -104,6 +117,8 @@ export function PostCard({
       {post.images?.length ? <ImageGroup images={post.images} className="post-image-grid" /> : null}
       <PostActions
         post={post}
+        commentCount={commentCount}
+        onOpenComments={onOpenComments}
         onRepostChange={onRepostChange}
         onPostDeleted={onPostDeleted}
       />

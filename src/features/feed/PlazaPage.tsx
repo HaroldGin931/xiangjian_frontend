@@ -132,8 +132,6 @@ function PlazaFeed({ initialFeed }: { initialFeed: PostFeed }) {
 
   return (
     <div className="page plaza-page">
-      <p className="feed-progress" aria-live="polite">{isLoading ? '正在更新…' : ''}</p>
-
       {error ? (
         <div className="inline-error" role="alert">
           <span>{error}</span>
