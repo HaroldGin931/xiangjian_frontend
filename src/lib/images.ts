@@ -1,6 +1,6 @@
 export const IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif'
-export const DEFAULT_IMAGE_MAX_BYTES = 20_000_000
-export const DEFAULT_IMAGE_MAX_COUNT = 9
+export const MAX_IMAGE_BYTES = 20_000_000
+export const MAX_IMAGE_COUNT = 9
 
 export function imageSizeLabel(bytes: number) {
   return `${Number((bytes / 1_000_000).toFixed(2))} MB`
@@ -9,13 +9,12 @@ export function imageSizeLabel(bytes: number) {
 export function validateImageFiles(
   files: ReadonlyArray<Pick<File, 'name' | 'type' | 'size'>>,
   currentCount: number,
-  { maxImages = DEFAULT_IMAGE_MAX_COUNT, maxBytes = DEFAULT_IMAGE_MAX_BYTES }: { maxImages?: number; maxBytes?: number } = {},
 ) {
-  if (currentCount + files.length > maxImages) return `最多添加 ${maxImages} 张图片。`
+  if (currentCount + files.length > MAX_IMAGE_COUNT) return `最多添加 ${MAX_IMAGE_COUNT} 张图片。`
   for (const file of files) {
     if (!IMAGE_ACCEPT.split(',').includes(file.type)) return `“${file.name}”格式不支持，请选择 JPEG、PNG、WebP 或 GIF 图片。`
     if (!file.size) return `“${file.name}”是空文件，请重新选择。`
-    if (file.size > maxBytes) return `“${file.name}”超过 ${imageSizeLabel(maxBytes)}，请选择较小的图片。`
+    if (file.size > MAX_IMAGE_BYTES) return `“${file.name}”超过 ${imageSizeLabel(MAX_IMAGE_BYTES)}，请选择较小的图片。`
   }
   return null
 }

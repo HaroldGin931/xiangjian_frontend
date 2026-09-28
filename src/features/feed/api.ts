@@ -63,9 +63,7 @@ export function clearCachedFeed(did?: string) {
 }
 
 function postImageEmbed(images: PdsImage[]) {
-  return images.length > 4
-    ? { $type: 'app.bsky.embed.gallery', items: images.map(({ image, alt, aspectRatio }) => ({ $type: 'app.bsky.embed.gallery#image' as const, image, alt, aspectRatio })) }
-    : { $type: 'app.bsky.embed.images', images }
+  return { $type: 'app.bsky.embed.gallery', items: images.map(({ image, alt, aspectRatio }) => ({ $type: 'app.bsky.embed.gallery#image' as const, image, alt, aspectRatio })) }
 }
 
 export function createdPostView(
@@ -417,7 +415,7 @@ export async function createTextPostRecord(data: TextPostInput) {
     if (text.length > 300) throw new Error('帖子内容最多 300 个字符')
     if (images.length > MAX_POST_IMAGES) throw new Error(`帖子最多添加 ${MAX_POST_IMAGES} 张图片。`)
     if (images.some((item) => item.image?.$type !== 'blob' || !item.image.ref?.$link || !POST_IMAGE_TYPES.includes(item.image.mimeType) || !Number.isFinite(item.image.size) || item.image.size <= 0 || item.image.size > MAX_POST_IMAGE_BYTES || typeof item.alt !== 'string')) throw new Error('图片信息无效，请重新添加。')
-    if (images.length > 4 && images.some((item) => !item.aspectRatio || !Number.isInteger(item.aspectRatio.width) || item.aspectRatio.width < 1 || !Number.isInteger(item.aspectRatio.height) || item.aspectRatio.height < 1)) throw new Error('图片尺寸无效，请重新添加。')
+    if (images.some((item) => !item.aspectRatio || !Number.isInteger(item.aspectRatio.width) || item.aspectRatio.width < 1 || !Number.isInteger(item.aspectRatio.height) || item.aspectRatio.height < 1)) throw new Error('图片尺寸无效，请重新添加。')
     if (!['post', 'activity', 'product'].includes(data.category)) {
       throw new Error('内容分类无效')
     }
@@ -438,7 +436,7 @@ export async function createTextPostRecord(data: TextPostInput) {
       // never retry by creating another record or overwrite the published one.
       const query = new URLSearchParams({ repo: data.did, collection: 'app.bsky.feed.post', rkey: data.rkey })
       const existing = await requestJson<{ uri: string; cid: string; value: typeof record }>(`${BACKEND_BASE}/pds/xrpc/com.atproto.repo.getRecord?${query}`, { headers: { Authorization: `Bearer ${data.accessJwt}` } }).catch(() => { throw error })
-      const imageIdentity = (embed: typeof record.embed) => [embed?.$type, (embed?.images ?? embed?.items ?? []).map((item) => [item.image.ref.$link, item.alt, item.aspectRatio?.width, item.aspectRatio?.height])]
+      const imageIdentity = (embed: typeof record.embed) => [embed?.$type, (embed?.items ?? []).map((item) => [item.image.ref.$link, item.alt, item.aspectRatio?.width, item.aspectRatio?.height])]
       if (existing.value.text !== text || existing.value.createdAt !== createdAt || existing.value.xjdaoCategory !== data.category || JSON.stringify(imageIdentity(existing.value.embed)) !== JSON.stringify(imageIdentity(record.embed))) throw new Error('上次提交的帖子已发布。请关闭发布窗口后查看，再发布新内容。')
       body = existing
     }

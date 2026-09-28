@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import type { PdsImage, RiceSession } from '~/lib/models'
-import { MAX_POST_IMAGE_BYTES, MAX_POST_IMAGES, newPostRecordKey, pdsBlobUrl, recordKeyFromUri, uploadPdsImage } from '~/lib/pds'
+import { MAX_POST_IMAGE_BYTES, newPostRecordKey, pdsBlobUrl, recordKeyFromUri, uploadPdsImage } from '~/lib/pds'
 
 import {
   clearCachedFeed,
@@ -69,18 +69,7 @@ describe('post images', () => {
     await expect(uploadPdsImage('pds-token', 'eA==', 'image/png')).rejects.toThrow('图片上传失败')
   })
 
-  it('stores ordered standard image embeds and supports an image-only post', async () => {
-    const second = { ...image, image: { ...image.image, ref: { $link: 'bafkreisecondimage' } }, alt: '门口' }
-    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ uri: post.uri, cid: 'created' })))
-    vi.stubGlobal('fetch', fetchMock)
-    const created = await createTextPostRecord({ did: 'did:example', accessJwt: 'pds-token', text: '', category: 'post', rkey: 'recordkey', createdAt: post.indexedAt, images: [image, second] })
-    const record = JSON.parse(fetchMock.mock.calls[0][1].body).record
-    expect(record.embed).toEqual({ $type: 'app.bsky.embed.images', images: [image, second] })
-    expect(created.images).toEqual([image, second])
-    expect(record.text).toBe('')
-  })
-
-  it.each([5, 9])('publishes %i images as a gallery and shows them immediately', async (count) => {
+  it.each([1, 9])('publishes %i images as a gallery and shows them immediately', async (count) => {
     const images = Array.from({ length: count }, (_, index): PdsImage => ({
       image: { ...image.image, ref: { $link: `bafkreiimage${index}` } },
       alt: `图片 ${index + 1}`,
@@ -91,6 +80,7 @@ describe('post images', () => {
     const created = await createTextPostRecord({ did: 'did:example', accessJwt: 'pds-token', text: '', category: 'post', rkey: 'recordkey', createdAt: post.indexedAt, images })
     const record = JSON.parse(fetchMock.mock.calls[0][1].body).record
     expect(record.embed).toEqual({ $type: 'app.bsky.embed.gallery', items: images.map((item) => ({ $type: 'app.bsky.embed.gallery#image', ...item })) })
+    expect(record.text).toBe('')
     const session = { user: { nickname: 'Mo' }, pds: { did: 'did:example', handle: 'mo.local' } } as RiceSession
     const immediate = createdPostView(created, session)
     expect(immediate.record.embed).toEqual(record.embed)
@@ -102,27 +92,20 @@ describe('post images', () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
     const input = { did: 'did:example', accessJwt: 'pds-token', text: '', category: 'post' as const, rkey: 'recordkey', createdAt: post.indexedAt }
-    expect(MAX_POST_IMAGES).toBe(9)
     await expect(createTextPostRecord({ ...input, images: Array(10).fill(image) })).rejects.toThrow('9 张图片')
-    await expect(createTextPostRecord({ ...input, images: Array(5).fill(image) })).rejects.toThrow('图片尺寸无效')
-    await expect(createTextPostRecord({ ...input, images: Array(5).fill({ ...image, aspectRatio: { width: 0, height: 1 } }) })).rejects.toThrow('图片尺寸无效')
+    await expect(createTextPostRecord({ ...input, images: [image] })).rejects.toThrow('图片尺寸无效')
+    await expect(createTextPostRecord({ ...input, images: [{ ...image, aspectRatio: { width: 0, height: 1 } }] })).rejects.toThrow('图片尺寸无效')
     await expect(createTextPostRecord({ ...input, images: [{ ...image, image: { ...image.image, size: MAX_POST_IMAGE_BYTES + 1 } }] })).rejects.toThrow('图片信息无效')
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('does not accept an altered image set as an already successful retry', async () => {
-    const oldImage = { ...image, image: { ...image.image, ref: { $link: 'bafkreioldimage' } } }
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValueOnce(new Error('response lost')).mockResolvedValueOnce(new Response(JSON.stringify({ uri: post.uri, cid: 'stored', value: { text: post.record.text, createdAt: post.indexedAt, xjdaoCategory: 'post', embed: { $type: 'app.bsky.embed.images', images: [oldImage] } } }))))
-    await expect(createTextPostRecord({ did: 'did:example', accessJwt: 'pds-token', text: post.record.text, category: 'post', rkey: 'recordkey', createdAt: post.indexedAt, images: [image] })).rejects.toThrow('上次提交的帖子已发布')
-  })
-
   it('recovers the same gallery after a lost response but rejects changed gallery items', async () => {
-    const images = Array.from({ length: 5 }, (_, index): PdsImage => ({ ...image, image: { ...image.image, ref: { $link: `bafkreiimage${index}` } }, aspectRatio: { width: 4, height: 3 } }))
+    const images = Array.from({ length: 2 }, (_, index): PdsImage => ({ ...image, image: { ...image.image, ref: { $link: `bafkreiimage${index}` } }, aspectRatio: { width: 4, height: 3 } }))
     const input = { did: 'did:example', accessJwt: 'pds-token', text: post.record.text, category: 'post' as const, rkey: 'recordkey', createdAt: post.indexedAt, images }
     const stored = { uri: post.uri, cid: 'stored', value: { text: input.text, createdAt: input.createdAt, xjdaoCategory: input.category, embed: { $type: 'app.bsky.embed.gallery', items: images.map((item) => ({ $type: 'app.bsky.embed.gallery#image', ...item })) } } }
     vi.stubGlobal('fetch', vi.fn().mockRejectedValueOnce(new Error('response lost')).mockResolvedValueOnce(new Response(JSON.stringify(stored))))
     await expect(createTextPostRecord(input)).resolves.toMatchObject({ uri: post.uri, cid: 'stored' })
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValueOnce(new Error('response lost')).mockResolvedValueOnce(new Response(JSON.stringify({ ...stored, value: { ...stored.value, embed: { ...stored.value.embed, items: stored.value.embed.items.map((item, index) => index === 4 ? { ...item, alt: '另一张' } : item) } } }))))
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValueOnce(new Error('response lost')).mockResolvedValueOnce(new Response(JSON.stringify({ ...stored, value: { ...stored.value, embed: { ...stored.value.embed, items: stored.value.embed.items.map((item, index) => index === 1 ? { ...item, alt: '另一张' } : item) } } }))))
     await expect(createTextPostRecord(input)).rejects.toThrow('上次提交的帖子已发布')
   })
 

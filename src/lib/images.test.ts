@@ -1,15 +1,14 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { DEFAULT_IMAGE_MAX_BYTES, preparePostImage, readImageAspectRatio, validateImageFiles } from './images'
+import { MAX_IMAGE_BYTES, preparePostImage, readImageAspectRatio, validateImageFiles } from './images'
 import { MAX_POST_IMAGE_BYTES } from './pds'
 
 afterEach(() => vi.unstubAllGlobals())
 
 it('accepts larger source images consistently while keeping the PDS upload boundary', () => {
-  expect(DEFAULT_IMAGE_MAX_BYTES).toBe(20_000_000)
   expect(MAX_POST_IMAGE_BYTES).toBe(1_000_000)
-  const files = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'].map((type) => ({ name: '社区图片', type, size: DEFAULT_IMAGE_MAX_BYTES }))
+  const files = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'].map((type) => ({ name: '社区图片', type, size: MAX_IMAGE_BYTES }))
   expect(validateImageFiles(files, 0)).toBeNull()
-  expect(validateImageFiles([{ ...files[0], size: DEFAULT_IMAGE_MAX_BYTES + 1 }], 0)).toContain('超过 20 MB')
+  expect(validateImageFiles([{ ...files[0], size: MAX_IMAGE_BYTES + 1 }], 0)).toContain('超过 20 MB')
 })
 
 it('compresses large static images to the upload boundary without silently flattening GIFs', async () => {
@@ -53,11 +52,10 @@ it('rejects images whose dimensions cannot be decoded', async () => {
   expect(revoke).toHaveBeenCalledWith('blob:preview')
 })
 
-it('counts existing images and applies the supplied upload limit', () => {
+it('counts existing images against the upload limit', () => {
   const file = { name: '工作坊.png', type: 'image/png', size: 3_000_000 }
-  expect(validateImageFiles([file], 8, { maxBytes: 5_000_000 })).toBeNull()
-  expect(validateImageFiles([file], 9, { maxBytes: 5_000_000 })).toContain('最多添加 9 张')
-  expect(validateImageFiles([file], 4, { maxImages: 4 })).toContain('最多添加 4 张')
+  expect(validateImageFiles([file], 8)).toBeNull()
+  expect(validateImageFiles([file], 9)).toContain('最多添加 9 张')
 })
 
 it('rejects empty files and files outside supported image formats', () => {

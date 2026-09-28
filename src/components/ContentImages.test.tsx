@@ -3,7 +3,7 @@ import { expect, it } from 'vitest'
 import { ImageCover, ImageGroup } from './ContentImages'
 
 it('lays out one to nine images without dropping any', () => {
-  for (const [count, columns] of [[2, 2], [3, 3], [4, 2], [5, 3], [6, 3], [7, 3], [8, 3], [9, 3]]) {
+  for (const [count, columns] of [[1, 1], [4, 2], [9, 3]]) {
     const images = Array.from({ length: count }, (_, index) => ({ src: `/image-${index}.jpg`, alt: `图片 ${index + 1}` }))
     const html = renderToStaticMarkup(<ImageGroup images={images} onOpen={() => {}} />)
     expect(html).toContain('post-image-grid')

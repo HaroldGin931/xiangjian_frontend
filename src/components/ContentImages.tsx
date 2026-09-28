@@ -4,7 +4,7 @@ import { IconButton } from '@astryxdesign/core/IconButton'
 import { ImagePlus, X } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { DEFAULT_IMAGE_MAX_BYTES, DEFAULT_IMAGE_MAX_COUNT, IMAGE_ACCEPT, imageSizeLabel, validateImageFiles } from '~/lib/images'
+import { IMAGE_ACCEPT, MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, imageSizeLabel, validateImageFiles } from '~/lib/images'
 import '~/styles/images.css'
 
 export type PreviewImage = { src: string; alt: string }
@@ -64,31 +64,29 @@ function ImageViewer({ images, initialIndex, opener, onClose }: { images: Previe
   </dialog>, document.body)
 }
 
-export function ImagePicker({ images, onSelect, onRemove, disabled = false, maxImages = DEFAULT_IMAGE_MAX_COUNT, maxBytes = DEFAULT_IMAGE_MAX_BYTES }: {
+export function ImagePicker({ images, onSelect, onRemove, disabled = false }: {
   images: PreviewImage[]
   onSelect: (files: File[]) => void
   onRemove: (index: number) => void
   disabled?: boolean
-  maxImages?: number
-  maxBytes?: number
 }) {
   const [error, setError] = useState<string | null>(null)
   const id = useId()
   const helpId = `${id}-help`
   const errorId = `${id}-error`
-  const full = images.length >= maxImages
+  const full = images.length >= MAX_IMAGE_COUNT
   return <section className="content-image-picker" aria-label="添加图片">
     <label className="content-image-picker-label" htmlFor={id}>图片（选填）</label>
     {!!images.length && <div className="content-image-previews">{images.map((image, index) => <div className="content-image-preview" key={`${image.src}:${index}`}><img src={image.src} alt={image.alt} /><button type="button" className="content-image-remove" aria-label={`移除第 ${index + 1} 张图片`} disabled={disabled} onClick={() => { setError(null); onRemove(index) }}><X size={20} /></button></div>)}</div>}
-    <label className={`content-image-add${disabled || full ? ' is-disabled' : ''}`}><ImagePlus size={22} /><span>{full ? `已添加 ${maxImages} 张图片` : '添加图片'}</span><input id={id} type="file" accept={IMAGE_ACCEPT} multiple disabled={disabled || full} aria-label="添加图片" aria-describedby={`${helpId}${error ? ` ${errorId}` : ''}`} onChange={(event) => {
+    <label className={`content-image-add${disabled || full ? ' is-disabled' : ''}`}><ImagePlus size={22} /><span>{full ? `已添加 ${MAX_IMAGE_COUNT} 张图片` : '添加图片'}</span><input id={id} type="file" accept={IMAGE_ACCEPT} multiple disabled={disabled || full} aria-label="添加图片" aria-describedby={`${helpId}${error ? ` ${errorId}` : ''}`} onChange={(event) => {
       const files = Array.from(event.currentTarget.files || [])
       event.currentTarget.value = ''
       if (!files.length) return
-      const failure = validateImageFiles(files, images.length, { maxImages, maxBytes })
+      const failure = validateImageFiles(files, images.length)
       setError(failure)
       if (!failure) onSelect(files)
     }} /></label>
-    <p id={helpId} className="content-image-help">最多 {maxImages} 张，每张不超过 {imageSizeLabel(maxBytes)}。</p>
+    <p id={helpId} className="content-image-help">最多 {MAX_IMAGE_COUNT} 张，每张不超过 {imageSizeLabel(MAX_IMAGE_BYTES)}。</p>
     {error && <p id={errorId} className="content-image-error" role="alert">{error}</p>}
   </section>
 }
