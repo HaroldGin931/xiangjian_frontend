@@ -1,6 +1,6 @@
 import { Button } from '@astryxdesign/core/Button'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowRight, LogOut, Pencil } from 'lucide-react'
+import { ArrowRight, LogOut, Settings } from 'lucide-react'
 import { useState } from 'react'
 import { Avatar } from '~/components/Avatar'
 import type { RiceUser } from '~/lib/models'
@@ -27,7 +27,7 @@ export function ProfilePage({ initialData = null, initialError = '' }: { initial
   const wallet = community ? community.wallet : current?.wallet
   const selectCommunity = (nodeId: string) => setCommunitySelection({ accountId: session.user.id, sessionToken: session.token, nodeId })
   return <div className="page profile-page">
-    <section className="profile-identity"><Link to="/me/settings/profile" className="profile-identity-edit" aria-label="编辑资料"><Pencil size={20} /></Link>
+    <section className="profile-identity"><Link to="/me/settings" className="profile-identity-edit" aria-label="设置"><Settings size={20} /></Link>
       <Avatar name={profile.nickname || profile.handle} src={profile.avatar?.url} size="large" /><h1>{profile?.nickname || profile?.handle || '正在加载'}</h1><p>@{profile?.handle || '—'}</p>{profile?.bio && <p>{profile.bio}</p>}<div className="profile-public-action"><Button label="查看主页" variant="secondary" onClick={() => void navigate({ to: '/profile/$actor', params: { actor: profile.did || session.pds.did } })} /></div>
     </section>
     {initialError && <p className="inline-error" role="alert">{initialError}{current && ' 目前显示上次加载的数据。'}</p>}

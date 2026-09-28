@@ -96,10 +96,13 @@ it('forwards backend cooldown for success and 429 while preserving delivery fail
     .mockResolvedValueOnce(new Response(null, { status: 204, headers: { 'Retry-After': '60' } }))
     .mockResolvedValueOnce(Response.json({ errors: { detail: '发送太频繁' } }, { status: 429, headers: { 'Retry-After': '17' } }))
     .mockResolvedValueOnce(Response.json({ errors: { detail: '验证码发送失败' } }, { status: 502 }))
+    .mockResolvedValueOnce(new Response(null, { status: 204, headers: { 'Retry-After': '60' } }))
   vi.stubGlobal('fetch', fetch)
   const data = { channel: 'sms' as const, phone: ' 13800000000 ', purpose: 'register' as const }
   await expect(requestVerificationCode(data)).resolves.toEqual({ sent: true, retryAfter: 60 })
   await expect(requestVerificationCode(data)).resolves.toEqual({ sent: false, retryAfter: 17 })
   await expect(requestVerificationCode(data)).rejects.toThrow('验证码发送失败')
   expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({ channel: 'sms', phone: '13800000000', phone_region: '86', purpose: 'register' })
+  await expect(requestVerificationCode({ channel: 'email', email: ' Alice@Example.COM ', purpose: 'register' })).resolves.toEqual({ sent: true, retryAfter: 60 })
+  expect(JSON.parse(fetch.mock.calls[3][1].body)).toEqual({ channel: 'email', email: 'alice@example.com', purpose: 'register' })
 })

@@ -2,7 +2,7 @@ import { Button } from '@astryxdesign/core/Button'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { useNavigate } from '@tanstack/react-router'
 import { UserPlus } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 import { useStoredSession } from '../session/session'
 import { loginReturnTo } from '../session/login-redirect'
@@ -31,9 +31,7 @@ export function RegisterPage({ returnTo }: { returnTo?: string }) {
   const navigate = useNavigate()
   const { options, error: optionsError } = useAuthOptions()
   const channels = options?.registration_channels ?? []
-  useEffect(() => {
-    if (channels.length && !channels.includes(channel)) setChannel(channels[0])
-  }, [options, channel])
+  const selectedChannel = channels.includes(channel) ? channel : channels[0] ?? channel
 
   const verify = async () => {
     if (busy || password.length < 8) return
@@ -42,9 +40,9 @@ export function RegisterPage({ returnTo }: { returnTo?: string }) {
     try {
       const result = await verifyRegistration({
         data: {
-          channel,
+          channel: selectedChannel,
           code,
-          ...(channel === 'sms' ? { phone: contact, phoneRegion: '86' } : { email: contact }),
+          ...(selectedChannel === 'sms' ? { phone: contact, phoneRegion: '86' } : { email: contact }),
         },
       })
       setTicket(result.ticket)
@@ -79,7 +77,7 @@ export function RegisterPage({ returnTo }: { returnTo?: string }) {
       <section className="page-intro">
         <div className="eyebrow">一个身份，走遍全联盟</div>
         <h1>{step === 'username' ? '设置你的用户名' : '创建账号'}</h1>
-        <p>{step === 'username' ? '选择一个用户名，方便大家找到你。' : '验证联系方式，设置密码即可加入。'}</p>
+        <p>{step === 'username' ? '选择一个用户名，方便大家找到你。' : '验证手机号或邮箱，设置密码即可加入。'}</p>
       </section>
       <section className="form-card">
         <div className="login-icon"><UserPlus size={28} /></div>
@@ -90,8 +88,8 @@ export function RegisterPage({ returnTo }: { returnTo?: string }) {
         {step === 'credentials' ? (
           <>
             <VerificationFields
-              channel={channel}
-              setChannel={setChannel}
+              channel={selectedChannel}
+              setChannel={(value) => { if (value === selectedChannel) return; setChannel(value); setContact(''); setCode(''); setError(''); setNotice('') }}
               contact={contact}
               setContact={setContact}
               code={code}
@@ -100,7 +98,7 @@ export function RegisterPage({ returnTo }: { returnTo?: string }) {
               channels={channels}
               disabled={busy}
               onError={setError}
-              onSent={() => setNotice(options?.verification_mode === 'log' ? '测试验证码已写入服务器日志。' : '验证码已发送，请检查短信或邮箱。')}
+              onSent={() => setNotice(options?.verification_mode === 'log' ? '测试验证码已写入服务器日志。' : `验证码已发送，请检查${selectedChannel === 'email' ? '邮箱' : '短信'}。`)}
             />
             <TextInput
               label="密码"

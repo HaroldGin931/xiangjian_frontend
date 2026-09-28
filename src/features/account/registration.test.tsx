@@ -4,6 +4,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 const mock = vi.hoisted(() => ({
   verify: vi.fn(), register: vi.fn(), save: vi.fn(), navigate: vi.fn(),
   upload: vi.fn(), update: vi.fn(), session: null as unknown,
+  channels: ['sms', 'email'] as Array<'sms' | 'email'>,
   values: [] as unknown[], index: 0,
 }))
 vi.mock('./api', async (original) => ({
@@ -13,7 +14,7 @@ vi.mock('./api', async (original) => ({
 vi.mock('../session/session', () => ({ useStoredSession: () => ({ saveSession: mock.save, session: mock.session, isReady: true }) }))
 vi.mock('~/lib/images', () => ({ readFileBase64: async () => 'image-bytes' }))
 vi.mock('../session/useAuthOptions', () => ({ useAuthOptions: () => ({
-  options: { registration_channels: ['sms', 'email'], handle_domain: 'configured.example', verification_mode: 'live' },
+  options: { registration_channels: mock.channels, handle_domain: 'configured.example', verification_mode: 'live' },
 }) }))
 vi.mock('@tanstack/react-router', () => ({ Link: () => null, useNavigate: () => mock.navigate }))
 vi.mock('react', async (original) => ({
@@ -45,7 +46,7 @@ const session = {
   token: 'rice-token', user: { id: 'user-1', did: 'did:plc:user', handle: 'alice.configured.example' },
   pds: { did: 'did:plc:user', handle: 'alice.configured.example', service: 'https://pds.example', access_jwt: 'pds-token', refresh_jwt: 'pds-refresh' },
 }
-afterEach(() => { mock.values = []; mock.session = null; vi.clearAllMocks(); vi.unstubAllGlobals() })
+afterEach(() => { mock.values = []; mock.session = null; mock.channels = ['sms', 'email']; vi.clearAllMocks(); vi.unstubAllGlobals() })
 
 it('verifies credentials first, previews the configured username, and saves the account before avatar setup', async () => {
   const verification = render().find((node) => node.props.purpose === 'register')!.props
@@ -75,6 +76,30 @@ it('verifies credentials first, previews the configured username, and saves the 
   expect(avatar.props.avatarOnly).toBe(true)
   await (avatar.props.onSaved as () => Promise<void>)()
   expect(mock.navigate).toHaveBeenCalledWith({ href: '/tasks', replace: true })
+})
+
+it('registers with email when the backend offers it and clears the previous phone code on channel change', async () => {
+  const fields = () => render().find((node) => node.props.purpose === 'register')!.props
+  ;(fields().setContact as (value: string) => void)('13800000000')
+  ;(fields().setCode as (value: string) => void)('123456')
+  ;(fields().setChannel as (value: string) => void)('email')
+  expect(fields().channel).toBe('email')
+  expect(fields().contact).toBe('')
+  expect(fields().code).toBe('')
+  ;(fields().setContact as (value: string) => void)(' Alice@Example.COM ')
+  ;(fields().setCode as (value: string) => void)('654321')
+  ;(field('密码').onChange as (value: string) => void)('password123')
+  mock.verify.mockResolvedValueOnce({ ticket: 'email-ticket' })
+  await next()()
+  expect(mock.verify).toHaveBeenCalledWith({ data: { channel: 'email', email: ' Alice@Example.COM ', code: '654321' } })
+  expect(field('用户名')).toBeTruthy()
+})
+
+it('shows email immediately when it is the only backend-enabled registration channel', () => {
+  mock.channels = ['email']
+  const verification = render().find((node) => node.props.purpose === 'register')!.props
+  expect(verification.channel).toBe('email')
+  expect(verification.channels).toEqual(['email'])
 })
 
 it('rejects invalid username prefixes before transport and sends only the normalized prefix with verified credentials', async () => {
