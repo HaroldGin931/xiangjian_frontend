@@ -97,6 +97,7 @@ export function tokenExpiresSoon(token: string, now = Date.now(), thresholdMs = 
 export function watchPdsSessionLifetime(sync: () => Promise<void>) {
   let active = true
   let timer: ReturnType<typeof setTimeout> | undefined
+  let pending: Promise<void> | undefined
   const schedule = () => {
     clearTimeout(timer)
     if (!active) return
@@ -106,10 +107,17 @@ export function watchPdsSessionLifetime(sync: () => Promise<void>) {
       timer = setTimeout(check, Math.min(expiresAt - Date.now() - 60_000, 2_147_483_647))
     }
   }
-  const check = () => {
+  const runSync = () => {
+    if (pending) return
+    pending = sync().finally(() => {
+      pending = undefined
+      schedule()
+    })
+  }
+  const check = (event?: Event) => {
     if (!active || document.visibilityState === 'hidden') return
     const stored = readStoredSession()
-    if (stored && tokenExpiresSoon(stored.pds.access_jwt)) void sync().finally(schedule)
+    if (stored && (event || tokenExpiresSoon(stored.pds.access_jwt))) runSync()
     else schedule()
   }
   schedule()
@@ -118,7 +126,7 @@ export function watchPdsSessionLifetime(sync: () => Promise<void>) {
   window.addEventListener('focus', check)
   window.addEventListener('pageshow', check)
   document.addEventListener('visibilitychange', check)
-  void sync().finally(schedule)
+  runSync()
   return () => {
     active = false
     clearTimeout(timer)

@@ -167,6 +167,25 @@ describe('PDS session lifetime', () => {
     stop()
   })
 
+  it('rechecks the Rice login once on return even while the PDS token is valid', async () => {
+    const { stored, page } = useLifecycleStorage()
+    const loadUser = vi.fn().mockResolvedValueOnce(stored.user).mockResolvedValueOnce(null)
+    const stop = watchPdsSessionLifetime(async () => {
+      const current = readStoredSession()
+      if (current) await refreshStoredUser(current, loadUser)
+    })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(readStoredSession()).toEqual(stored)
+
+    window.dispatchEvent(new Event('focus'))
+    window.dispatchEvent(new Event('pageshow'))
+    page.dispatchEvent(new Event('visibilitychange'))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(loadUser).toHaveBeenCalledTimes(2)
+    expect(readStoredSession()).toBeNull()
+    stop()
+  })
+
   it('preserves failed refreshes without retrying indefinitely, and does not refresh after logout', async () => {
     const { stored } = useLifecycleStorage()
     const failure = new Error('PDS unavailable')
