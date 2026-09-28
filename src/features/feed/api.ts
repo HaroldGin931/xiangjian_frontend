@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 
-import { BACKEND_BASE, requestJson } from '~/lib/http'
+import { BACKEND_BASE, isSessionAuthError, requestJson } from '~/lib/http'
 import type { PdsImage, PostCategory, PostFeed, PostImage, PostThread, PostView, RicePublicUser, RiceSession } from '~/lib/models'
 import { appviewImageUrl, createPdsRecord, deletePdsRecord, MAX_POST_IMAGE_BYTES, MAX_POST_IMAGES, pdsBlobUrl, POST_IMAGE_TYPES, recordKeyFromUri, uploadPdsImage } from '~/lib/pds'
 
@@ -156,7 +156,8 @@ async function hydrateViewerRecords(
       const repost = reposts.get(post.uri)
       return like || repost ? { ...post, viewer: { ...(like ? { like } : {}), ...(repost ? { repost } : {}) } } : post
     })
-  } catch {
+  } catch (error) {
+    if (isSessionAuthError(error)) throw error
     return publicPosts
   }
 }
@@ -251,7 +252,8 @@ async function loadTimelineReposts(accessJwt?: string) {
     return normalizePostFeed({ posts: payload.feed }).posts.filter(
       (post) => post.reason?.$type === 'app.bsky.feed.defs#reasonRepost',
     )
-  } catch {
+  } catch (error) {
+    if (isSessionAuthError(error)) throw error
     return []
   }
 }
@@ -262,7 +264,10 @@ async function loadOwnRecentPosts(did: string, accessJwt: string) {
   const payload = await requestJson<{ records?: Array<{ uri: string; cid: string; value: PostView['record'] }> }>(
     `${BACKEND_BASE}/pds/xrpc/com.atproto.repo.listRecords?${params}`,
     { headers: { Authorization: `Bearer ${accessJwt}` } },
-  ).catch(() => null)
+  ).catch((error) => {
+    if (isSessionAuthError(error)) throw error
+    return null
+  })
   return normalizePostFeed({ posts: (payload?.records ?? []).map(record => ({
     uri: record.uri, cid: record.cid, record: record.value, indexedAt: record.value.createdAt,
     author: { did, handle: did }, replyCount: 0, repostCount: 0, likeCount: 0,

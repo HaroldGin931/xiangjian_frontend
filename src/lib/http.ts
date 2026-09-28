@@ -3,6 +3,19 @@ export const BACKEND_BASE =
 
 export type JsonObject = Record<string, unknown>
 
+export class RequestError extends Error {
+  constructor(message: string, readonly status: number, readonly code: string) {
+    super(message)
+  }
+}
+
+export function isSessionAuthError(error: unknown) {
+  return error instanceof RequestError && (
+    (error.status === 401 && error.code !== 'InvalidCredentials') ||
+    ['ExpiredToken', 'InvalidToken', 'JwtExpired'].includes(error.code)
+  )
+}
+
 const errorMessages: Record<string, string> = {
   InvalidCredentials: '账号或密码错误',
   AccountDisabled: '该账号已被禁用',
@@ -26,7 +39,7 @@ export async function readJson(response: Response) {
 
   const errors = body.errors as JsonObject | undefined
   const code = typeof body.error === 'string' ? body.error : ''
-  if (Object.hasOwn(errorMessages, code)) throw new Error(errorMessages[code])
+  if (Object.hasOwn(errorMessages, code)) throw new RequestError(errorMessages[code], response.status, code)
 
   const detail =
     (typeof errors?.detail === 'string' && errors.detail) ||
@@ -34,9 +47,11 @@ export async function readJson(response: Response) {
   const fieldError = errors
     ? Object.values(errors).find((value) => Array.isArray(value) && typeof value[0] === 'string')
     : undefined
-  throw new Error(
+  throw new RequestError(
     detail || (Array.isArray(fieldError) ? String(fieldError[0]) : '') ||
       (response.status === 401 ? '请先登录后再试。' : '服务暂时不可用，请稍后重试。'),
+    response.status,
+    code,
   )
 }
 

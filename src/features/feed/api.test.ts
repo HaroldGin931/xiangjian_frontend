@@ -497,7 +497,7 @@ describe('feed data', () => {
     ).toBe('3abc')
   })
 
-  it('keeps public Post Cache reads independent from an expired PDS token', async () => {
+  it('keeps guest posts readable but reports an expired signed-in PDS token', async () => {
     const fetchMock = vi.fn(async (input: string | URL, _init?: RequestInit) => {
       if (String(input).includes('/post/api/posts/list')) {
         return new Response(JSON.stringify({ posts: [post] }), { status: 200 })
@@ -509,13 +509,14 @@ describe('feed data', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    const feed = await loadPostPage({
+    const guestFeed = await loadPostPage({})
+    await expect(loadPostPage({
       did: 'did:example',
       accessJwt: 'expired-access',
-    })
+    })).rejects.toThrow('登录状态已过期')
     const [, postCacheInit] = fetchMock.mock.calls[0]
 
-    expect(feed.posts).toEqual([post])
+    expect(guestFeed.posts).toEqual([post])
     expect(postCacheInit?.headers).toEqual({ 'Content-Type': 'application/json' })
   })
 

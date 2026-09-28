@@ -157,7 +157,7 @@ function NotificationInbox({ session, isReady, embedded }: { session: RiceSessio
     sources.forEach((source, index) => {
       const result = results[index]
       if (result.status === 'rejected') {
-        failures.push(`${source === 'social' ? '帖子互动通知' : '任务、活动与社区通知'}暂时无法加载更多。`)
+        failures.push(`${source === 'social' ? '帖子互动通知' : '任务、活动与社区通知'}暂时无法加载更多：${result.reason instanceof Error ? result.reason.message : '请稍后重试。'}`)
       } else if (result.value.cursor && result.value.cursor === cursors[source]) {
         failures.push('通知分页游标未更新，请重试。')
       } else {
@@ -181,7 +181,7 @@ function NotificationInbox({ session, isReady, embedded }: { session: RiceSessio
       results[notificationSource(notification) === 'social' ? 0 : 1].status === 'fulfilled'
         ? { ...notification, isRead: true } : notification))
     setReadError(results.flatMap((result, index) => result.status === 'rejected'
-      ? [`${index === 0 ? '帖子互动通知' : '任务、活动与社区通知'}未能标记已读，请重试。`] : []).join(' '))
+      ? [`${index === 0 ? '帖子互动通知' : '任务、活动与社区通知'}未能标记已读：${result.reason instanceof Error ? result.reason.message : '请稍后重试。'}`] : []).join(' '))
     window.dispatchEvent(new Event(NOTIFICATIONS_READ_EVENT))
     setMarking(false)
   }

@@ -14,10 +14,10 @@ import { hasSessionCredentials, isPdsSession, isRiceSession, isSessionUser, type
 
 const STORAGE_KEY = 'xiangjian-rice-session'
 const CHANGE_EVENT = 'xiangjian-session-change'
-const pendingRefreshes = new Map<string, Promise<RiceSession>>()
+const pendingRefreshes = new Map<string, Promise<RiceSession | null>>()
 type PdsRefresh = (input: {
   data: RiceSession['pds']
-}) => Promise<RiceSession['pds']>
+}) => Promise<RiceSession['pds'] | null>
 
 type SessionState = {
   session: RiceSession | null
@@ -149,14 +149,16 @@ export function refreshStoredSession(
 
   const request = refresh({ data: stored.pds })
     .then((pds) => {
-      if (!isPdsSession(pds) || pds.did !== stored.pds.did) throw new Error('登录状态刷新失败，请重新登录。')
       const latest = readStoredSession()
+      const stillCurrent = latest?.token === stored.token &&
+        latest.pds.did === stored.pds.did && latest.pds.refresh_jwt === key
+      if (pds === null) {
+        if (stillCurrent) writeStoredSession(null)
+        return stillCurrent ? null : latest
+      }
+      if (!isPdsSession(pds) || pds.did !== stored.pds.did) throw new Error('登录状态刷新失败，请重新登录。')
       const refreshed = { ...stored, pds }
-      if (
-        latest?.token === stored.token &&
-        latest.pds.did === stored.pds.did &&
-        latest.pds.refresh_jwt === key
-      ) {
+      if (stillCurrent) {
         writeStoredSession({ ...latest, pds })
       }
       return refreshed
@@ -212,7 +214,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       let current = stored
       if (needsRefresh) {
         try {
-          current = await refreshStoredSession(stored)
+          const refreshed = await refreshStoredSession(stored)
+          if (!refreshed) return
+          current = refreshed
         } catch {
           // PDS 暂时不可用时仍可继续使用 Rice 账号能力。
         }

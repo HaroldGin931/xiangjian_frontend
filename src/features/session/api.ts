@@ -1,6 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 
-import { BACKEND_BASE, readJson, requestJson } from '~/lib/http'
+import { BACKEND_BASE, isSessionAuthError, readJson, requestJson } from '~/lib/http'
 import type { RiceSession, RiceUser } from '~/lib/models'
 import { isPdsSession, isRiceSession, isSessionUser } from './session-data'
 
@@ -41,18 +41,21 @@ export const redeemSemiSession = createServerFn({ method: 'POST' })
   .handler(({ data }) => requestSemiSession(data))
 
 export async function requestPdsSessionRefresh(pds: RiceSession['pds']) {
-  const body = await requestJson<{
+  let body: {
     accessJwt: string
     refreshJwt: string
     did: string
     handle: string
-  }>(
-    `${BACKEND_BASE}/pds/xrpc/com.atproto.server.refreshSession`,
-    {
+  }
+  try {
+    body = await requestJson<typeof body>(`${BACKEND_BASE}/pds/xrpc/com.atproto.server.refreshSession`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${pds.refresh_jwt}` },
-    },
-  )
+    })
+  } catch (error) {
+    if (isSessionAuthError(error)) return null
+    throw error
+  }
   const refreshed = {
     service: pds.service,
     did: body.did,

@@ -44,7 +44,16 @@ describe('PDS session refresh', () => {
         headers: { Authorization: 'Bearer one-use-refresh' },
       }),
     )
-    expect(result.refresh_jwt).toBe('rotated-refresh')
+    expect(result?.refresh_jwt).toBe('rotated-refresh')
+  })
+
+  it('distinguishes a revoked refresh token from a temporary PDS failure', async () => {
+    const pds = { service: 'http://pds', did: 'did:example:mo', handle: 'mo.local', access_jwt: 'old', refresh_jwt: 'revoked' }
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(Response.json({ error: 'ExpiredToken' }, { status: 400 }))
+      .mockResolvedValueOnce(Response.json({ message: 'PDS unavailable' }, { status: 503 })))
+    await expect(requestPdsSessionRefresh(pds)).resolves.toBeNull()
+    await expect(requestPdsSessionRefresh(pds)).rejects.toThrow('PDS unavailable')
   })
 })
 

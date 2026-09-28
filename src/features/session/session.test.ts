@@ -88,7 +88,7 @@ describe('PDS session lifetime', () => {
     ])
 
     expect(refresh).toHaveBeenCalledTimes(1)
-    expect(first.pds).toEqual(refreshedPds)
+    expect(first?.pds).toEqual(refreshedPds)
     expect(second).toEqual(first)
   })
 
@@ -128,6 +128,21 @@ describe('PDS session lifetime', () => {
     })
 
     expect(readStoredSession()).toEqual({ ...updated, pds })
+  })
+
+  it('clears only the account whose PDS refresh token was revoked', async () => {
+    useMemoryStorage()
+    writeStoredSession(storedSession)
+    await expect(refreshStoredSession(storedSession, async () => null)).resolves.toBeNull()
+    expect(readStoredSession()).toBeNull()
+
+    writeStoredSession(storedSession)
+    const newer = { ...storedSession, token: 'new-rice-token' }
+    await refreshStoredSession(storedSession, async () => {
+      writeStoredSession(newer)
+      return null
+    })
+    expect(readStoredSession()).toEqual(newer)
   })
 
   it('renews a long-lived page before expiry and stops its timer and listeners on cleanup', async () => {
