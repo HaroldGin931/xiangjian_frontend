@@ -208,7 +208,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       const needsRefresh = stored && tokenExpiresSoon(stored.pds.access_jwt)
       setSession(stored)
-      setIsReady(!needsRefresh || stored?.user.id === restoredAccount)
+      setIsReady(Boolean(stored && stored.user.id === restoredAccount))
       if (!stored) return
 
       let current = stored
@@ -223,18 +223,22 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
 
       if (!active || currentRevision !== revision) return
-      restoredAccount = current.user.id
-      setIsReady(true)
       if (repaired) {
+        restoredAccount = current.user.id
         setSession(current)
+        setIsReady(true)
         return
       }
       try {
         const updated = await refreshStoredUser(current, getCurrentUser, () => active && currentRevision === revision)
         if (!active || currentRevision !== revision) return
         setSession(updated)
+        restoredAccount = updated?.user.id
+        setIsReady(true)
       } catch {
-        // 保留现有会话，让具体页面显示 Rice 或 PDS 返回的错误。
+        if (!active || currentRevision !== revision) return
+        setRecoveryError('登录状态暂时无法验证，请稍后重试。')
+        setIsReady(true)
       }
     }
 
