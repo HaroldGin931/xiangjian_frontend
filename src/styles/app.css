@@ -563,6 +563,7 @@ button.notification-row:focus-visible { outline: 2px solid var(--xj-green, #1b60
 .publish-schedule .months button[aria-pressed="true"] { background: var(--xj-surface-tint); border-color: var(--xj-accent); }
 @media (max-width: 620px) {
   .publish-steps h3 { font-size: 24px; }
+  .publish-step-actions { position: sticky; bottom: calc(88px + env(safe-area-inset-bottom)); z-index: 31; padding-block: 8px; background: var(--xj-bg); }
   .publish-schedule .endpoint strong { font-size: 15px; }
   .publish-schedule .schedule-endpoints[data-count="3"] .endpoint strong .schedule-year { display: block; font-size: 11px; color: var(--xj-muted); }
 }
