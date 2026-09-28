@@ -125,7 +125,7 @@ function ComposeContent({ initialKind = 'post' }: ComposePanelProps) {
       }
       if (mounted.current) finishClose(true)
     } catch (reason) {
-      if (mounted.current) setCloseError(reason instanceof Error ? reason.message : '草稿保存失败，内容仍保留在窗口中，请重试。')
+      if (mounted.current) setCloseError(reason instanceof Error ? reason.message : '草稿保存失败，内容仍保留在页面中，请重试。')
     } finally { if (mounted.current) setSavingDrafts(false) }
   }
   const published = async (publishedKind: ComposeKind, taskId?: string) => {
@@ -186,6 +186,6 @@ function ComposeContent({ initialKind = 'post' }: ComposePanelProps) {
     <div hidden={kind !== 'post'}><div className="form-stack"><div><TextArea isDisabled={busy} label="想分享什么" value={text} onChange={setText} placeholder="分享社区里的见闻、想法或近况… 输入 #话题" width="100%" /><p className="compose-character-count">{text.trim().length}/300</p></div><ImagePicker images={previews} onSelect={(selected) => setFiles((current) => [...current, ...selected])} onRemove={(index) => setFiles((current) => current.filter((_, i) => i !== index))} disabled={busy} />{error && <p className="form-error" role="alert">{error}</p>}<div className="publish-step-actions"><Button label="发布帖子" variant="primary" isLoading={busy} isDisabled={!session || (!text.trim() && !files.length) || text.trim().length > 300 || busy} clickAction={submit} /></div></div></div>
     {canPublishCommunity && visitedKinds.includes('activity') && <div hidden={kind !== 'activity'}><EventCreateForm key={session.token} session={session} nodes={managedNodes} active={kind === 'activity'} onPublished={() => { void published('activity') }} onCloseStateChange={updateActivity} /></div>}
     {canPublishCommunity && visitedKinds.includes('task') && <div hidden={kind !== 'task'}><TaskCreatePage key={session.token} session={session} nodes={managedNodes} active={kind === 'task'} onPublished={id => { void published('task', id) }} onCloseStateChange={updateTask} /></div>}
-    {confirmClose && <DetailDialog title="保存草稿" className="post-dialog business-dialog compose-close-dialog" onClose={() => { if (!savingDrafts) finishClose(false) }}><div className="business-panel form-stack"><p>有内容尚未保存。请问是保存草稿还是直接关闭？</p>{dirtyPost && <p className="muted">帖子草稿含图片，仅保存在当前浏览器，重新打开发布窗口可继续编辑。</p>}{closeError && <p className="form-error" role="alert">{closeError}</p>}<div className="form-actions"><Button label="直接关闭" variant="secondary" isDisabled={savingDrafts} clickAction={() => finishClose(true)} /><Button label="保存草稿" variant="primary" isLoading={savingDrafts} isDisabled={savingDrafts} clickAction={saveAndClose} /></div></div></DetailDialog>}
+    {confirmClose && <DetailDialog title="保存草稿" className="post-dialog business-dialog compose-close-dialog" onClose={() => { if (!savingDrafts) finishClose(false) }}><div className="business-panel form-stack"><p>有内容尚未保存。请问是保存草稿还是直接关闭？</p>{dirtyPost && <p className="muted">帖子草稿含图片，仅保存在当前浏览器，重新打开发布页面可继续编辑。</p>}{closeError && <p className="form-error" role="alert">{closeError}</p>}<div className="form-actions"><Button label="直接关闭" variant="secondary" isDisabled={savingDrafts} clickAction={() => finishClose(true)} /><Button label="保存草稿" variant="primary" isLoading={savingDrafts} isDisabled={savingDrafts} clickAction={saveAndClose} /></div></div></DetailDialog>}
   </div>
 }

@@ -57,7 +57,7 @@ export async function saveEventRequest(data: SaveEventInput) {
   const same = sameEventContent(event, data.fields)
   if (event.status !== 'draft') {
     if (data.status === 'open' && event.status !== 'cancelled' && same) return event
-    throw new Error('上次提交的活动已发布。请关闭发布窗口后查看，已发布的内容和图片不能修改。')
+    throw new Error('上次提交的活动已发布。请离开发布页面后查看，已发布的内容和图片不能修改。')
   }
   if (!same) event = (await requestJson<{ data: RiceEvent }>(`${base}/${encodeURIComponent(event.id)}`, { method: 'PATCH', headers, body: JSON.stringify(data.fields) })).data
   if (data.status === 'open') return (await requestJson<{ data: RiceEvent }>(`${base}/${encodeURIComponent(event.id)}/publish`, { method: 'POST', headers })).data

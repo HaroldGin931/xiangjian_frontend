@@ -442,7 +442,7 @@ export async function createTextPostRecord(data: TextPostInput) {
       const query = new URLSearchParams({ repo: data.did, collection: 'app.bsky.feed.post', rkey: data.rkey })
       const existing = await requestJson<{ uri: string; cid: string; value: typeof record }>(`${BACKEND_BASE}/pds/xrpc/com.atproto.repo.getRecord?${query}`, { headers: { Authorization: `Bearer ${data.accessJwt}` } }).catch(() => { throw error })
       const imageIdentity = (embed: typeof record.embed) => [embed?.$type, (embed?.items ?? []).map((item) => [item.image.ref.$link, item.alt, item.aspectRatio?.width, item.aspectRatio?.height])]
-      if (existing.value.text !== text || existing.value.createdAt !== createdAt || existing.value.xjdaoCategory !== data.category || JSON.stringify(imageIdentity(existing.value.embed)) !== JSON.stringify(imageIdentity(record.embed))) throw new Error('上次提交的帖子已发布。请关闭发布窗口后查看，再发布新内容。')
+      if (existing.value.text !== text || existing.value.createdAt !== createdAt || existing.value.xjdaoCategory !== data.category || JSON.stringify(imageIdentity(existing.value.embed)) !== JSON.stringify(imageIdentity(record.embed))) throw new Error('上次提交的帖子已发布。请离开发布页面后查看，再发布新内容。')
       body = existing
     }
     return { uri: body.uri, cid: body.cid, text, createdAt, category: data.category, ...(images.length ? { images } : {}) }

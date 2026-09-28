@@ -71,7 +71,7 @@ export function TaskCreatePage({ session, nodes, onPublished, active, onCloseSta
       let draftId = editingDraftId
       if (!draftId) {
         const [saved] = await getTasks({ data: { token: session.token, mine: 'created', status: 'draft', limit: 1 } })
-        if (saved && saved.node?.id !== nodeId) throw new Error('已有另一社区的任务草稿。请重新打开发布窗口后继续编辑。')
+        if (saved && saved.node?.id !== nodeId) throw new Error('已有另一社区的任务草稿。请重新打开发布页面后继续编辑。')
         draftId = saved?.id ?? null
       }
       let task = draftId ? await getTask({ data: { token: session.token, id: draftId } }) : null
@@ -79,7 +79,7 @@ export function TaskCreatePage({ session, nodes, onPublished, active, onCloseSta
         const iso = (date?: string | null) => date ? new Date(date).toISOString() : null
         const published = [task.title, task.description, task.organizer_contact ?? '', task.requirement ?? '', task.reward_amount, iso(task.application_deadline), iso(task.execution_deadline), (task.attachments ?? []).map((image) => image.id)]
         const requested = [title, description, organizerContact.trim(), requirement, fields.rewardAmount, fields.applicationDeadline, fields.executionDeadline, attachmentIds]
-        if (JSON.stringify(published) !== JSON.stringify(requested)) throw new Error('这项任务已发布，当前修改尚未保存。请关闭发布窗口后查看已发布的任务。')
+        if (JSON.stringify(published) !== JSON.stringify(requested)) throw new Error('这项任务已发布，当前修改尚未保存。请离开发布页面后查看已发布的任务。')
       } else {
         task = draftId
           ? await updateTaskDraft({ data: { ...fields, taskId: draftId } })
