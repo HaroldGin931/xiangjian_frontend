@@ -15,7 +15,7 @@ vi.mock('@astryxdesign/core/Button', () => ({ Button: (props: { label: string; '
   return <button disabled={props.isDisabled}>{props.label}</button>
 } }))
 
-import { PublishSteps } from './PublishSteps'
+import { PublishSteps, usePublishValidationAttempted } from './PublishSteps'
 
 beforeEach(() => { state.values = []; state.actions.clear() })
 
@@ -60,4 +60,20 @@ it('validates each card, retains earlier fields, and rechecks every card before 
   expect(validate.mock.calls.map(([index]) => index)).toEqual([0, 1, 2, 3])
   expect(validate.mock.calls.every(call => call[1] === true)).toBe(true)
   expect(onPublish).toHaveBeenCalledOnce()
+})
+
+it('announces validation errors without showing a large alert below the fields', async () => {
+  let error = ''
+  const Attempted = () => <span data-attempted={usePublishValidationAttempted()} />
+  const render = () => {
+    state.cursor = 0; state.actions.clear()
+    return renderToStaticMarkup(<PublishSteps steps={[{ label: '基本信息', content: <Attempted />, review: '' }]}
+      busy={false} error={error} onError={value => { error = value }} validate={() => '请填写任务标题。'}
+      canSaveDraft={false} onSaveDraft={async () => false} onPublish={async () => false} publishLabel="发布任务" />)
+  }
+  render(); await state.actions.get('下一步')!()
+  const markup = render()
+  expect(markup).toContain('data-attempted="true"')
+  expect(markup).toContain('class="visually-hidden" role="alert"')
+  expect(markup).not.toContain('class="form-error"')
 })

@@ -1,6 +1,9 @@
 import { expect, it } from 'vitest'
-import { changeEventTime, eventDurationLabel, eventTimeError } from './EventCreateForm'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { changeEventTime, EventCreateForm, eventDurationLabel, eventTimeError } from './EventCreateForm'
 import { beijingTime } from '~/lib/date-time'
+import type { RiceSession } from '~/lib/models'
 
 it('matches the event deadline and interval rules without accepting the current minute as future', () => {
   const now = beijingTime('2026-09-21T12:00') + 30_000
@@ -9,7 +12,18 @@ it('matches the event deadline and interval rules without accepting the current 
   expect(eventTimeError({ ...times, application_deadline: '2026-09-21T12:00' }, now)).toContain('晚于当前时间')
   expect(eventTimeError({ ...times, application_deadline: '2026-09-21T13:01' }, now)).toContain('报名截止不能晚于')
   expect(eventTimeError({ ...times, ends_at: times.starts_at }, now)).toContain('结束时间必须晚于')
-  expect(eventTimeError({ ...times, starts_at: '' }, now)).toContain('完整、有效')
+  expect(eventTimeError({ ...times, starts_at: '' }, now)).toContain('开始日期和时间')
+  expect(eventTimeError({ ...times, ends_at: '' }, now, 'application_deadline')).toBeNull()
+  expect(eventTimeError({ ...times, ends_at: '' }, now, 'starts_at')).toBeNull()
+  expect(eventTimeError({ ...times, ends_at: '' }, now)).toContain('结束日期和时间')
+  expect(eventTimeError({ ...times, starts_at: '' }, now, 'starts_at')).toContain('开始日期和时间')
+})
+
+it('shows seven event publishing steps with separate date choices', () => {
+  const html = renderToStaticMarkup(createElement(EventCreateForm, { session: { token: 'test' } as RiceSession, nodes: [], initialDraft: null, active: true, onPublished: () => undefined, onCloseStateChange: () => undefined }))
+  expect(html).toContain('第 1 步，共 7 步')
+  expect(html).toContain('placeholder="活动标题（必填）"')
+  expect(html).toContain('placeholder="组织方联系方式（必填）"')
 })
 
 it('moves an overlapping start forward with the deadline and preserves duration across days', () => {

@@ -1,5 +1,4 @@
-import { TextArea } from '~/components/AutoTextArea'
-import { TextInput } from '@astryxdesign/core/TextInput'
+import { PublishTextArea, PublishTextInput } from '~/components/PublishFields'
 import { useEffect, useRef, useState } from 'react'
 import { ContactField } from '~/components/ContactField'
 import { ImageGroup, ImagePicker } from '~/components/ContentImages'
@@ -18,13 +17,17 @@ const emptyFields = { node_id: '', title: '', description: '', organizer_contact
 type EventTimes = Pick<typeof emptyFields, 'application_deadline' | 'starts_at' | 'ends_at'>
 const durations = [[60, '1 小时'], [120, '2 小时'], [180, '3 小时'], [1440, '1 天'], [2880, '2 天'], [4320, '3 天']] as const
 
-export function eventTimeError(fields: EventTimes, now = Date.now()) {
+export function eventTimeError(fields: EventTimes, now = Date.now(), through: keyof EventTimes = 'ends_at') {
   const deadline = beijingTime(fields.application_deadline)
   const starts = beijingTime(fields.starts_at)
   const ends = beijingTime(fields.ends_at)
-  if (![deadline, starts, ends].every(Number.isFinite)) return '请填写完整、有效的报名截止、开始和结束时间。'
+  if (!Number.isFinite(deadline)) return '请选择有效的报名截止日期和时间。'
   if (deadline <= now) return '报名截止时间必须晚于当前时间。'
+  if (through === 'application_deadline') return null
+  if (!Number.isFinite(starts)) return '请选择有效的活动开始日期和时间。'
   if (deadline > starts) return '报名截止不能晚于活动开始时间。'
+  if (through === 'starts_at') return null
+  if (!Number.isFinite(ends)) return '请选择有效的活动结束日期和时间。'
   if (starts >= ends) return '活动结束时间必须晚于开始时间。'
   return null
 }
@@ -113,14 +116,16 @@ export function EventCreateForm({ session, nodes, initialDraft, initialError = '
   const capacityError = fields.capacity === '' ? null : integerInputError(fields.capacity, '参与名额', 1, 100_000)
   const disabled = busy || !fields.node_id || !fields.title.trim() || !fields.description.trim() || !fields.location.trim() || !fields.application_deadline || !fields.starts_at || !fields.ends_at || fields.fee_amount === '' || fields.capacity === '' || !!amountError || !!capacityError
   const communityName = nodes.find(node => node.id === fields.node_id)?.name ?? fields.node_id
-  const validate = (step: number, publishing = false) => {
+  const validate = (step: number) => {
     if (step === 0) {
       if (!fields.node_id || !fields.title.trim()) return '请选择所属社区并填写活动标题。'
-      if ((publishing && !fields.organizer_contact.trim()) || fields.organizer_contact.trim().length > 256) return '请填写组织方联系方式，最多 256 字。'
+      if (!fields.organizer_contact.trim() || fields.organizer_contact.trim().length > 256) return '请填写组织方联系方式，最多 256 字。'
     }
     if (step === 1 && (!fields.description.trim() || !fields.location.trim())) return '请填写活动介绍和地点。'
-    if (step === 2) return eventTimeError(fields)
-    if (step === 3) return integerInputError(fields.capacity, '参与名额', 1, 100_000) || integerInputError(fields.fee_amount, '报名费')
+    if (step === 2) return eventTimeError(fields, Date.now(), 'application_deadline')
+    if (step === 3) return eventTimeError(fields, Date.now(), 'starts_at')
+    if (step === 4) return eventTimeError(fields)
+    if (step === 5) return integerInputError(fields.capacity, '参与名额', 1, 100_000) || integerInputError(fields.fee_amount, '报名费')
     return null
   }
   return <section className="form-card event-compose-form">
@@ -128,8 +133,8 @@ export function EventCreateForm({ session, nodes, initialDraft, initialError = '
       {
         label: '基本信息', title: '你想一起做什么？',
         content: <>
-          <label className="native-field">所属社区<select disabled={busy} value={fields.node_id} onChange={(e) => set('node_id', e.target.value)}>{nodes.map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}</select></label>
-          <TextInput isDisabled={busy} label="活动标题" value={fields.title} onChange={(v) => set('title', v.slice(0, 128))} width="100%" isRequired />
+          <label className="native-field">所属社区<select required disabled={busy} value={fields.node_id} onChange={(e) => set('node_id', e.target.value)}>{nodes.map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}</select></label>
+          <PublishTextInput isDisabled={busy} label="活动标题" value={fields.title} onChange={(v) => set('title', v.slice(0, 128))} width="100%" isRequired />
           <ContactField organizer value={fields.organizer_contact} onChange={v => set('organizer_contact', v)} disabled={busy} />
         </>,
         review: <dl className="publish-review-fields"><div><dt>所属社区</dt><dd>{communityName}</dd></div><div><dt>活动标题</dt><dd>{fields.title}</dd></div><div><dt>组织方联系方式</dt><dd>{fields.organizer_contact.trim() || '未填写'}</dd></div></dl>,
@@ -137,29 +142,41 @@ export function EventCreateForm({ session, nodes, initialDraft, initialError = '
       {
         label: '内容', title: '把这件事说清楚。',
         content: <>
-          <TextArea isDisabled={busy} label="活动介绍" value={fields.description} onChange={(v) => set('description', v)} maxLength={4000} width="100%" isRequired />
-          <TextInput isDisabled={busy} label="活动地点" value={fields.location} onChange={(v) => set('location', v)} width="100%" isRequired />
+          <PublishTextArea isDisabled={busy} label="活动介绍" value={fields.description} onChange={(v) => set('description', v)} maxLength={4000} width="100%" isRequired />
+          <PublishTextInput isDisabled={busy} label="活动地点" value={fields.location} onChange={(v) => set('location', v)} width="100%" isRequired />
           <ImagePicker images={imageSelection.images} onSelect={imageSelection.select} onRemove={imageSelection.remove} disabled={busy} />
         </>,
         review: <><dl className="publish-review-fields"><div><dt>活动介绍</dt><dd className="publish-review-text">{fields.description}</dd></div><div><dt>活动地点</dt><dd>{fields.location}</dd></div><div><dt>图片</dt><dd>{imageSelection.images.length ? `${imageSelection.images.length} 张图片` : '未添加'}</dd></div></dl><ImageGroup images={imageSelection.images} /></>,
       },
       {
-        label: '时间', title: '时间怎么安排？',
+        label: '报名截止', title: '什么时候截止报名？',
         content: <PublishSchedule disabled={busy} fields={[
           { label: '报名截止', value: fields.application_deadline, min: nextTimeSlot(), required: true, onChange: value => setTime('application_deadline', value) },
+        ]} />,
+        review: <dl className="publish-review-fields"><div><dt>报名截止（北京时间）</dt><dd>{fields.application_deadline.replace('T', ' ')}</dd></div></dl>,
+      },
+      {
+        label: '开始时间', title: '活动什么时候开始？',
+        content: <PublishSchedule disabled={busy} fields={[
           { label: '开始时间', value: fields.starts_at, min: fields.application_deadline || nextTimeSlot(), required: true, onChange: value => setTime('starts_at', value) },
+        ]} />,
+        review: <dl className="publish-review-fields"><div><dt>开始时间（北京时间）</dt><dd>{fields.starts_at.replace('T', ' ')}</dd></div></dl>,
+      },
+      {
+        label: '结束时间', title: '活动什么时候结束？',
+        content: <PublishSchedule disabled={busy} fields={[
           { label: '结束时间', value: fields.ends_at, min: fields.starts_at ? addMinutes(fields.starts_at, 15) : nextTimeSlot(), required: true, onChange: value => setTime('ends_at', value) },
         ]}>
           <label className="native-field">持续时长<select value={duration} disabled={busy} onChange={event => { const value = event.target.value; setDuration(value); if (value !== 'custom' && fields.starts_at) set('ends_at', addMinutes(fields.starts_at, Number(value))) }}>{durations.map(([minutes, label]) => <option key={minutes} value={minutes}>{label}</option>)}<option value="custom">自定义</option></select></label>
           <p className="muted">实际时长：{eventDurationLabel(fields)}</p>
         </PublishSchedule>,
-        review: <dl className="publish-review-fields"><div><dt>报名截止（北京时间）</dt><dd>{fields.application_deadline.replace('T', ' ')}</dd></div><div><dt>开始时间（北京时间）</dt><dd>{fields.starts_at.replace('T', ' ')}</dd></div><div><dt>持续时长</dt><dd>{eventDurationLabel(fields)}</dd></div><div><dt>结束时间（北京时间）</dt><dd>{fields.ends_at.replace('T', ' ')}</dd></div></dl>,
+        review: <dl className="publish-review-fields"><div><dt>结束时间（北京时间）</dt><dd>{fields.ends_at.replace('T', ' ')}</dd></div><div><dt>持续时长</dt><dd>{eventDurationLabel(fields)}</dd></div></dl>,
       },
       {
         label: '参与与稻米', title: '一起怎么参与？',
         content: <>
-          <TextInput isDisabled={busy} label="参与名额" value={fields.capacity} onChange={(v) => set('capacity', v)} status={capacityError ? { type: 'error', message: capacityError } : undefined} width="100%" isRequired />
-          <TextInput isDisabled={busy} label="每人报名费（测试稻米，0 为免费）" description="活动结束确认后结算到所选社区账户。" value={fields.fee_amount} onChange={(v) => set('fee_amount', v)} status={amountError ? { type: 'error', message: amountError } : undefined} width="100%" isRequired />
+          <PublishTextInput isDisabled={busy} label="参与名额" value={fields.capacity} onChange={(v) => set('capacity', v)} status={capacityError ? { type: 'error', message: capacityError } : undefined} width="100%" isRequired />
+          <PublishTextInput isDisabled={busy} label="每人报名费（测试稻米，0 为免费）" description="活动结束确认后结算到所选社区账户。" value={fields.fee_amount} onChange={(v) => set('fee_amount', v)} status={amountError ? { type: 'error', message: amountError } : undefined} width="100%" isRequired />
         </>,
         review: <><dl className="publish-review-fields"><div><dt>参与名额</dt><dd>{fields.capacity}</dd></div><div><dt>每人报名费</dt><dd>{fields.fee_amount} 测试稻米{Number(fields.fee_amount) === 0 ? '（免费）' : ''}</dd></div></dl><p className="muted">活动结束确认后结算到所选社区账户。</p></>,
       },

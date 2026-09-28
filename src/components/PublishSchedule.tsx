@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useId, useRef, useState, type ReactNode } from 'react'
 import { nextTimeSlot } from '~/lib/date-time'
+import { usePublishValidationAttempted } from './PublishSteps'
 
 type ScheduleField = { label: string; value: string; min?: string; max?: string; required?: boolean; onChange: (value: string) => void }
 const times = Array.from({ length: 96 }, (_, index) => `${String(Math.floor(index / 4)).padStart(2, '0')}:${String(index % 4 * 15).padStart(2, '0')}`)
@@ -26,6 +27,7 @@ export function scheduleDateValue(day: string, field: Pick<ScheduleField, 'value
 }
 
 export function PublishSchedule({ fields, disabled = false, children }: { fields: ScheduleField[]; disabled?: boolean; children?: ReactNode }) {
+  const validationAttempted = usePublishValidationAttempted()
   const initial = fields.find(field => field.value)?.value || nextTimeSlot()
   const [month, setMonth] = useState(() => new Date(`${initial.slice(0, 7)}-01T12:00:00`))
   const [active, setActive] = useState(0)
@@ -45,14 +47,18 @@ export function PublishSchedule({ fields, disabled = false, children }: { fields
     if (dates[index]) setMonth(new Date(`${dates[index].slice(0, 7)}-01T12:00:00`))
     setJump(false)
   }
+  const isInvalid = (item: ScheduleField) => validationAttempted && (
+    (item.required && !item.value) ||
+    (!!item.value && ((!!item.min && item.value < item.min) || (!!item.max && item.value > item.max)))
+  )
   if (!field) return null
 
   return <div className="publish-schedule">
     <div className="schedule-endpoints" data-count={fields.length}>
       {fields.map((item, index) => {
         const [date = '', time = ''] = item.value.split('T')
-        return <div className="schedule-endpoint" key={item.label}>
-          <button type="button" className="endpoint" aria-label={`修改${item.label}日期（北京时间）`} aria-pressed={active === index} disabled={disabled} onClick={() => chooseEndpoint(index)}>
+        return <div className="schedule-endpoint" key={item.label} data-invalid={isInvalid(item) || undefined}>
+          <button type="button" className="endpoint" aria-label={`修改${item.label}日期（北京时间）`} aria-pressed={active === index} aria-invalid={isInvalid(item) || undefined} disabled={disabled} onClick={() => chooseEndpoint(index)}>
             <span>{item.label}</span><strong>{date ? <><span className="schedule-year">{date.slice(0, 4)} / </span>{date.slice(5).replace('-', ' / ')}</> : '选择日期'}</strong><small>{date ? `${weekday(date)} ${time}` : '点下方月历'}</small>
           </button>
         </div>
@@ -87,8 +93,8 @@ export function PublishSchedule({ fields, disabled = false, children }: { fields
     <div className="schedule-times" data-count={fields.length}>
       {fields.map(item => {
         const [date = '', time = ''] = item.value.split('T')
-        return <div className="schedule-time" key={item.label}>
-          <label><small>{item.label}</small><select aria-label={`${item.label}时刻（北京时间）`} value={time} required={item.required} disabled={disabled || !date} onChange={event => item.onChange(`${date}T${event.target.value}`)}>
+        return <div className="schedule-time" key={item.label} data-invalid={isInvalid(item) || undefined}>
+          <label><small>{item.label}</small><select aria-label={`${item.label}时刻（北京时间）`} aria-invalid={isInvalid(item) || undefined} value={time} required={item.required} disabled={disabled || !date} onChange={event => item.onChange(`${date}T${event.target.value}`)}>
             {!time && <option value="">选择时间</option>}
             {times.map(slot => <option key={slot} value={slot} disabled={!validSlot(date, slot, item)}>{slot}</option>)}
           </select></label>

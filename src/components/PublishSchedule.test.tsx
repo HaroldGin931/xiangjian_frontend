@@ -1,6 +1,8 @@
 import { renderToStaticMarkup } from 'react-dom/server'
-import { expect, it } from 'vitest'
+import { expect, it, vi } from 'vitest'
 import { PublishSchedule, scheduleDateValue, scheduleMonthDays } from './PublishSchedule'
+
+vi.mock('./PublishSteps', () => ({ usePublishValidationAttempted: () => true }))
 
 it('uses Monday-start leap-aware months and bounds endpoint changes to valid quarter-hours', () => {
   expect(scheduleMonthDays(2024, 1).filter(Boolean)).toHaveLength(29)
@@ -19,4 +21,11 @@ it('uses Monday-start leap-aware months and bounds endpoint changes to valid qua
   expect(options.every(match => /:(00|15|30|45)$/.test(match[2]))).toBe(true)
   expect(options.slice(0, 96).filter(match => !`${match[1]}${match[3]}`.includes('disabled')).map(match => match[2])).toEqual(['10:15', '10:30'])
   expect(html).toContain('修改申请截止日期（北京时间）')
+})
+
+it('marks the missing deadline and time controls invalid after continuing', () => {
+  const html = renderToStaticMarkup(<PublishSchedule fields={[{ label: '申请截止', value: '', required: true, onChange: () => undefined }]} />)
+  expect(html).toContain('class="schedule-endpoint" data-invalid="true"')
+  expect(html).toContain('class="schedule-time" data-invalid="true"')
+  expect(html.match(/aria-invalid="true"/g)).toHaveLength(2)
 })

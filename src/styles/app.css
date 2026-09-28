@@ -496,6 +496,8 @@ button.notification-row:focus-visible { outline: 2px solid var(--xj-green, #1b60
 .publish-steps h3:focus { outline: none; }
 .publish-step-fields { display: grid; gap: 24px; min-width: 0; }
 .publish-step-fields > * { min-width: 0; }
+.publish-field-help { min-width: 0; display: grid; gap: 4px; }
+.publish-field-help > small { color: var(--xj-muted); font-size: 12px; }
 .publish-step-actions { margin-top: 24px; padding: 14px 0 max(14px, env(safe-area-inset-bottom)); display: flex; align-items: center; gap: 14px; }
 .publish-step-actions > button { min-width: 0; min-height: 48px; font-size: 14px; }
 .publish-step-actions > button:last-child { flex: 1; border-radius: 12px; justify-content: center; }
@@ -514,16 +516,22 @@ button.notification-row:focus-visible { outline: 2px solid var(--xj-green, #1b60
 .publish-steps :is(.astryx-field > span, .astryx-text-area-counter, .astryx-field-label > span, .content-image-help, .muted) { font-size: 12px; color: var(--xj-muted); }
 .publish-steps :is(.astryx-text-input, .astryx-text-area):focus-within { border-color: var(--xj-accent); }
 .publish-steps :is(.astryx-text-input, .astryx-text-area)[data-status="error"] { border-color: var(--xj-error); }
+.publish-steps :is(.astryx-text-input, .astryx-text-area)[data-status="error"] :is(input, textarea)::placeholder { color: var(--xj-error); }
+.publish-steps[data-validation-attempted="true"] .native-field:has(select:required:invalid) { color: var(--xj-error); }
+.publish-steps[data-validation-attempted="true"] .native-field select:required:invalid { border-bottom-color: var(--xj-error); }
 .publish-steps .content-image-picker-label { display: none; }
 
 .publish-schedule { min-width: 0; }
 .publish-schedule .schedule-endpoints { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.publish-schedule .schedule-endpoints[data-count="1"], .publish-schedule .schedule-times[data-count="1"] { grid-template-columns: minmax(0, 1fr); }
 .publish-schedule .schedule-endpoints[data-count="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .publish-schedule .schedule-endpoint { min-width: 0; }
 .publish-schedule button { min-height: 44px; padding: 0; border: 0; background: transparent; color: inherit; }
 .publish-schedule button:disabled { opacity: .4; }
 .publish-schedule .endpoint { width: 100%; padding: 10px 0 12px; border-bottom: 2px solid var(--xj-line); text-align: left; }
 .publish-schedule .endpoint[aria-pressed="true"] { border-color: var(--xj-accent); }
+.publish-schedule .schedule-endpoint[data-invalid="true"] .endpoint { border-color: var(--xj-error); }
+.publish-schedule .schedule-endpoint[data-invalid="true"] .endpoint :is(span, small, strong) { color: var(--xj-error); }
 .publish-schedule .endpoint :is(span, small) { display: block; color: var(--xj-muted); font-size: 12px; }
 .publish-schedule .endpoint strong { display: block; margin-top: 4px; font-size: 17px; font-weight: 500; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .publish-schedule .endpoint strong .schedule-year { display: inline; color: inherit; font: inherit; }
@@ -531,6 +539,7 @@ button.notification-row:focus-visible { outline: 2px solid var(--xj-green, #1b60
 .publish-schedule .schedule-times[data-count="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .publish-schedule .schedule-time label { display: grid; color: var(--xj-muted); font-size: 12px; }
 .publish-schedule .schedule-time select { width: 100%; min-height: 44px; padding: 4px 0; border: 0; border-right: 4px solid transparent; border-bottom: 1px solid var(--xj-line); border-radius: 0; background: transparent; font-size: 16px; }
+.publish-schedule .schedule-time[data-invalid="true"] :is(small, select) { color: var(--xj-error); border-bottom-color: var(--xj-error); }
 .publish-steps .native-field select { padding-right: 8px; border-right: 12px solid transparent; }
 .publish-schedule .schedule-clear { color: var(--xj-muted); font-size: 11px; }
 .publish-schedule .month-head { display: flex; align-items: center; justify-content: space-between; gap: 4px; }
