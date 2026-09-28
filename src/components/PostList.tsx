@@ -66,7 +66,7 @@ export function PostCard({
   const navigate = useNavigate()
   const category = postCategory(post.record)
   const openPost = () => {
-    void navigate({ to: '/post', search: { uri: post.uri } })
+    void navigate({ to: '/posts', search: { uri: post.uri } })
   }
 
   return (

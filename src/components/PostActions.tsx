@@ -174,7 +174,7 @@ function SessionPostActions({ post, onOpenComments, commentAction, onRepostChang
           </Button>
         ) : (
           <Link
-            to="/post"
+            to="/posts"
             search={{ uri: post.uri }}
             hash="reply"
             className="post-action"

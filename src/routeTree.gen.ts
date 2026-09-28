@@ -17,7 +17,7 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as MeRouteImport } from './routes/me'
 import { Route as NotificationsRouteImport } from './routes/notifications'
-import { Route as PostRouteImport } from './routes/post'
+import { Route as PostsRouteImport } from './routes/posts'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as SemiCallbackRouteImport } from './routes/semi-callback'
@@ -93,9 +93,9 @@ const NotificationsRoute = NotificationsRouteImport.update({
   path: '/notifications',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PostRoute = PostRouteImport.update({
-  id: '/post',
-  path: '/post',
+const PostsRoute = PostsRouteImport.update({
+  id: '/posts',
+  path: '/posts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RegisterRoute = RegisterRouteImport.update({
@@ -278,7 +278,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/me': typeof MeRouteWithChildren
   '/notifications': typeof NotificationsRoute
-  '/post': typeof PostRoute
+  '/posts': typeof PostsRoute
   '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
   '/semi-callback': typeof SemiCallbackRoute
@@ -321,7 +321,7 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/notifications': typeof NotificationsRoute
-  '/post': typeof PostRoute
+  '/posts': typeof PostsRoute
   '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
   '/semi-callback': typeof SemiCallbackRoute
@@ -364,7 +364,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/me': typeof MeRouteWithChildren
   '/notifications': typeof NotificationsRoute
-  '/post': typeof PostRoute
+  '/posts': typeof PostsRoute
   '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
   '/semi-callback': typeof SemiCallbackRoute
@@ -411,7 +411,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/me'
     | '/notifications'
-    | '/post'
+    | '/posts'
     | '/register'
     | '/search'
     | '/semi-callback'
@@ -454,7 +454,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/notifications'
-    | '/post'
+    | '/posts'
     | '/register'
     | '/search'
     | '/semi-callback'
@@ -496,7 +496,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/me'
     | '/notifications'
-    | '/post'
+    | '/posts'
     | '/register'
     | '/search'
     | '/semi-callback'
@@ -542,7 +542,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   MeRoute: typeof MeRouteWithChildren
   NotificationsRoute: typeof NotificationsRoute
-  PostRoute: typeof PostRoute
+  PostsRoute: typeof PostsRoute
   RegisterRoute: typeof RegisterRoute
   SearchRoute: typeof SearchRoute
   SemiCallbackRoute: typeof SemiCallbackRoute
@@ -613,11 +613,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/post': {
-      id: '/post'
-      path: '/post'
-      fullPath: '/post'
-      preLoaderRoute: typeof PostRouteImport
+    '/posts': {
+      id: '/posts'
+      path: '/posts'
+      fullPath: '/posts'
+      preLoaderRoute: typeof PostsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/register': {
@@ -974,7 +974,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   MeRoute: MeRouteWithChildren,
   NotificationsRoute: NotificationsRoute,
-  PostRoute: PostRoute,
+  PostsRoute: PostsRoute,
   RegisterRoute: RegisterRoute,
   SearchRoute: SearchRoute,
   SemiCallbackRoute: SemiCallbackRoute,

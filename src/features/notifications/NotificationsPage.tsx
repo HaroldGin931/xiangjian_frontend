@@ -219,7 +219,7 @@ function NotificationInbox({ session, isReady }: { session: RiceSession | null; 
     if (target.kind === 'task') void navigate({ to: '/tasks/$taskId', params: { taskId: target.id } })
     else if (target.kind === 'event') void navigate({ to: '/events/$eventId', params: { eventId: target.id } })
     else if (target.kind === 'node') void navigate({ to: '/nodes/$nodeId', params: { nodeId: target.id } })
-    else if (target.kind === 'post') void navigate({ to: '/post', search: { uri: target.uri } })
+    else if (target.kind === 'post') void navigate({ to: '/posts', search: { uri: target.uri } })
     else if (target.kind === 'profile') void navigate({ to: '/profile/$actor', params: { actor: target.actor } })
   }
 

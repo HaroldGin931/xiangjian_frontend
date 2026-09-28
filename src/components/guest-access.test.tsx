@@ -59,7 +59,7 @@ describe('guest access', () => {
   })
 
   it('keeps the four main destinations available on a child page', () => {
-    state.pathname = '/post'
+    state.pathname = '/posts'
     const html = renderToStaticMarkup(<AppShell><p>post detail</p></AppShell>)
     expect(html).toContain('aria-label="返回上一页"')
     expect(html).toContain('aria-label="主要导航"')

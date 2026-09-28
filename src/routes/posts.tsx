@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { PostThreadPanel } from '~/features/feed/PostThreadPanel'
 
-export const Route = createFileRoute('/post')({
+export const Route = createFileRoute('/posts')({
   validateSearch: (search: Record<string, unknown>) => ({
     uri: typeof search.uri === 'string' ? search.uri : '',
   }),
