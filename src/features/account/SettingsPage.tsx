@@ -1,7 +1,7 @@
 import { LoginLink } from '../session/LoginLink'
 import { Button } from '@astryxdesign/core/Button'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, ChevronRight, LogOut } from 'lucide-react'
+import { ChevronRight, LogOut } from 'lucide-react'
 
 import { logoutRice } from '../session/api'
 import { useStoredSession } from '../session/session'
@@ -27,7 +27,6 @@ export function SettingsPage() {
 
   return (
     <div className="page settings-page">
-      <Link to="/me" className="back-link"><ArrowLeft size={16} /> 我的</Link>
       <h1>设置</h1>
       <nav className="profile-menu" aria-label="设置项目">
         <Link to="/me/settings/account" className="profile-menu-row">

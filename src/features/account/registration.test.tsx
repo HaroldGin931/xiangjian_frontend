@@ -11,7 +11,6 @@ vi.mock('./api', async (original) => ({
   uploadRiceAttachment: mock.upload, updateCurrentUser: mock.update,
 }))
 vi.mock('../session/session', () => ({ useStoredSession: () => ({ saveSession: mock.save, session: mock.session, isReady: true }) }))
-vi.mock('~/components/DetailDialog', () => ({ usePanelReady: () => undefined }))
 vi.mock('~/lib/images', () => ({ readFileBase64: async () => 'image-bytes' }))
 vi.mock('../session/useAuthOptions', () => ({ useAuthOptions: () => ({
   options: { registration_channels: ['sms', 'email'], handle_domain: 'configured.example', verification_mode: 'live' },

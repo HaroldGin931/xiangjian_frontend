@@ -5,14 +5,10 @@ import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useId, useState } from 'react'
 
 import { ContentCardHeader } from '~/components/ContentCardHeader'
-import { usePanelReady } from '~/components/DetailDialog'
 import { LoadingState } from '~/components/LoadingState'
 import { ImageGroup } from '~/components/ContentImages'
 import { PostText } from '~/components/PostText'
-import {
-  PostActions,
-  type RepostChange,
-} from '~/components/PostActions'
+import { PostActions } from '~/components/PostActions'
 import { authorDisplayName, formatTimestamp } from '~/lib/format'
 import type { PostThread, PostView } from '~/lib/models'
 
@@ -35,9 +31,6 @@ import {
 type PostThreadPanelProps = {
   uri: string
   focusReply?: boolean
-  onRepostChange?: (change: RepostChange) => void
-  onReplyCreated?: (postUri: string) => void
-  onPostDeleted?: (postUri: string) => void
 }
 
 export function PostThreadPanel(props: PostThreadPanelProps) {
@@ -48,9 +41,6 @@ export function PostThreadPanel(props: PostThreadPanelProps) {
 function PostThreadContent({
   uri,
   focusReply = false,
-  onRepostChange,
-  onReplyCreated,
-  onPostDeleted,
 }: PostThreadPanelProps) {
   const { session, isReady } = useStoredSession()
   const navigate = useNavigate()
@@ -61,7 +51,6 @@ function PostThreadContent({
   const [replyNotice, setReplyNotice] = useState('')
   const [isReplying, setReplying] = useState(false)
   const replyComposerId = useId()
-  usePanelReady(isReady && Boolean(thread || error))
   const category = thread ? postCategory(thread.post.record) : 'post'
   const fields = thread ? postFieldValues(thread.post.record.text, category) : {}
   const participants = thread?.replies.filter(
@@ -137,7 +126,6 @@ function PostThreadContent({
       ],
     } : current)
     clearCachedFeed(session.pds.did)
-    onReplyCreated?.(thread.post.uri)
   }
 
   const submitComment = async (
@@ -196,14 +184,7 @@ function PostThreadContent({
               <PostActions
                 post={thread.post}
                 onOpenComments={() => focusComposer()}
-                onRepostChange={onRepostChange}
-                onPostDeleted={(postUri) => {
-                  if (onPostDeleted) {
-                    onPostDeleted(postUri)
-                  } else {
-                    void navigate({ to: '/' })
-                  }
-                }}
+                onPostDeleted={() => { void navigate({ to: '/' }) }}
               />
             </div>
           </article>

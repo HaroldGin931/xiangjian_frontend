@@ -2,8 +2,6 @@ import { LoginLink } from '../session/LoginLink'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { integerInputError } from '~/lib/integer-input'
 import { Button } from '@astryxdesign/core/Button'
-import { Link } from '@tanstack/react-router'
-import { usePanelReady } from '~/components/DetailDialog'
 import { LoadingState } from '~/components/LoadingState'
 import { useEffect, useRef, useState } from 'react'
 import { formatTimestamp } from '~/lib/format'
@@ -11,31 +9,28 @@ import { useStoredSession } from '../session/session'
 import { fundCommunity, getWallet, walletEntryIncoming, type RiceWallet, type WalletEntry } from './api'
 
 const labels: Record<WalletEntry['kind'], string> = { reserved: '冻结', refunded: '解冻', grant: '稻米发放', gift: '稻米转赠', reward: '内容打赏', task_reward: '任务报酬', event_fee: '活动报名费', community_fund: '转入社区' }
-export function GrainHistoryPage({ embedded = false, initialData, nodeId }: { embedded?: boolean; nodeId?: string; initialData?: { accountId: string; sessionToken: string; nodeId?: string; wallet: RiceWallet } | null }) {
+export function GrainHistoryPage({ nodeId }: { nodeId?: string }) {
   const { session } = useStoredSession()
-  const current = initialData?.accountId === session?.user.id && initialData?.sessionToken === session?.token && initialData?.nodeId === nodeId ? initialData : null
-  return <WalletHistory key={`${session?.token ?? 'guest'}:${nodeId ?? 'personal'}`} embedded={embedded} nodeId={nodeId} initialWallet={current?.wallet} />
+  return <WalletHistory key={`${session?.token ?? 'guest'}:${nodeId ?? 'personal'}`} nodeId={nodeId} />
 }
 
-function WalletHistory({ embedded, initialWallet, nodeId }: { embedded: boolean; initialWallet?: RiceWallet; nodeId?: string }) {
+function WalletHistory({ nodeId }: { nodeId?: string }) {
   const { session, isReady } = useStoredSession()
-  const [wallet, setWallet] = useState<RiceWallet | null>(initialWallet ?? null)
-  const [loading, setLoading] = useState(!initialWallet)
+  const [wallet, setWallet] = useState<RiceWallet | null>(null)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const request = useRef(0)
-  usePanelReady(isReady && (!session || Boolean(wallet || error)))
   useEffect(() => {
     if (!isReady) return
     if (!session) { setLoading(false); return }
     let active = true; ++request.current; setError('')
-    if (initialWallet) { setWallet(initialWallet); setLoading(false); return () => { ++request.current } }
     setLoading(true)
     void getWallet({ data: { token: session.token, nodeId } }).then((value) => { if (active) setWallet(value) }).catch((e) => { if (active) setError(e.message) }).finally(() => { if (active) setLoading(false) })
     return () => { active = false; ++request.current }
-  }, [session?.token, isReady, initialWallet, nodeId])
+  }, [session?.token, isReady, nodeId])
   const more = async () => { if (!session || !wallet?.next_cursor || loading) return; const current = request.current; setLoading(true); setError(''); try { const page = await getWallet({ data: { token: session.token, nodeId, before: wallet.next_cursor } }); if (current === request.current) setWallet((previous) => ({ ...page, entries: [...(previous?.entries ?? []), ...page.entries] })) } catch (e) { if (current === request.current) setError(e instanceof Error ? e.message : '加载失败') } finally { if (current === request.current) setLoading(false) } }
   if (isReady && !session) return <div className="page"><LoginLink className="primary-link">登录后查看稻米明细</LoginLink></div>
-  return <div className="page grain-history-page">{!embedded && <Link to="/me" className="back-link">返回我的</Link>}<h1>{nodeId ? '节点稻米' : '我的稻米'}</h1><p className="muted">测试稻米</p>
+  return <div className="page grain-history-page"><h1>{nodeId ? '节点稻米' : '我的稻米'}</h1><p className="muted">测试稻米</p>
     <section className="grain-card"><header>稻米余额</header><div className="grain-balance-row"><strong>{wallet ? wallet.balance + wallet.frozen : '—'}</strong></div><div className="grain-metrics"><div><b>{wallet?.balance ?? '—'}</b><span>可用</span></div><div><b>{wallet?.frozen ?? '—'}</b><span>冻结</span></div><div><b>{wallet?.earned ?? '—'}</b><span>累计获得</span></div></div></section>
     {nodeId && session && wallet && <CommunityFunding nodeId={nodeId} token={session.token} onFunded={(value) => { ++request.current; setWallet(value); setLoading(false); setError('') }} />}
     <h2>稻米明细</h2>{error && <p className="inline-error" role="alert">{error}</p>}{loading && (wallet ? <p className="refresh-status" role="status">正在加载明细…</p> : <LoadingState label="正在加载明细…" />)}

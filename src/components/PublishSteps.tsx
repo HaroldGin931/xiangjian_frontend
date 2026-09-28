@@ -18,10 +18,9 @@ export function PublishSteps({ steps, busy, error, notice, onError, validate, ca
   const [step, setStep] = useState(0)
   const [returnTo, setReturnTo] = useState<number | null>(null)
   const heading = useRef<HTMLHeadingElement>(null)
-  const section = useRef<HTMLElement>(null)
   const headingId = useId()
   const review = step === steps.length
-  useEffect(() => { section.current?.closest('.post-dialog-scroll')?.scrollTo(0, 0); heading.current?.focus({ preventScroll: true }) }, [step])
+  useEffect(() => { window.scrollTo(0, 0); heading.current?.focus({ preventScroll: true }) }, [step])
 
   function go(index: number, backTo: number | null = null) {
     if (busy) return
@@ -43,7 +42,7 @@ export function PublishSteps({ steps, busy, error, notice, onError, validate, ca
     await onPublish()
   }
 
-  return <section className="publish-steps" aria-labelledby={headingId} ref={section}>
+  return <section className="publish-steps" aria-labelledby={headingId}>
     <header className="publish-step-header"><small>第 {step + 1} 步，共 {steps.length + 1} 步</small><Button label="保存草稿" variant="ghost" isDisabled={!canSaveDraft || busy} clickAction={async () => { await onSaveDraft() }} /></header>
     <h3 id={headingId} ref={heading} tabIndex={-1}>{review ? '发布前，再看一眼。' : steps[step].title ?? steps[step].label}</h3>
     <div className="publish-step-fields">{review ? steps.map((item, index) => <section className="publish-review-section" key={item.label}>

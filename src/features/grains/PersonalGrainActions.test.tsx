@@ -6,13 +6,16 @@ import { defaultParseSearch } from '@tanstack/react-router'
 const mock = vi.hoisted(() => ({
   recipient: vi.fn(), send: vi.fn(), session: null as RiceSession | null,
   stored: null as RiceSession | null, values: [] as unknown[], index: 0,
-  parent: [] as unknown[], child: [] as unknown[], key: '',
+  parent: [] as unknown[], child: [] as unknown[], key: '', scanning: false,
+  navigate: vi.fn(),
 }))
 vi.mock('./api', () => ({ getTransferRecipient: mock.recipient, sendPersonalGrains: mock.send }))
 vi.mock('../session/session', () => ({ useStoredSession: () => ({ session: mock.session }), readStoredSession: () => mock.stored }))
 vi.mock('@tanstack/react-router', async (original) => ({
   ...await original<typeof import('@tanstack/react-router')>(), Link: () => null,
   createFileRoute: () => (options: unknown) => ({ options }),
+  useMatch: () => mock.scanning ? {} : undefined,
+  useNavigate: () => mock.navigate,
 }))
 vi.mock('~/features/social/UserProfilePage', () => ({ UserProfilePage: () => null }))
 vi.mock('~/components/DetailDialog', () => ({ DetailDialog: () => null }))
@@ -35,7 +38,7 @@ vi.mock('react', async (original) => ({
   },
 }))
 
-import { grainReceiveLink, PersonalGrainActions } from './PersonalGrainActions'
+import { grainReceiveLink, SendGrainPage } from './PersonalGrainActions'
 import { Route } from '~/routes/profile.$actor.index'
 
 const session = {
@@ -57,13 +60,13 @@ function cleanup() {
 }
 function render() {
   mock.values = mock.parent; mock.index = 0
-  const dialog = elements(PersonalGrainActions({ initialSend: true })).find((node) => node.props.session)
-  if (!dialog) return []
-  const key = String(dialog.key)
+  const form = elements(SendGrainPage({})).find((node) => node.props.session)
+  if (!form) return []
+  const key = String(form.key)
   if (key !== mock.key) { cleanup(); mock.child = []; mock.key = key }
   mock.values = mock.child; mock.index = 0
-  const props = dialog.props
-  return elements((dialog.type as (value: typeof props) => ReactNode)(props))
+  const props = form.props
+  return elements((form.type as (value: typeof props) => ReactNode)(props))
 }
 const field = (label: string) => render().find((node) => node.props.label === label)?.props
 const change = (label: string, value: string) => (field(label)!.onChange as (value: string) => void)(value)
@@ -77,11 +80,12 @@ async function confirmRecipient(identifier = '@bob.example') {
 beforeEach(() => {
   mock.session = session; mock.stored = session
   mock.recipient.mockResolvedValue(recipient)
+  mock.navigate.mockImplementation(async ({ to }: { to: string }) => { mock.scanning = to === '/me/grains/send/scan' })
   vi.stubGlobal('window', Object.assign(new EventTarget(), { location: { origin: 'https://community.example' } }))
 })
 afterEach(() => {
   cleanup(); mock.values = []; mock.parent = []; mock.child = []; mock.key = ''
-  mock.recipient.mockReset(); mock.send.mockReset(); vi.unstubAllGlobals()
+  mock.scanning = false; mock.navigate.mockReset(); mock.recipient.mockReset(); mock.send.mockReset(); vi.unstubAllGlobals()
 })
 
 it.each(['@bob.example', '13800138000'])('checks %s after input and writes the resolved id once while pending', async (identifier) => {
@@ -151,7 +155,9 @@ it('checks a scanned recipient once before sending', async () => {
   ;(field('扫描收款码')!.onClick as () => void)()
   const scanner = render().find((node) => typeof node.props.onRead === 'function')!
   ;(scanner.props.onRead as (value: string) => void)('13800138000')
+  expect(mock.navigate).toHaveBeenLastCalledWith({ to: '/me/grains/send', search: {} })
   expect(field('收款人')?.value).toBe('13800138000')
+  expect(field('发送金额')?.value).toBe('12')
   expect(render().some((node) => typeof node.props.onRead === 'function')).toBe(false)
   expect(mock.recipient).toHaveBeenCalledWith({ data: { token: 'rice-alice', identifier: '13800138000' } })
   await vi.waitFor(() => expect(render().find((node) => node.props.role === 'status')).toBeDefined())

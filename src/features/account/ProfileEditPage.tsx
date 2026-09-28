@@ -3,12 +3,10 @@ import { Button } from '@astryxdesign/core/Button'
 import { FileInput } from '@astryxdesign/core/FileInput'
 import { TextArea } from '~/components/AutoTextArea'
 import { TextInput } from '@astryxdesign/core/TextInput'
-import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 
 import { Avatar } from '~/components/Avatar'
-import { usePanelReady } from '~/components/DetailDialog'
 import { readFileBase64 } from '~/lib/images'
 
 import { useStoredSession } from '../session/session'
@@ -17,8 +15,7 @@ import { updateCurrentUser, uploadRiceAttachment } from './api'
 const MAX_AVATAR_BYTES = 5 * 1024 * 1024
 
 export function ProfileEditPage({ onSaved, avatarOnly = false }: { onSaved?: () => void | Promise<void>; avatarOnly?: boolean }) {
-  const { session, isReady, saveSession } = useStoredSession()
-  usePanelReady(isReady)
+  const { session, saveSession } = useStoredSession()
   const navigate = useNavigate()
   const [nickname, setNickname] = useState(session?.user.nickname || '')
   const [bio, setBio] = useState(session?.user.bio || '')
@@ -80,7 +77,6 @@ export function ProfileEditPage({ onSaved, avatarOnly = false }: { onSaved?: () 
 
   return (
     <div className="page narrow-page profile-edit-page">
-      {!onSaved && <Link to="/me/settings" className="back-link"><ArrowLeft size={16} /> 设置</Link>}
       <h1>{avatarOnly ? '设置你的头像' : '个人资料'}</h1>
       {avatarOnly ? <p>账号已创建。选择一张头像，也可以稍后在个人资料中设置。</p> : null}
       <section className="form-card">

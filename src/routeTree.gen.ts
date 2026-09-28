@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AllianceRouteImport } from './routes/alliance'
 import { Route as ComposeRouteImport } from './routes/compose'
 import { Route as EventsRouteImport } from './routes/events'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
@@ -21,27 +22,45 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as SemiCallbackRouteImport } from './routes/semi-callback'
 import { Route as TasksRouteImport } from './routes/tasks'
+import { Route as AllianceIndexRouteImport } from './routes/alliance.index'
+import { Route as AllianceDocumentsRouteImport } from './routes/alliance.documents'
+import { Route as AllianceNodesRouteImport } from './routes/alliance.nodes'
 import { Route as EventsEventIdRouteImport } from './routes/events_.$eventId'
 import { Route as MeIndexRouteImport } from './routes/me.index'
 import { Route as MeEventsRouteImport } from './routes/me.events'
 import { Route as MeGrainsRouteImport } from './routes/me.grains'
+import { Route as MeIdentityRouteImport } from './routes/me.identity'
 import { Route as MePostsRouteImport } from './routes/me.posts'
 import { Route as MeSettingsRouteImport } from './routes/me.settings'
 import { Route as MeTasksRouteImport } from './routes/me.tasks'
+import { Route as NodesNodeIdRouteImport } from './routes/nodes.$nodeId'
 import { Route as ProfileActorRouteImport } from './routes/profile.$actor'
 import { Route as TasksIndexRouteImport } from './routes/tasks.index'
 import { Route as TasksTaskIdRouteImport } from './routes/tasks.$taskId'
 import { Route as TasksNewRouteImport } from './routes/tasks.new'
+import { Route as AllianceAnnouncementsIdRouteImport } from './routes/alliance.announcements.$id'
+import { Route as AllianceProposalsIdRouteImport } from './routes/alliance.proposals.$id'
+import { Route as MeGrainsReceiveRouteImport } from './routes/me.grains_.receive'
+import { Route as MeGrainsSendRouteImport } from './routes/me.grains_.send'
 import { Route as MeSettingsIndexRouteImport } from './routes/me.settings.index'
 import { Route as MeSettingsAccountRouteImport } from './routes/me.settings.account'
 import { Route as MeSettingsProfileRouteImport } from './routes/me.settings.profile'
+import { Route as NodesNodeIdEventsRouteImport } from './routes/nodes_.$nodeId.events'
+import { Route as NodesNodeIdGrainsRouteImport } from './routes/nodes_.$nodeId.grains'
+import { Route as NodesNodeIdTasksRouteImport } from './routes/nodes_.$nodeId.tasks'
 import { Route as ProfileActorIndexRouteImport } from './routes/profile.$actor.index'
 import { Route as ProfileActorFollowersRouteImport } from './routes/profile.$actor.followers'
 import { Route as ProfileActorFollowingRouteImport } from './routes/profile.$actor.following'
+import { Route as MeGrainsSendScanRouteImport } from './routes/me.grains_.send.scan'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AllianceRoute = AllianceRouteImport.update({
+  id: '/alliance',
+  path: '/alliance',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ComposeRoute = ComposeRouteImport.update({
@@ -99,6 +118,21 @@ const TasksRoute = TasksRouteImport.update({
   path: '/tasks',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AllianceIndexRoute = AllianceIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AllianceRoute,
+} as any)
+const AllianceDocumentsRoute = AllianceDocumentsRouteImport.update({
+  id: '/documents',
+  path: '/documents',
+  getParentRoute: () => AllianceRoute,
+} as any)
+const AllianceNodesRoute = AllianceNodesRouteImport.update({
+  id: '/nodes',
+  path: '/nodes',
+  getParentRoute: () => AllianceRoute,
+} as any)
 const EventsEventIdRoute = EventsEventIdRouteImport.update({
   id: '/events_/$eventId',
   path: '/events/$eventId',
@@ -119,6 +153,11 @@ const MeGrainsRoute = MeGrainsRouteImport.update({
   path: '/grains',
   getParentRoute: () => MeRoute,
 } as any)
+const MeIdentityRoute = MeIdentityRouteImport.update({
+  id: '/identity',
+  path: '/identity',
+  getParentRoute: () => MeRoute,
+} as any)
 const MePostsRoute = MePostsRouteImport.update({
   id: '/posts',
   path: '/posts',
@@ -133,6 +172,11 @@ const MeTasksRoute = MeTasksRouteImport.update({
   id: '/tasks',
   path: '/tasks',
   getParentRoute: () => MeRoute,
+} as any)
+const NodesNodeIdRoute = NodesNodeIdRouteImport.update({
+  id: '/nodes/$nodeId',
+  path: '/nodes/$nodeId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileActorRoute = ProfileActorRouteImport.update({
   id: '/profile/$actor',
@@ -154,6 +198,26 @@ const TasksNewRoute = TasksNewRouteImport.update({
   path: '/new',
   getParentRoute: () => TasksRoute,
 } as any)
+const AllianceAnnouncementsIdRoute = AllianceAnnouncementsIdRouteImport.update({
+  id: '/announcements/$id',
+  path: '/announcements/$id',
+  getParentRoute: () => AllianceRoute,
+} as any)
+const AllianceProposalsIdRoute = AllianceProposalsIdRouteImport.update({
+  id: '/proposals/$id',
+  path: '/proposals/$id',
+  getParentRoute: () => AllianceRoute,
+} as any)
+const MeGrainsReceiveRoute = MeGrainsReceiveRouteImport.update({
+  id: '/grains_/receive',
+  path: '/grains/receive',
+  getParentRoute: () => MeRoute,
+} as any)
+const MeGrainsSendRoute = MeGrainsSendRouteImport.update({
+  id: '/grains_/send',
+  path: '/grains/send',
+  getParentRoute: () => MeRoute,
+} as any)
 const MeSettingsIndexRoute = MeSettingsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -168,6 +232,21 @@ const MeSettingsProfileRoute = MeSettingsProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
   getParentRoute: () => MeSettingsRoute,
+} as any)
+const NodesNodeIdEventsRoute = NodesNodeIdEventsRouteImport.update({
+  id: '/nodes_/$nodeId/events',
+  path: '/nodes/$nodeId/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NodesNodeIdGrainsRoute = NodesNodeIdGrainsRouteImport.update({
+  id: '/nodes_/$nodeId/grains',
+  path: '/nodes/$nodeId/grains',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NodesNodeIdTasksRoute = NodesNodeIdTasksRouteImport.update({
+  id: '/nodes_/$nodeId/tasks',
+  path: '/nodes/$nodeId/tasks',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ProfileActorIndexRoute = ProfileActorIndexRouteImport.update({
   id: '/',
@@ -184,9 +263,15 @@ const ProfileActorFollowingRoute = ProfileActorFollowingRouteImport.update({
   path: '/following',
   getParentRoute: () => ProfileActorRoute,
 } as any)
+const MeGrainsSendScanRoute = MeGrainsSendScanRouteImport.update({
+  id: '/scan',
+  path: '/scan',
+  getParentRoute: () => MeGrainsSendRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/alliance': typeof AllianceRouteWithChildren
   '/compose': typeof ComposeRoute
   '/events': typeof EventsRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -198,23 +283,36 @@ export interface FileRoutesByFullPath {
   '/search': typeof SearchRoute
   '/semi-callback': typeof SemiCallbackRoute
   '/tasks': typeof TasksRouteWithChildren
+  '/alliance/documents': typeof AllianceDocumentsRoute
+  '/alliance/nodes': typeof AllianceNodesRoute
   '/events/$eventId': typeof EventsEventIdRoute
   '/me/events': typeof MeEventsRoute
   '/me/grains': typeof MeGrainsRoute
+  '/me/identity': typeof MeIdentityRoute
   '/me/posts': typeof MePostsRoute
   '/me/settings': typeof MeSettingsRouteWithChildren
   '/me/tasks': typeof MeTasksRoute
+  '/nodes/$nodeId': typeof NodesNodeIdRoute
   '/profile/$actor': typeof ProfileActorRouteWithChildren
   '/tasks/$taskId': typeof TasksTaskIdRoute
   '/tasks/new': typeof TasksNewRoute
+  '/alliance/': typeof AllianceIndexRoute
   '/me/': typeof MeIndexRoute
   '/tasks/': typeof TasksIndexRoute
+  '/alliance/announcements/$id': typeof AllianceAnnouncementsIdRoute
+  '/alliance/proposals/$id': typeof AllianceProposalsIdRoute
+  '/me/grains/receive': typeof MeGrainsReceiveRoute
+  '/me/grains/send': typeof MeGrainsSendRouteWithChildren
   '/me/settings/account': typeof MeSettingsAccountRoute
   '/me/settings/profile': typeof MeSettingsProfileRoute
+  '/nodes/$nodeId/events': typeof NodesNodeIdEventsRoute
+  '/nodes/$nodeId/grains': typeof NodesNodeIdGrainsRoute
+  '/nodes/$nodeId/tasks': typeof NodesNodeIdTasksRoute
   '/profile/$actor/followers': typeof ProfileActorFollowersRoute
   '/profile/$actor/following': typeof ProfileActorFollowingRoute
   '/me/settings/': typeof MeSettingsIndexRoute
   '/profile/$actor/': typeof ProfileActorIndexRoute
+  '/me/grains/send/scan': typeof MeGrainsSendScanRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -227,25 +325,39 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/search': typeof SearchRoute
   '/semi-callback': typeof SemiCallbackRoute
+  '/alliance/documents': typeof AllianceDocumentsRoute
+  '/alliance/nodes': typeof AllianceNodesRoute
   '/events/$eventId': typeof EventsEventIdRoute
   '/me/events': typeof MeEventsRoute
   '/me/grains': typeof MeGrainsRoute
+  '/me/identity': typeof MeIdentityRoute
   '/me/posts': typeof MePostsRoute
   '/me/tasks': typeof MeTasksRoute
+  '/nodes/$nodeId': typeof NodesNodeIdRoute
   '/tasks/$taskId': typeof TasksTaskIdRoute
   '/tasks/new': typeof TasksNewRoute
+  '/alliance': typeof AllianceIndexRoute
   '/me': typeof MeIndexRoute
   '/tasks': typeof TasksIndexRoute
+  '/alliance/announcements/$id': typeof AllianceAnnouncementsIdRoute
+  '/alliance/proposals/$id': typeof AllianceProposalsIdRoute
+  '/me/grains/receive': typeof MeGrainsReceiveRoute
+  '/me/grains/send': typeof MeGrainsSendRouteWithChildren
   '/me/settings/account': typeof MeSettingsAccountRoute
   '/me/settings/profile': typeof MeSettingsProfileRoute
+  '/nodes/$nodeId/events': typeof NodesNodeIdEventsRoute
+  '/nodes/$nodeId/grains': typeof NodesNodeIdGrainsRoute
+  '/nodes/$nodeId/tasks': typeof NodesNodeIdTasksRoute
   '/profile/$actor/followers': typeof ProfileActorFollowersRoute
   '/profile/$actor/following': typeof ProfileActorFollowingRoute
   '/me/settings': typeof MeSettingsIndexRoute
   '/profile/$actor': typeof ProfileActorIndexRoute
+  '/me/grains/send/scan': typeof MeGrainsSendScanRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/alliance': typeof AllianceRouteWithChildren
   '/compose': typeof ComposeRoute
   '/events': typeof EventsRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -257,28 +369,42 @@ export interface FileRoutesById {
   '/search': typeof SearchRoute
   '/semi-callback': typeof SemiCallbackRoute
   '/tasks': typeof TasksRouteWithChildren
+  '/alliance/documents': typeof AllianceDocumentsRoute
+  '/alliance/nodes': typeof AllianceNodesRoute
   '/events_/$eventId': typeof EventsEventIdRoute
   '/me/events': typeof MeEventsRoute
   '/me/grains': typeof MeGrainsRoute
+  '/me/identity': typeof MeIdentityRoute
   '/me/posts': typeof MePostsRoute
   '/me/settings': typeof MeSettingsRouteWithChildren
   '/me/tasks': typeof MeTasksRoute
+  '/nodes/$nodeId': typeof NodesNodeIdRoute
   '/profile/$actor': typeof ProfileActorRouteWithChildren
   '/tasks/$taskId': typeof TasksTaskIdRoute
   '/tasks/new': typeof TasksNewRoute
+  '/alliance/': typeof AllianceIndexRoute
   '/me/': typeof MeIndexRoute
   '/tasks/': typeof TasksIndexRoute
+  '/alliance/announcements/$id': typeof AllianceAnnouncementsIdRoute
+  '/alliance/proposals/$id': typeof AllianceProposalsIdRoute
+  '/me/grains_/receive': typeof MeGrainsReceiveRoute
+  '/me/grains_/send': typeof MeGrainsSendRouteWithChildren
   '/me/settings/account': typeof MeSettingsAccountRoute
   '/me/settings/profile': typeof MeSettingsProfileRoute
+  '/nodes_/$nodeId/events': typeof NodesNodeIdEventsRoute
+  '/nodes_/$nodeId/grains': typeof NodesNodeIdGrainsRoute
+  '/nodes_/$nodeId/tasks': typeof NodesNodeIdTasksRoute
   '/profile/$actor/followers': typeof ProfileActorFollowersRoute
   '/profile/$actor/following': typeof ProfileActorFollowingRoute
   '/me/settings/': typeof MeSettingsIndexRoute
   '/profile/$actor/': typeof ProfileActorIndexRoute
+  '/me/grains_/send/scan': typeof MeGrainsSendScanRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/alliance'
     | '/compose'
     | '/events'
     | '/forgot-password'
@@ -290,23 +416,36 @@ export interface FileRouteTypes {
     | '/search'
     | '/semi-callback'
     | '/tasks'
+    | '/alliance/documents'
+    | '/alliance/nodes'
     | '/events/$eventId'
     | '/me/events'
     | '/me/grains'
+    | '/me/identity'
     | '/me/posts'
     | '/me/settings'
     | '/me/tasks'
+    | '/nodes/$nodeId'
     | '/profile/$actor'
     | '/tasks/$taskId'
     | '/tasks/new'
+    | '/alliance/'
     | '/me/'
     | '/tasks/'
+    | '/alliance/announcements/$id'
+    | '/alliance/proposals/$id'
+    | '/me/grains/receive'
+    | '/me/grains/send'
     | '/me/settings/account'
     | '/me/settings/profile'
+    | '/nodes/$nodeId/events'
+    | '/nodes/$nodeId/grains'
+    | '/nodes/$nodeId/tasks'
     | '/profile/$actor/followers'
     | '/profile/$actor/following'
     | '/me/settings/'
     | '/profile/$actor/'
+    | '/me/grains/send/scan'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -319,24 +458,38 @@ export interface FileRouteTypes {
     | '/register'
     | '/search'
     | '/semi-callback'
+    | '/alliance/documents'
+    | '/alliance/nodes'
     | '/events/$eventId'
     | '/me/events'
     | '/me/grains'
+    | '/me/identity'
     | '/me/posts'
     | '/me/tasks'
+    | '/nodes/$nodeId'
     | '/tasks/$taskId'
     | '/tasks/new'
+    | '/alliance'
     | '/me'
     | '/tasks'
+    | '/alliance/announcements/$id'
+    | '/alliance/proposals/$id'
+    | '/me/grains/receive'
+    | '/me/grains/send'
     | '/me/settings/account'
     | '/me/settings/profile'
+    | '/nodes/$nodeId/events'
+    | '/nodes/$nodeId/grains'
+    | '/nodes/$nodeId/tasks'
     | '/profile/$actor/followers'
     | '/profile/$actor/following'
     | '/me/settings'
     | '/profile/$actor'
+    | '/me/grains/send/scan'
   id:
     | '__root__'
     | '/'
+    | '/alliance'
     | '/compose'
     | '/events'
     | '/forgot-password'
@@ -348,27 +501,41 @@ export interface FileRouteTypes {
     | '/search'
     | '/semi-callback'
     | '/tasks'
+    | '/alliance/documents'
+    | '/alliance/nodes'
     | '/events_/$eventId'
     | '/me/events'
     | '/me/grains'
+    | '/me/identity'
     | '/me/posts'
     | '/me/settings'
     | '/me/tasks'
+    | '/nodes/$nodeId'
     | '/profile/$actor'
     | '/tasks/$taskId'
     | '/tasks/new'
+    | '/alliance/'
     | '/me/'
     | '/tasks/'
+    | '/alliance/announcements/$id'
+    | '/alliance/proposals/$id'
+    | '/me/grains_/receive'
+    | '/me/grains_/send'
     | '/me/settings/account'
     | '/me/settings/profile'
+    | '/nodes_/$nodeId/events'
+    | '/nodes_/$nodeId/grains'
+    | '/nodes_/$nodeId/tasks'
     | '/profile/$actor/followers'
     | '/profile/$actor/following'
     | '/me/settings/'
     | '/profile/$actor/'
+    | '/me/grains_/send/scan'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AllianceRoute: typeof AllianceRouteWithChildren
   ComposeRoute: typeof ComposeRoute
   EventsRoute: typeof EventsRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
@@ -381,7 +548,11 @@ export interface RootRouteChildren {
   SemiCallbackRoute: typeof SemiCallbackRoute
   TasksRoute: typeof TasksRouteWithChildren
   EventsEventIdRoute: typeof EventsEventIdRoute
+  NodesNodeIdRoute: typeof NodesNodeIdRoute
   ProfileActorRoute: typeof ProfileActorRouteWithChildren
+  NodesNodeIdEventsRoute: typeof NodesNodeIdEventsRoute
+  NodesNodeIdGrainsRoute: typeof NodesNodeIdGrainsRoute
+  NodesNodeIdTasksRoute: typeof NodesNodeIdTasksRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -391,6 +562,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/alliance': {
+      id: '/alliance'
+      path: '/alliance'
+      fullPath: '/alliance'
+      preLoaderRoute: typeof AllianceRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/compose': {
@@ -470,6 +648,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TasksRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/alliance/': {
+      id: '/alliance/'
+      path: '/'
+      fullPath: '/alliance/'
+      preLoaderRoute: typeof AllianceIndexRouteImport
+      parentRoute: typeof AllianceRoute
+    }
+    '/alliance/documents': {
+      id: '/alliance/documents'
+      path: '/documents'
+      fullPath: '/alliance/documents'
+      preLoaderRoute: typeof AllianceDocumentsRouteImport
+      parentRoute: typeof AllianceRoute
+    }
+    '/alliance/nodes': {
+      id: '/alliance/nodes'
+      path: '/nodes'
+      fullPath: '/alliance/nodes'
+      preLoaderRoute: typeof AllianceNodesRouteImport
+      parentRoute: typeof AllianceRoute
+    }
     '/events_/$eventId': {
       id: '/events_/$eventId'
       path: '/events/$eventId'
@@ -498,6 +697,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MeGrainsRouteImport
       parentRoute: typeof MeRoute
     }
+    '/me/identity': {
+      id: '/me/identity'
+      path: '/identity'
+      fullPath: '/me/identity'
+      preLoaderRoute: typeof MeIdentityRouteImport
+      parentRoute: typeof MeRoute
+    }
     '/me/posts': {
       id: '/me/posts'
       path: '/posts'
@@ -518,6 +724,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/me/tasks'
       preLoaderRoute: typeof MeTasksRouteImport
       parentRoute: typeof MeRoute
+    }
+    '/nodes/$nodeId': {
+      id: '/nodes/$nodeId'
+      path: '/nodes/$nodeId'
+      fullPath: '/nodes/$nodeId'
+      preLoaderRoute: typeof NodesNodeIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/profile/$actor': {
       id: '/profile/$actor'
@@ -547,6 +760,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TasksNewRouteImport
       parentRoute: typeof TasksRoute
     }
+    '/alliance/announcements/$id': {
+      id: '/alliance/announcements/$id'
+      path: '/announcements/$id'
+      fullPath: '/alliance/announcements/$id'
+      preLoaderRoute: typeof AllianceAnnouncementsIdRouteImport
+      parentRoute: typeof AllianceRoute
+    }
+    '/alliance/proposals/$id': {
+      id: '/alliance/proposals/$id'
+      path: '/proposals/$id'
+      fullPath: '/alliance/proposals/$id'
+      preLoaderRoute: typeof AllianceProposalsIdRouteImport
+      parentRoute: typeof AllianceRoute
+    }
+    '/me/grains_/receive': {
+      id: '/me/grains_/receive'
+      path: '/grains/receive'
+      fullPath: '/me/grains/receive'
+      preLoaderRoute: typeof MeGrainsReceiveRouteImport
+      parentRoute: typeof MeRoute
+    }
+    '/me/grains_/send': {
+      id: '/me/grains_/send'
+      path: '/grains/send'
+      fullPath: '/me/grains/send'
+      preLoaderRoute: typeof MeGrainsSendRouteImport
+      parentRoute: typeof MeRoute
+    }
     '/me/settings/': {
       id: '/me/settings/'
       path: '/'
@@ -567,6 +808,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/me/settings/profile'
       preLoaderRoute: typeof MeSettingsProfileRouteImport
       parentRoute: typeof MeSettingsRoute
+    }
+    '/nodes_/$nodeId/events': {
+      id: '/nodes_/$nodeId/events'
+      path: '/nodes/$nodeId/events'
+      fullPath: '/nodes/$nodeId/events'
+      preLoaderRoute: typeof NodesNodeIdEventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nodes_/$nodeId/grains': {
+      id: '/nodes_/$nodeId/grains'
+      path: '/nodes/$nodeId/grains'
+      fullPath: '/nodes/$nodeId/grains'
+      preLoaderRoute: typeof NodesNodeIdGrainsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nodes_/$nodeId/tasks': {
+      id: '/nodes_/$nodeId/tasks'
+      path: '/nodes/$nodeId/tasks'
+      fullPath: '/nodes/$nodeId/tasks'
+      preLoaderRoute: typeof NodesNodeIdTasksRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/profile/$actor/': {
       id: '/profile/$actor/'
@@ -589,8 +851,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileActorFollowingRouteImport
       parentRoute: typeof ProfileActorRoute
     }
+    '/me/grains_/send/scan': {
+      id: '/me/grains_/send/scan'
+      path: '/scan'
+      fullPath: '/me/grains/send/scan'
+      preLoaderRoute: typeof MeGrainsSendScanRouteImport
+      parentRoute: typeof MeGrainsSendRoute
+    }
   }
 }
+
+interface AllianceRouteChildren {
+  AllianceDocumentsRoute: typeof AllianceDocumentsRoute
+  AllianceNodesRoute: typeof AllianceNodesRoute
+  AllianceIndexRoute: typeof AllianceIndexRoute
+  AllianceAnnouncementsIdRoute: typeof AllianceAnnouncementsIdRoute
+  AllianceProposalsIdRoute: typeof AllianceProposalsIdRoute
+}
+
+const AllianceRouteChildren: AllianceRouteChildren = {
+  AllianceDocumentsRoute: AllianceDocumentsRoute,
+  AllianceNodesRoute: AllianceNodesRoute,
+  AllianceIndexRoute: AllianceIndexRoute,
+  AllianceAnnouncementsIdRoute: AllianceAnnouncementsIdRoute,
+  AllianceProposalsIdRoute: AllianceProposalsIdRoute,
+}
+
+const AllianceRouteWithChildren = AllianceRoute._addFileChildren(
+  AllianceRouteChildren,
+)
 
 interface MeSettingsRouteChildren {
   MeSettingsAccountRoute: typeof MeSettingsAccountRoute
@@ -608,22 +897,40 @@ const MeSettingsRouteWithChildren = MeSettingsRoute._addFileChildren(
   MeSettingsRouteChildren,
 )
 
+interface MeGrainsSendRouteChildren {
+  MeGrainsSendScanRoute: typeof MeGrainsSendScanRoute
+}
+
+const MeGrainsSendRouteChildren: MeGrainsSendRouteChildren = {
+  MeGrainsSendScanRoute: MeGrainsSendScanRoute,
+}
+
+const MeGrainsSendRouteWithChildren = MeGrainsSendRoute._addFileChildren(
+  MeGrainsSendRouteChildren,
+)
+
 interface MeRouteChildren {
   MeEventsRoute: typeof MeEventsRoute
   MeGrainsRoute: typeof MeGrainsRoute
+  MeIdentityRoute: typeof MeIdentityRoute
   MePostsRoute: typeof MePostsRoute
   MeSettingsRoute: typeof MeSettingsRouteWithChildren
   MeTasksRoute: typeof MeTasksRoute
   MeIndexRoute: typeof MeIndexRoute
+  MeGrainsReceiveRoute: typeof MeGrainsReceiveRoute
+  MeGrainsSendRoute: typeof MeGrainsSendRouteWithChildren
 }
 
 const MeRouteChildren: MeRouteChildren = {
   MeEventsRoute: MeEventsRoute,
   MeGrainsRoute: MeGrainsRoute,
+  MeIdentityRoute: MeIdentityRoute,
   MePostsRoute: MePostsRoute,
   MeSettingsRoute: MeSettingsRouteWithChildren,
   MeTasksRoute: MeTasksRoute,
   MeIndexRoute: MeIndexRoute,
+  MeGrainsReceiveRoute: MeGrainsReceiveRoute,
+  MeGrainsSendRoute: MeGrainsSendRouteWithChildren,
 }
 
 const MeRouteWithChildren = MeRoute._addFileChildren(MeRouteChildren)
@@ -660,6 +967,7 @@ const ProfileActorRouteWithChildren = ProfileActorRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AllianceRoute: AllianceRouteWithChildren,
   ComposeRoute: ComposeRoute,
   EventsRoute: EventsRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
@@ -672,7 +980,11 @@ const rootRouteChildren: RootRouteChildren = {
   SemiCallbackRoute: SemiCallbackRoute,
   TasksRoute: TasksRouteWithChildren,
   EventsEventIdRoute: EventsEventIdRoute,
+  NodesNodeIdRoute: NodesNodeIdRoute,
   ProfileActorRoute: ProfileActorRouteWithChildren,
+  NodesNodeIdEventsRoute: NodesNodeIdEventsRoute,
+  NodesNodeIdGrainsRoute: NodesNodeIdGrainsRoute,
+  NodesNodeIdTasksRoute: NodesNodeIdTasksRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

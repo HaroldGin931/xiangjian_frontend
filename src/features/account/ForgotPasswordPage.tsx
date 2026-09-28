@@ -1,7 +1,7 @@
 import { Button } from '@astryxdesign/core/Button'
 import { TextInput } from '@astryxdesign/core/TextInput'
-import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, KeyRound } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
+import { KeyRound } from 'lucide-react'
 import { useState } from 'react'
 
 import { resetRicePassword, type VerificationChannel } from './api'
@@ -39,7 +39,6 @@ export function ForgotPasswordPage() {
 
   return (
     <div className="page narrow-page account-entry-page">
-      <Link to="/login" className="back-link"><ArrowLeft size={16} /> 登录</Link>
       <section className="page-intro">
         <div className="eyebrow">验证已登记的联系方式</div>
         <h1>找回密码</h1>

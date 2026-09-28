@@ -1,6 +1,5 @@
 import { ImageGroup } from '~/components/ContentImages'
 import { ContactField } from '~/components/ContactField'
-import { usePanelReady } from '~/components/DetailDialog'
 import { LoadingState } from '~/components/LoadingState'
 import { useTimeBoundary } from '~/components/useTimeBoundary'
 import { attachmentImages } from '~/lib/attachments'
@@ -15,12 +14,12 @@ import { LoginLink } from '../session/LoginLink'
 import { applicationStatusLabel, eventAcceptsApplications, eventAction, eventDisplayStatus, eventStatusLabel, getEvent, type EventActionInput, type RiceEvent } from './api'
 
 const historyLabels: Record<string, string> = { applied: '提交申请', completed: '活动结束', application_completed: '完成参与记录', application_cancelled: '报名已取消', application_withdrawn: '撤销申请', created: '创建活动', published: '发布活动', application_created: '提交申请', application_approved: '通过申请', application_rejected: '拒绝申请', application_removed: '移除报名', started: '活动开始', finished: '活动结束', cancelled: '活动取消', application_not_selected: '申请未入选' }
-export function EventDetail({ eventId, loadEvent }: { eventId: string; loadEvent?: (token?: string) => Promise<RiceEvent> }) {
+export function EventDetail({ eventId }: { eventId: string }) {
   const { session } = useStoredSession()
-  return <EventDetails key={`${eventId}:${session?.user.id ?? 'guest'}`} eventId={eventId} loadEvent={loadEvent} />
+  return <EventDetails key={`${eventId}:${session?.user.id ?? 'guest'}`} eventId={eventId} />
 }
 
-function EventDetails({ eventId, loadEvent }: { eventId: string; loadEvent?: (token?: string) => Promise<RiceEvent> }) {
+function EventDetails({ eventId }: { eventId: string }) {
   const { session, isReady } = useStoredSession()
   const [event, setEvent] = useState<RiceEvent | null>(null)
   const now = useTimeBoundary(event && ['open', 'in_progress'].includes(event.status) ? [event.application_deadline, event.starts_at, event.ends_at] : [])
@@ -30,14 +29,13 @@ function EventDetails({ eventId, loadEvent }: { eventId: string; loadEvent?: (to
   const [confirm, setConfirm] = useState<'apply' | 'withdraw' | 'finish' | 'cancel' | null>(null)
   const [applicationAction, setApplicationAction] = useState<{ id: string; action: 'reject' | 'remove' } | null>(null)
   const [busy, setBusy] = useState(false)
-  usePanelReady(isReady && Boolean(event || error))
   useEffect(() => {
     if (!isReady) return
     let active = true
     setError('')
-    void (!event && loadEvent ? loadEvent(session?.token) : getEvent({ data: { id: eventId, token: session?.token } })).then((value) => { if (active) setEvent(value) }).catch((e) => { if (active) setError(e.message) })
+    void getEvent({ data: { id: eventId, token: session?.token } }).then((value) => { if (active) setEvent(value) }).catch((e) => { if (active) setError(e.message) })
     return () => { active = false }
-  }, [isReady, session?.token, eventId, loadEvent, now])
+  }, [isReady, session?.token, eventId, now])
   const run = async (action: EventActionInput['action'], applicationId?: string) => {
     if (!session || busy) return
     if (action === 'apply' && !canApply) return

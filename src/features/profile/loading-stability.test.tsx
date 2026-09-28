@@ -42,6 +42,8 @@ it('renders the prefetched profile and balance together on first render', () => 
   expect(html).toContain('当前用户')
   expect(html).toContain('<strong>130</strong>')
   expect(html).toContain('<b>123</b>')
+  expect(html).toContain('href="/me/posts"')
+  expect(html).toContain('href="/alliance"')
   expect(html).not.toContain('>—<')
   expect(html).not.toContain('节点稻米')
 })
@@ -70,31 +72,15 @@ it('does not reuse a balance from an earlier login to the same account', () => {
 })
 
 it('does not guess task role tabs or zero counts before the personal history has loaded', () => {
-  const html = renderToStaticMarkup(<MyTasksPage embedded />)
+  const html = renderToStaticMarkup(<MyTasksPage />)
   expect(html).toContain('正在加载任务')
   expect(html).not.toContain('my-task-tabs')
   expect(html).not.toContain('这里还没有任务')
 })
 
-it('opens wallet history from the current account snapshot without an empty loading state', () => {
-  const html = renderToStaticMarkup(<GrainHistoryPage embedded initialData={initialData} />)
-  expect(html).toContain('<strong>130</strong>')
-  expect(html).not.toContain('正在加载明细')
-  expect(html).toContain('还没有资金记录')
-  const otherAccount = renderToStaticMarkup(<GrainHistoryPage embedded initialData={{ ...initialData, accountId: 'other' }} />)
-  expect(otherAccount).not.toContain('<strong>130</strong>')
-  expect(otherAccount).toContain('正在加载明细')
-})
-
-it('opens a prefetched community history immediately and rejects another wallet or session', () => {
-  const snapshot = { ...initialData, nodeId: 'community' }
-  const html = renderToStaticMarkup(<GrainHistoryPage embedded nodeId="community" initialData={snapshot} />)
+it('loads wallet history for the current route instead of reusing the profile balance', () => {
+  const html = renderToStaticMarkup(<GrainHistoryPage nodeId="community" />)
   expect(html).toContain('节点稻米')
-  expect(html).toContain('<strong>130</strong>')
-  expect(html).not.toContain('正在加载明细')
-  for (const stale of [{ ...snapshot, nodeId: 'other' }, { ...snapshot, sessionToken: 'old-session' }, initialData]) {
-    const staleHtml = renderToStaticMarkup(<GrainHistoryPage embedded nodeId="community" initialData={stale} />)
-    expect(staleHtml).not.toContain('<strong>130</strong>')
-    expect(staleHtml).toContain('正在加载明细')
-  }
+  expect(html).toContain('正在加载明细')
+  expect(html).not.toContain('<strong>130</strong>')
 })

@@ -1,7 +1,6 @@
 import { Button } from '@astryxdesign/core/Button'
 import { useEffect, useRef, useState } from 'react'
 import type QrScanner from 'qr-scanner'
-import { DetailDialog } from '~/components/DetailDialog'
 
 export function grainCodeRecipient(value: string, origin: string) {
   const url = new URL(value)
@@ -14,7 +13,7 @@ export function grainCodeRecipient(value: string, origin: string) {
   return recipient
 }
 
-export function GrainScannerDialog({ onRead, onClose }: { onRead: (recipient: string) => void; onClose: () => void }) {
+export function GrainScannerPage({ onRead }: { onRead: (recipient: string) => void }) {
   const video = useRef<HTMLVideoElement>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const active = useRef(true)
@@ -23,7 +22,7 @@ export function GrainScannerDialog({ onRead, onClose }: { onRead: (recipient: st
   const [busy, setBusy] = useState(false)
   const accept = (value: string) => {
     if (!active.current) return
-    try { onRead(grainCodeRecipient(value, window.location.origin)) }
+    try { const recipient = grainCodeRecipient(value, window.location.origin); active.current = false; onRead(recipient) }
     catch { setError('无法识别收款码，请扫描“接收稻米”页面生成的二维码。') }
   }
   useEffect(() => {
@@ -50,8 +49,7 @@ export function GrainScannerDialog({ onRead, onClose }: { onRead: (recipient: st
       if (active.current) setError('图片中未识别到二维码，请选择清晰的收款码图片。')
     } finally { if (active.current) setBusy(false) }
   }
-  return <DetailDialog title="扫描收款码" className="post-dialog business-dialog compose-close-dialog" onClose={onClose}>
-    <div className="business-panel form-stack">
+  return <div className="page business-panel form-stack">
       <p>将收款码放入镜头内，识别后请核对收款人。</p>
       <video ref={video} className="grain-scanner-video" muted playsInline aria-label="收款码扫描画面" />
       {cameraError && <p className="muted" role="status">{cameraError}</p>}
@@ -59,5 +57,4 @@ export function GrainScannerDialog({ onRead, onClose }: { onRead: (recipient: st
       <input ref={fileInput} type="file" accept="image/*" hidden aria-label="二维码图片" onChange={(event) => { void readImage(event.target.files?.[0]); event.target.value = '' }} />
       <div className="form-actions"><Button label="选择二维码图片" variant="secondary" isLoading={busy} isDisabled={busy} onClick={() => fileInput.current?.click()} /></div>
     </div>
-  </DetailDialog>
 }

@@ -1,5 +1,5 @@
-import { Link, useRouter, useRouterState } from '@tanstack/react-router'
-import { Bell, Search } from 'lucide-react'
+import { Link, useCanGoBack, useRouter, useRouterState } from '@tanstack/react-router'
+import { ArrowLeft, Bell, Search } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import {
@@ -7,24 +7,20 @@ import {
   getTaskNotifications,
   NOTIFICATIONS_READ_EVENT,
 } from '~/features/notifications/api'
-import { NotificationsPage } from '~/features/notifications/NotificationsPage'
 import { applyNotificationState, NOTIFICATION_STORAGE_PREFIX } from '~/features/notifications/local-state'
-import { DetailDialog } from './DetailDialog'
+import { loginReturnTo } from '~/features/session/login-redirect'
 import { LoadingProgress } from './LoadingProgress'
 import { LoadingState } from './LoadingState'
-import { ComposePanel, type ComposeKind, type ComposeHandle } from '~/features/feed/ComposePanel'
 import { useStoredSession } from '~/features/session/session'
 
 export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter()
+  const canGoBack = useCanGoBack()
   const { session, isReady, recoveryError } = useStoredSession()
   const previousSession = useRef<{ accountId?: string; token?: string } | null>(null)
-  const [compose, setCompose] = useState<ComposeKind | null>(null)
-  const composeRef = useRef<ComposeHandle>(null)
-  const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false)
   const [notificationError, setNotificationError] = useState('')
-  const pathname = useRouterState({ select: (state) => (state.resolvedLocation ?? state.location).pathname })
+  const pathname = useRouterState({ select: (state) => (state.resolvedLocation ?? state.location).pathname.replace(/\/+$/, '') || '/' })
   const navigating = useRouterState({ select: (state) => state.isLoading && state.location.href !== state.resolvedLocation?.href })
   const href = useRouterState({ select: (state) => state.location.href })
   useEffect(() => {
@@ -41,16 +37,31 @@ export function AppShell({ children }: { children: ReactNode }) {
     }
     previousSession.current = { accountId: session?.user.id, token: session?.token }
   }, [router, isReady, session?.user.id, session?.token])
-  const isStandalone =
-    ['/login', '/register', '/forgot-password', '/post', '/search', '/compose'].includes(pathname) ||
-    pathname.startsWith('/tasks/') ||
-    pathname.startsWith('/profile/')
-
-
-  useEffect(() => {
-    setNotificationsOpen(false)
-    setCompose(null)
-  }, [href, session?.user.id])
+  const isMainPage = ['/', '/tasks', '/events', '/me'].includes(pathname)
+  const nodeChild = pathname.match(/^\/nodes\/([^/]+)\/(?:tasks|events|grains)$/)
+  const profileChild = pathname.match(/^\/profile\/([^/]+)\/(?:followers|following)$/)
+  const parentPage = pathname.startsWith('/tasks/') ? '/tasks'
+    : pathname.startsWith('/events/') ? '/events'
+    : !session && pathname.startsWith('/me/') ? '/me'
+    : pathname === '/me/grains/send/scan' ? '/me/grains/send'
+    : pathname.startsWith('/me/grains/') ? '/me/grains'
+    : pathname.startsWith('/me/settings/') ? '/me/settings'
+    : pathname.startsWith('/me/') ? '/me'
+    : pathname.startsWith('/alliance/') ? '/alliance'
+    : pathname === '/alliance' ? '/me'
+    : pathname.startsWith('/nodes/') ? '/alliance/nodes'
+    : pathname === '/register' || pathname === '/forgot-password' ? '/login'
+    : pathname.startsWith('/profile/') ? '/'
+    : pathname === '/compose' && href.includes('kind=task') ? '/tasks'
+    : pathname === '/compose' && href.includes('kind=activity') ? '/events'
+    : '/'
+  const goBack = () => {
+    if (canGoBack) router.history.back()
+    else if (pathname === '/register') void router.navigate({ to: '/login', search: { returnTo: loginReturnTo(new URLSearchParams(href.split('?')[1] ?? '').get('returnTo')) } })
+    else if (nodeChild) void router.navigate({ to: '/nodes/$nodeId', params: { nodeId: decodeURIComponent(nodeChild[1]) } })
+    else if (profileChild) void router.navigate({ to: '/profile/$actor', params: { actor: decodeURIComponent(profileChild[1]) } })
+    else void router.navigate({ to: parentPage })
+  }
 
   useEffect(() => {
     if (!isReady) return
@@ -98,27 +109,27 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [isReady, session?.token, session?.pds?.access_jwt])
 
   return (
-    <div className={`app-shell ${isStandalone ? 'standalone-shell' : ''}`}>
+    <div className="app-shell">
       <div className="test-environment">测试环境 · 仅使用测试稻米</div>
-      {!isStandalone ? <header className="topbar">
+      <header className="topbar">
         <div className="topbar-inner">
-          <Link to="/" className="brand" aria-label="返回乡建 DAO 广场">
+          {isMainPage ? <Link to="/" className="brand" aria-label="返回乡建 DAO 广场">
             <span>乡建</span><small>DAO</small>
-          </Link>
-          <div className="topbar-actions">
+          </Link> : <button type="button" className="child-back" aria-label="返回上一页" onClick={goBack}><ArrowLeft size={24} aria-hidden="true" /></button>}
+          {isMainPage && <div className="topbar-actions">
             {!isReady && <span className="session-placeholder" aria-hidden="true" />}
-            {isReady && session && <button type="button" className="header-publish" onClick={() => setCompose(pathname === '/tasks' ? 'task' : pathname === '/events' ? 'activity' : 'post')}>发布</button>}
+            {isReady && session && <Link to="/compose" search={{ kind: pathname === '/tasks' ? 'task' : pathname === '/events' ? 'activity' : 'post' }} className="header-publish">发布</Link>}
             {isReady && !session && <Link to="/login" search={{ returnTo: href }} className="header-publish">登录</Link>}
             <Link to="/search" className="header-search" aria-label="搜索帖子、任务、活动、社区、用户"><Search size={22} aria-hidden="true" /></Link>
-            {isReady && session && <button type="button" className="header-search notification-trigger" aria-label={hasUnreadNotifications ? '通知，有新消息' : '通知'} aria-haspopup="dialog" onClick={() => setNotificationsOpen(true)}><Bell size={22} aria-hidden="true" />{hasUnreadNotifications && <i className="notification-dot" aria-hidden="true" />}</button>}
-          </div>
+            {isReady && session && <Link to="/notifications" className="header-search notification-trigger" aria-label={hasUnreadNotifications ? '通知，有新消息' : '通知'}><Bell size={22} aria-hidden="true" />{hasUnreadNotifications && <i className="notification-dot" aria-hidden="true" />}</Link>}
+          </div>}
         </div>
-      </header> : null}
+      </header>
 
       <main key={session?.user.id ?? 'guest'} className="page-frame">{recoveryError && <p className="inline-error" role="alert">{recoveryError}</p>}{session && notificationError && <p className="inline-error" role="alert">{notificationError}</p>}{isReady ? children : <LoadingState label="正在恢复登录状态" className="page initial-loading loading-line" />}</main>
       {navigating && <LoadingProgress label="正在加载页面…" />}
 
-      {!isStandalone ? <nav className="bottom-nav" aria-label="主要导航">
+      <nav className="bottom-nav" aria-label="主要导航">
         <Link to="/" activeProps={{}} className={`bottom-link${pathname === '/' ? ' active' : ''}`}>
           广场
         </Link>
@@ -137,9 +148,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         >
           我的
         </Link>
-      </nav> : null}
-      {session && compose && <DetailDialog title="发布" className="post-dialog business-dialog compose-dialog" onClose={() => composeRef.current?.requestClose()}><ComposePanel ref={composeRef} initialKind={compose} onClose={() => setCompose(null)} onPublished={() => setCompose(null)} /></DetailDialog>}
-      {session && notificationsOpen && <DetailDialog title="通知" onClose={() => setNotificationsOpen(false)}><NotificationsPage key={session?.user.id ?? 'guest'} embedded /></DetailDialog>}
+      </nav>
     </div>
   )
 }

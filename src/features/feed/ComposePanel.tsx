@@ -1,9 +1,9 @@
 import { Button } from '@astryxdesign/core/Button'
 import { TextArea } from '~/components/AutoTextArea'
 import { useBlocker, useNavigate } from '@tanstack/react-router'
-import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ImagePicker } from '~/components/ContentImages'
-import { DetailDialog, usePanelReady } from '~/components/DetailDialog'
+import { DetailDialog } from '~/components/DetailDialog'
 import { LoadingState } from '~/components/LoadingState'
 import { preparePostImage, readFileBase64, readImageAspectRatio } from '~/lib/images'
 import type { PdsImage } from '~/lib/models'
@@ -19,14 +19,13 @@ import { deletePostDraft, readPostDraft, savePostDraft } from './post-draft'
 
 export type ComposeKind = 'post' | 'activity' | 'task'
 export const composeKinds: Array<{ value: ComposeKind; label: string }> = [{ value: 'post', label: '发帖' }, { value: 'task', label: '发任务' }, { value: 'activity', label: '发活动' }]
-export type ComposeHandle = { requestClose: () => void }
-type ComposePanelProps = { initialKind?: ComposeKind; onPublished?: () => void; onClose?: () => void; ref?: Ref<ComposeHandle> }
+type ComposePanelProps = { initialKind?: ComposeKind }
 export function ComposePanel(props: ComposePanelProps) {
   const { session } = useStoredSession()
   return <ComposeContent key={session?.user.id ?? 'guest'} {...props} />
 }
 
-function ComposeContent({ initialKind = 'post', onPublished, onClose, ref }: ComposePanelProps) {
+function ComposeContent({ initialKind = 'post' }: ComposePanelProps) {
   const { session, isReady } = useStoredSession()
   const navigate = useNavigate()
   const mounted = useRef(false)
@@ -72,7 +71,6 @@ function ComposeContent({ initialKind = 'post', onPublished, onClose, ref }: Com
   const [previews, setPreviews] = useState<Array<{ src: string; alt: string }>>([])
   const uploadedImages = useRef(new Map<File, PdsImage>())
   const postRequest = useRef<{ rkey: string; createdAt: string } | null>(null)
-  usePanelReady(isReady && (!session || (managedNodes !== null && draftReady)))
   useEffect(() => {
     if (!session) return
     let active = true
@@ -97,7 +95,6 @@ function ComposeContent({ initialKind = 'post', onPublished, onClose, ref }: Com
     setCloseError(''); setConfirmClose(true)
     return new Promise<boolean>(resolve => { decision.current = resolve })
   }
-  useImperativeHandle(ref, () => ({ requestClose: () => { void requestLeave().then(leave => { if (leave) onClose?.() }) } }))
   useBlocker({
     shouldBlockFn: async () => !(await requestLeave()),
     enableBeforeUnload: () => closeState.current.dirty || closeState.current.busy,
@@ -139,8 +136,7 @@ function ComposeContent({ initialKind = 'post', onPublished, onClose, ref }: Com
     }
     if (remaining.length) { setKind(remaining[0].value); setNotice('发布成功，其他类型的未保存内容已保留。'); return }
     closeState.current = { dirty: false, busy: false }
-    if (onPublished) onPublished()
-    else if (publishedKind === 'task' && taskId) await navigate({ to: '/tasks/$taskId', params: { taskId } })
+    if (publishedKind === 'task' && taskId) await navigate({ to: '/tasks/$taskId', params: { taskId } })
     else await navigate({ to: publishedKind === 'activity' ? '/events' : '/' })
   }
   useEffect(() => {

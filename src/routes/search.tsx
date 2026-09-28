@@ -2,21 +2,17 @@ import { Avatar } from '~/components/Avatar'
 import { Button } from '@astryxdesign/core/Button'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { ArrowLeft, ChevronDown } from 'lucide-react'
+import { ChevronDown } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { DetailDialog } from '~/components/DetailDialog'
 import { LoadingState } from '~/components/LoadingState'
 import { PostCard } from '~/components/PostList'
 import { getPosts } from '~/features/feed/api'
-import { PostThreadDialog } from '~/features/feed/PostThreadDialog'
-import { postCategory } from '~/features/feed/tags'
 import { getEvents, type RiceEvent } from '~/features/events/api'
 import { EventCard } from '~/features/events/EventsPage'
 import { getNodes, type CommunityNode } from '~/features/nodes/api'
-import { NodeCard, NodeDetail } from '~/features/nodes/NodesPanel'
+import { NodeCard } from '~/features/nodes/NodesPanel'
 import { useStoredSession } from '~/features/session/session'
 import { searchUsers } from '~/features/social/api'
-import { UserProfilePage } from '~/features/social/UserProfilePage'
 import { getTaskPage } from '~/features/tasks/api'
 import { TaskCard } from '~/features/tasks/TaskCard'
 import type { RiceTask } from '~/features/tasks/types'
@@ -39,9 +35,6 @@ function SearchResults({ q, session }: { q?: string; session: RiceSession | null
   const [users, setUsers] = useState<RicePublicUser[]>([])
   const [cursors, setCursors] = useState<{ tasks?: string; posts?: string; events?: string; users?: string }>({})
   const [failedGroups, setFailedGroups] = useState<string[]>([])
-  const [selectedPost, setSelectedPost] = useState<PostView | null>(null)
-  const [selectedNode, setSelectedNode] = useState<string | null>(null)
-  const [selectedUser, setSelectedUser] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const version = useRef(0)
@@ -81,11 +74,11 @@ function SearchResults({ q, session }: { q?: string; session: RiceSession | null
   }
   const emptyMessage = (title: string) => failedGroups.includes(title) ? '暂时无法加载，请重试。' : loading ? '' : `没有相关${title}`
   const hasResults = posts.length + tasks.length + events.length + nodes.length + users.length > 0
-  return <div className="page search-page"><header className="standalone-header"><Link to="/" className="back-link" aria-label="返回广场"><ArrowLeft size={20} /></Link><div className="global-search-field"><TextInput label="搜索帖子、任务、活动、社区、用户" isLabelHidden placeholder="搜索帖子、任务、活动、社区、用户" value={query} onChange={setQuery} onEnter={() => void search()} width="100%" hasClear /><Button label="搜索" variant="primary" isDisabled={!query.trim() || loading} clickAction={() => search()} /></div></header>
+  return <div className="page search-page"><header className="search-header"><div className="global-search-field"><TextInput label="搜索帖子、任务、活动、社区、用户" isLabelHidden placeholder="搜索帖子、任务、活动、社区、用户" value={query} onChange={setQuery} onEnter={() => void search()} width="100%" hasClear /><Button label="搜索" variant="primary" isDisabled={!query.trim() || loading} clickAction={() => search()} /></div></header>
     {error && <p className="inline-error" role="alert">{error}</p>}{loading && <LoadingState label={hasResults ? '正在加载更多结果…' : '正在搜索…'} />}
     {!searched ? <p className="search-hint">输入关键词，搜索帖子、任务、活动、社区、用户。</p> : loading && !hasResults ? null : <div key={searched}>
       <SearchGroup title="帖子" count={posts.length} hasMore={!!cursors.posts} emptyMessage={emptyMessage('帖子')}>
-        <div className="post-list">{posts.map((post) => <PostCard post={post} key={post.uri} onOpenPost={() => setSelectedPost(post)} />)}</div>
+        <div className="post-list">{posts.map((post) => <PostCard post={post} key={post.uri} />)}</div>
         {cursors.posts && <Button label="更多帖子" variant="ghost" isDisabled={loading} clickAction={() => more('posts')} />}
       </SearchGroup>
       <SearchGroup title="任务" count={tasks.length} hasMore={!!cursors.tasks} emptyMessage={emptyMessage('任务')}>
@@ -97,18 +90,16 @@ function SearchResults({ q, session }: { q?: string; session: RiceSession | null
         {cursors.events && <Button label="更多活动" variant="ghost" isDisabled={loading} clickAction={() => more('events')} />}
       </SearchGroup>
       <SearchGroup title="社区" count={nodes.length} emptyMessage={emptyMessage('社区')}>
-        <div className="node-list">{nodes.map((node) => <NodeCard node={node} onOpen={() => setSelectedNode(node.id)} key={node.id} />)}</div>
+        <div className="node-list">{nodes.map((node) => <NodeCard node={node} key={node.id} />)}</div>
       </SearchGroup>
       <SearchGroup title="用户" count={users.length} hasMore={!!cursors.users} emptyMessage={emptyMessage('用户')}>
-        <div className="people-list">{users.map((user) => <button type="button" onClick={() => setSelectedUser(user.did)} className="person-row search-person-row" key={user.id}>
+        <div className="people-list">{users.map((user) => <Link to="/profile/$actor" params={{ actor: user.did }} className="person-row search-person-row" key={user.id}>
           <Avatar name={user.nickname || user.handle} src={user.avatar?.url} />
           <span className="person-copy"><strong>{user.nickname || user.handle}</strong><small>@{user.handle}</small>{user.bio && <p>{user.bio}</p>}</span>
-        </button>)}</div>
+        </Link>)}</div>
         {cursors.users && <Button label="更多用户" variant="ghost" isDisabled={loading} clickAction={() => more('users')} />}
       </SearchGroup>
     </div>}
-    {selectedPost && <PostThreadDialog uri={selectedPost.uri} category={postCategory(selectedPost.record)} focusReply={false} onClose={() => setSelectedPost(null)} />}{selectedNode && <DetailDialog title="社区详情" onClose={() => setSelectedNode(null)}><NodeDetail nodeId={selectedNode} /></DetailDialog>}
-    {selectedUser && <DetailDialog title="个人主页" onClose={() => setSelectedUser(null)}><UserProfilePage actor={selectedUser} embedded /></DetailDialog>}
   </div>
 }
 

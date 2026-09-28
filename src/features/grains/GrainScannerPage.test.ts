@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { grainCodeRecipient } from './GrainScannerDialog'
+import { grainCodeRecipient } from './GrainScannerPage'
 
 it('reads current and original receive codes without accepting unrelated links or recipient injection', () => {
   const origin = 'https://demo.wamo.social'

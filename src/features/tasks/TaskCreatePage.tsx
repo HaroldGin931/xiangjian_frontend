@@ -6,7 +6,6 @@ import { ImageGroup, ImagePicker } from '~/components/ContentImages'
 import { PublishSchedule } from '~/components/PublishSchedule'
 import { LoadingState } from '~/components/LoadingState'
 import { PublishSteps } from '~/components/PublishSteps'
-import { usePanelReady } from '~/components/DetailDialog'
 import { useRiceImages } from '../media/useRiceImages'
 import { addMinutes, beijingTime, beijingTimeIso, nextTimeSlot, roundedTimeValue } from '~/lib/date-time'
 import { useFormCloseState, type FormCloseState } from '~/lib/form-state'
@@ -31,7 +30,6 @@ export function TaskCreatePage({ session, nodes, onPublished, active, onCloseSta
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [submitting, setSubmitting] = useState<'draft' | 'open' | null>(null)
-  usePanelReady(!active || !draftLoading)
   const requestId = useRef('')
   const imageSelection = useRiceImages()
   const markSaved = useFormCloseState(JSON.stringify([nodeId, title, description, organizerContact, requirement, applicationDeadline, executionDeadline, rewardAmount, imageSelection.images.map(image => image.src)]), !draftLoading, !!submitting, onCloseStateChange, () => submit('draft'))

@@ -3,7 +3,7 @@ import { Button } from '@astryxdesign/core/Button'
 import { Selector } from '@astryxdesign/core/Selector'
 import { TextInput } from '@astryxdesign/core/TextInput'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, CircleAlert } from 'lucide-react'
+import { CircleAlert } from 'lucide-react'
 import { useState } from 'react'
 
 import { useStoredSession } from '../session/session'
@@ -80,7 +80,6 @@ export function AccountSecurityPage() {
 
   return (
     <div className="page narrow-page account-security-page">
-      <Link to="/me/settings" className="back-link"><ArrowLeft size={16} /> 设置</Link>
       <h1>账号与安全</h1>
       <section className="account-summary">
         <div className="account-summary-row">

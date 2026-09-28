@@ -1,53 +1,16 @@
 import { IconButton } from '@astryxdesign/core/IconButton'
 import { X } from 'lucide-react'
-import { createContext, useCallback, useContext, useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
-import { LoadingProgress } from './LoadingProgress'
-
-const PanelReadiness = createContext<((id: string, pending: boolean) => void) | null>(null)
-
-export function usePanelReady(ready: boolean) {
-  const register = useContext(PanelReadiness)
-  const id = useId()
-  useLayoutEffect(() => {
-    register?.(id, !ready)
-    return () => register?.(id, false)
-  }, [id, ready, register])
-}
+import { useEffect, useId, useRef, type ReactNode } from 'react'
 
 export function DetailDialog({ title, onClose, children, className = 'post-dialog business-dialog' }: { title: string; onClose: () => void; children: ReactNode; className?: string }) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
-  const pending = useRef(new Set<string>())
-  const [revision, update] = useState(0)
-  const [opened, setOpened] = useState(false)
-  const register = useCallback((id: string, waiting: boolean) => {
-    if (pending.current.has(id) === waiting) return
-    if (waiting) pending.current.add(id)
-    else pending.current.delete(id)
-    update((value) => value + 1)
-  }, [])
-  useLayoutEffect(() => {
-    if (!pending.current.size && !ref.current?.open) {
-      ref.current?.showModal()
-      setOpened(true)
-    }
-  }, [revision])
   useEffect(() => {
     const dialog = ref.current
+    dialog?.showModal()
     return () => dialog?.close()
   }, [])
-  useEffect(() => {
-    if (opened) return
-    const cancel = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return
-      event.preventDefault(); event.stopPropagation(); onClose()
-    }
-    document.addEventListener('keydown', cancel, true)
-    return () => document.removeEventListener('keydown', cancel, true)
-  }, [opened, onClose])
-  return <PanelReadiness.Provider value={register}>
-    {!opened && <LoadingProgress label={`正在准备${title}`} />}
-    <dialog ref={ref} className={className} aria-labelledby={titleId}
+  return <dialog ref={ref} className={className} aria-labelledby={titleId}
     onCancel={(event) => {
       if (event.target !== event.currentTarget) return
       event.preventDefault(); event.stopPropagation(); onClose()
@@ -58,5 +21,4 @@ export function DetailDialog({ title, onClose, children, className = 'post-dialo
       <div className="post-dialog-scroll">{children}</div>
     </div>
   </dialog>
-  </PanelReadiness.Provider>
 }

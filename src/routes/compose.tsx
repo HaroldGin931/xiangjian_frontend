@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { ComposePanel, type ComposeKind } from '~/features/feed/ComposePanel'
 import { useStoredSession } from '~/features/session/session'
 export const Route = createFileRoute('/compose')({
@@ -8,5 +8,5 @@ export const Route = createFileRoute('/compose')({
 function ComposePage() {
   const { kind } = Route.useSearch()
   const { session } = useStoredSession()
-  return <><Link to={kind === 'task' ? '/tasks' : kind === 'activity' ? '/events' : '/'} className="back-link">取消</Link><ComposePanel key={session?.user.id ?? 'guest'} initialKind={kind} /></>
+  return <ComposePanel key={session?.user.id ?? 'guest'} initialKind={kind} />
 }

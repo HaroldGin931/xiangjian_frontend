@@ -7,7 +7,7 @@ import { createPortal } from 'react-dom'
 import { IMAGE_ACCEPT, MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, imageSizeLabel, validateImageFiles } from '~/lib/images'
 import '~/styles/images.css'
 
-export type PreviewImage = { src: string; alt: string }
+export type PreviewImage = { src: string; alt: string; fullsize?: string }
 
 function ContentImage({ src, alt, loading, canRetry = false }: PreviewImage & { loading?: 'lazy'; canRetry?: boolean }) {
   const [failed, setFailed] = useState(false)
@@ -24,15 +24,15 @@ export function ImageCover({ images }: { images: PreviewImage[] }) {
   return <span className="content-image-cover"><ContentImage key={images[0].src} {...images[0]} loading="lazy" />{images.length > 1 && <span className="content-image-count">{images.length} 张图片</span>}</span>
 }
 
-export function ImageGroup({ images, onOpen }: { images: PreviewImage[]; onOpen?: () => void }) {
+export function ImageGroup({ images, className = '' }: { images: PreviewImage[]; className?: string }) {
   const [selected, setSelected] = useState<number | null>(null)
   const opener = useRef<HTMLButtonElement>(null)
   if (!images.length) return null
   return <>
-    <Grid columns={images.length === 4 ? 2 : Math.min(images.length, 3)} className={`content-image-group${onOpen ? ' post-image-grid' : ''}`} aria-label="图片">
-      {images.map((image, index) => <button type="button" className="content-image-thumbnail" key={`${image.src}:${index}`} aria-label={`查看第 ${index + 1} 张图片${image.alt ? `：${image.alt}` : ''}`} onClick={(event) => { if (onOpen) return onOpen(); opener.current = event.currentTarget; setSelected(index) }}><ContentImage {...image} loading="lazy" /></button>)}
+    <Grid columns={images.length === 4 ? 2 : Math.min(images.length, 3)} className={`content-image-group ${className}`} aria-label="图片">
+      {images.map((image, index) => <button type="button" className="content-image-thumbnail" key={`${image.src}:${index}`} aria-label={`查看第 ${index + 1} 张图片${image.alt ? `：${image.alt}` : ''}`} onClick={(event) => { opener.current = event.currentTarget; setSelected(index) }}><ContentImage {...image} loading="lazy" /></button>)}
     </Grid>
-    {!onOpen && selected !== null && <ImageViewer images={images} initialIndex={selected} opener={opener.current} onClose={() => setSelected(null)} />}
+    {selected !== null && <ImageViewer images={images} initialIndex={selected} opener={opener.current} onClose={() => setSelected(null)} />}
   </>
 }
 
@@ -58,7 +58,7 @@ function ImageViewer({ images, initialIndex, opener, onClose }: { images: Previe
     }}>
     <div className="post-dialog-shell">
       <header className="post-dialog-header"><strong id={titleId}>查看图片</strong><IconButton label="关闭图片" icon={<X size={20} />} variant="ghost" onClick={onClose} /></header>
-      <div className="content-image-stage"><ContentImage key={image.src} src={image.src} alt={image.alt || `第 ${currentIndex + 1} 张图片`} canRetry /></div>
+      <div className="content-image-stage"><ContentImage key={image.fullsize ?? image.src} src={image.fullsize ?? image.src} alt={image.alt || `第 ${currentIndex + 1} 张图片`} canRetry /></div>
       <footer className="content-image-controls"><Button label="上一张" variant="secondary" isDisabled={currentIndex === 0} onClick={() => move(-1)} /><span role="status" aria-live="polite">{currentIndex + 1} / {images.length}</span><Button label="下一张" variant="secondary" isDisabled={currentIndex === images.length - 1} onClick={() => move(1)} /></footer>
     </div>
   </dialog>, document.body)

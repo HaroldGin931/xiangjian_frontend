@@ -1,13 +1,12 @@
 import { ImageGroup } from '~/components/ContentImages'
 import { ContactField } from '~/components/ContactField'
-import { usePanelReady } from '~/components/DetailDialog'
 import { LoadingState } from '~/components/LoadingState'
 import { useTimeBoundary } from '~/components/useTimeBoundary'
 import { attachmentImages } from '~/lib/attachments'
 import { Button } from '@astryxdesign/core/Button'
 import { TextArea } from '~/components/AutoTextArea'
 import { Link } from '@tanstack/react-router'
-import { ArrowLeft, CheckCircle2, CircleAlert, Sprout } from 'lucide-react'
+import { CheckCircle2, CircleAlert, Sprout } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 import { formatTimestamp } from '~/lib/format'
@@ -31,12 +30,12 @@ import {
   type TaskSubmission,
 } from './types'
 
-export function TaskDetailPage({ taskId, embedded = false, loadTask }: { taskId: string; embedded?: boolean; loadTask?: (token?: string) => Promise<RiceTask> }) {
+export function TaskDetailPage({ taskId }: { taskId: string }) {
   const { session } = useStoredSession()
-  return <TaskDetails key={`${taskId}:${session?.user.id ?? 'guest'}`} taskId={taskId} embedded={embedded} loadTask={loadTask} />
+  return <TaskDetails key={`${taskId}:${session?.user.id ?? 'guest'}`} taskId={taskId} />
 }
 
-function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded: boolean; loadTask?: (token?: string) => Promise<RiceTask> }) {
+function TaskDetails({ taskId }: { taskId: string }) {
   const { session, isReady } = useStoredSession()
   const [task, setTask] = useState<RiceTask | null>(null)
   const now = useTimeBoundary(task?.status === 'open' ? [task.application_deadline] : task && ['in_progress', 'under_review'].includes(task.status) ? [task.execution_deadline] : [])
@@ -52,18 +51,17 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
   const [result, setResult] = useState('')
   const [reviewReason, setReviewReason] = useState('')
 
-  usePanelReady(isReady && Boolean(task || (!loading && error)))
   useEffect(() => {
     if (!isReady) return
     let active = true
     setLoading(true)
     setError('')
-    void (loadTask ? loadTask(session?.token) : getTask({ data: { id: taskId, token: session?.token } }))
+    void getTask({ data: { id: taskId, token: session?.token } })
       .then((next) => { if (active) setTask(next) })
       .catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : '任务暂时无法加载') })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
-  }, [isReady, session?.token, taskId, loadTask])
+  }, [isReady, session?.token, taskId])
 
   const pendingSubmission = useMemo(
     () => task?.submissions?.find((submission) => submission.status === 'pending') ?? null,
@@ -105,7 +103,6 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
 
   return (
     <div className="page task-detail-page">
-      {!embedded && <Link to="/tasks" className="back-link"><ArrowLeft size={16} /> 任务</Link>}
       <article className="task-detail-card">
         <header className="task-detail-heading">
           <div>

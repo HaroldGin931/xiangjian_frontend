@@ -1,12 +1,11 @@
 import { Button } from '@astryxdesign/core/Button'
 import { EmptyState } from '@astryxdesign/core/EmptyState'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
-import { ArrowLeft, Pencil } from 'lucide-react'
+import { Pencil } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { authorDisplayName } from '~/lib/format'
 import { Avatar } from '~/components/Avatar'
-import { usePanelReady } from '~/components/DetailDialog'
 import { LoadingState } from '~/components/LoadingState'
 import type { SocialProfile } from '~/lib/models'
 
@@ -15,22 +14,21 @@ import { getSocialProfile, toggleFollow } from './api'
 import { PublicProfileContent } from './PublicProfileContent'
 import { PersonalGrainActions } from '../grains/PersonalGrainActions'
 
-type UserProfileProps = { actor: string; onEdit?: () => void; embedded?: boolean; initialSend?: boolean }
+type UserProfileProps = { actor: string; initialSend?: boolean }
 
 export function UserProfilePage(props: UserProfileProps) {
   const { session } = useStoredSession()
   return <UserProfileContent key={`${props.actor}:${session?.user.id ?? 'guest'}`} {...props} />
 }
 
-function UserProfileContent({ actor, onEdit, embedded = false, initialSend = false }: UserProfileProps) {
-  const { session, isReady } = useStoredSession()
+function UserProfileContent({ actor, initialSend = false }: UserProfileProps) {
+  const { session } = useStoredSession()
   const navigate = useNavigate()
   const returnTo = useRouterState({ select: (state) => state.location.href })
   const [profile, setProfile] = useState<SocialProfile | null>(null)
   const [error, setError] = useState('')
   const [followError, setFollowError] = useState('')
   const [isFollowing, setFollowing] = useState(false)
-  usePanelReady(isReady && Boolean(profile || error))
 
   useEffect(() => {
     let active = true
@@ -44,6 +42,10 @@ function UserProfileContent({ actor, onEdit, embedded = false, initialSend = fal
       })
     return () => { active = false }
   }, [actor, session?.pds.access_jwt])
+
+  useEffect(() => {
+    if (initialSend && profile) void navigate({ to: '/me/grains/send', search: { to: profile.did }, replace: true })
+  }, [initialSend, profile, navigate])
 
   const ownProfile = Boolean(profile && session?.pds.did === profile.did)
 
@@ -83,18 +85,11 @@ function UserProfileContent({ actor, onEdit, embedded = false, initialSend = fal
 
   return (
     <div className="page social-profile-page">
-      {!onEdit && !embedded && <header className="standalone-header social-page-header">
-        <Link to="/" className="back-link" aria-label="返回广场">
-          <ArrowLeft size={18} aria-hidden="true" />
-        </Link>
-        <strong>用户主页</strong>
-      </header>}
-
       {error ? <div className="form-error" role="alert">{error}</div> : null}
       {profile ? (
         <>
           <section className="social-profile-card">
-            {ownProfile && onEdit ? <button type="button" className="profile-edit-link" aria-label="编辑资料" onClick={onEdit}><Pencil size={20} /></button> : ownProfile ? (
+            {ownProfile ? (
               <Link
                 to="/me/settings/profile"
                 className="profile-edit-link"
@@ -126,7 +121,7 @@ function UserProfileContent({ actor, onEdit, embedded = false, initialSend = fal
               </div>
             ) : null}
             {followError ? <div className="social-follow-error" role="alert">{followError}</div> : null}
-            <PersonalGrainActions key={`${profile.did}:${initialSend}`} to={profile.did} initialSend={initialSend} />
+            <PersonalGrainActions key={profile.did} to={profile.did} />
           </section>
 
           {profile.socialAvailable !== false && <nav className="social-counts" aria-label="关注关系">

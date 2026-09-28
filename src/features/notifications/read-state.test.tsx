@@ -17,7 +17,7 @@ vi.mock('./api', async (original) => ({
 vi.mock('../session/session', () => ({ useStoredSession: () => ({
   isReady: true, session: { token: 'rice-token', pds: { access_jwt: 'pds-token', did: 'did:plc:reader' } },
 }) }))
-vi.mock('~/components/DetailDialog', () => ({ DetailDialog: () => null, usePanelReady: () => undefined }))
+vi.mock('@tanstack/react-router', () => ({ useNavigate: () => vi.fn() }))
 vi.mock('react', async (original) => ({
   ...await original<typeof import('react')>(),
   useState: (initial: unknown) => {
@@ -51,7 +51,7 @@ function elements(node: ReactNode): Array<ReactElement<Record<string, unknown>>>
 
 function render() {
   mock.index = 0
-  const inbox = NotificationsPage({ embedded: true })
+  const inbox = NotificationsPage()
   const view = (inbox.type as (props: typeof inbox.props) => ReactNode)(inbox.props)
   mock.pending.splice(0).forEach((effect) => effect())
   return elements(view)

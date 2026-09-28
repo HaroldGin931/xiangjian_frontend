@@ -6,7 +6,6 @@ import { ImageGroup, ImagePicker } from '~/components/ContentImages'
 import { PublishSchedule } from '~/components/PublishSchedule'
 import { LoadingState } from '~/components/LoadingState'
 import { PublishSteps } from '~/components/PublishSteps'
-import { usePanelReady } from '~/components/DetailDialog'
 import { useRiceImages } from '../media/useRiceImages'
 import { addMinutes, beijingTime, beijingTimeIso, nextTimeSlot, roundedTimeValue } from '~/lib/date-time'
 import { useFormCloseState, type FormCloseState } from '~/lib/form-state'
@@ -58,7 +57,6 @@ export function EventCreateForm({ session, nodes, onPublished, active, onCloseSt
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
-  usePanelReady(!active || !loading)
   const requestId = useRef('')
   const imageSelection = useRiceImages()
   const markSaved = useFormCloseState(JSON.stringify([fields, imageSelection.images.map(image => image.src)]), !loading, busy, onCloseStateChange, () => submit('draft'))

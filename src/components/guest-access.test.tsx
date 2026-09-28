@@ -8,8 +8,9 @@ vi.mock('~/features/session/session', () => ({ useStoredSession: () => ({ sessio
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, to, className, 'aria-label': label }: { children: ReactNode; to: string; className?: string; 'aria-label'?: string }) => <a href={to} className={className} aria-label={label}>{children}</a>,
   useNavigate: () => vi.fn(),
+  useCanGoBack: () => false,
   useBlocker: vi.fn(),
-  useRouter: () => ({ invalidate: vi.fn() }),
+  useRouter: () => ({ invalidate: vi.fn(), history: { back: vi.fn() }, navigate: vi.fn() }),
   useRouterState: ({ select }: { select: (state: { location: { pathname: string; href: string }; resolvedLocation: { pathname: string; href: string }; isLoading: boolean }) => unknown }) => select({ location: { pathname: state.pathname, href: state.pathname }, resolvedLocation: { pathname: state.resolvedPathname || state.pathname, href: state.resolvedPathname || state.pathname }, isLoading: state.isLoading }),
 }))
 vi.mock('~/features/notifications/api', () => ({ getNotifications: vi.fn(), getTaskNotifications: vi.fn(), NOTIFICATIONS_READ_EVENT: 'read' }))
@@ -52,8 +53,16 @@ describe('guest access', () => {
     state.pathname = '/me'
     state.session = { user: { id: 'member' } } as RiceSession
     const html = renderToStaticMarkup(<AppShell>{null}</AppShell>)
-    expect(html).toMatch(/<button\b[^>]*>发布<\/button>/)
+    expect(html).toContain('href="/compose"')
     expect(html).toContain('aria-label="通知"')
     expect(html).not.toContain('href="/login"')
+  })
+
+  it('keeps the four main destinations available on a child page', () => {
+    state.pathname = '/post'
+    const html = renderToStaticMarkup(<AppShell><p>post detail</p></AppShell>)
+    expect(html).toContain('aria-label="返回上一页"')
+    expect(html).toContain('aria-label="主要导航"')
+    for (const path of ['/', '/tasks', '/events', '/me']) expect(html).toContain(`href="${path}"`)
   })
 })

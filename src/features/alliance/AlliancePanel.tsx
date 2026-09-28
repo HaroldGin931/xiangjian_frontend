@@ -1,19 +1,18 @@
 import { Button } from '@astryxdesign/core/Button'
+import { Link } from '@tanstack/react-router'
 import { ArrowRight } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Avatar } from '~/components/Avatar'
 import { AutoLoadMore } from '~/components/AutoLoadMore'
 import { ContentCardHeader } from '~/components/ContentCardHeader'
-import { DetailDialog, usePanelReady } from '~/components/DetailDialog'
+import { DetailDialog } from '~/components/DetailDialog'
 import { LoadingState } from '~/components/LoadingState'
 import { useTimeBoundary } from '~/components/useTimeBoundary'
 import { publicAttachmentUrl } from '~/lib/attachments'
 import { formatTimestamp } from '~/lib/format'
 import type { RiceAttachment } from '~/lib/models'
-import { NodeDetail } from '../nodes/NodesPanel'
 import { getNodes, type CommunityNode } from '../nodes/api'
 import { LoginLink } from '../session/LoginLink'
-import { UserProfilePage } from '../social/UserProfilePage'
 import { readStoredSession, useStoredSession } from '../session/session'
 import { getAnnouncement, getAnnouncements, getFoundation, getGovernanceBody, getProposal, getProposals, voteOnProposal, type Announcement, type Foundation, type GovernancePage, type Proposal, type ProposalStatus, type VoteChoice } from './api'
 
@@ -46,12 +45,10 @@ function useGovernanceList<T extends { id: string }>(key: string, load: (before?
     } catch (e) { if (version === request.current) setState((s) => ({ ...s, loading: false, error: e instanceof Error ? e.message : '加载失败。' })) }
     finally { if (version === request.current) pending.current = false }
   }
-  const replace = (item: T) => setState((s) => s.key === key && s.page ? { ...s, page: { ...s.page, data: s.page.data.map((value) => value.id === item.id ? item : value) } } : s)
-  return { page: current?.page, loading: current?.loading ?? true, error: current?.error ?? '', more, replace, retry: () => setRevision((v) => v + 1) }
+  return { page: current?.page, loading: current?.loading ?? true, error: current?.error ?? '', more, retry: () => setRevision((v) => v + 1) }
 }
 
-export function AlliancePanel({ onOpenDirectory }: { onOpenDirectory: () => void }) {
-  const [documentsOpen, setDocumentsOpen] = useState(false)
+export function AlliancePanel() {
   const [foundation, setFoundation] = useState<Foundation | null>(null)
   const [error, setError] = useState('')
   const [revision, setRevision] = useState(0)
@@ -61,10 +58,9 @@ export function AlliancePanel({ onOpenDirectory }: { onOpenDirectory: () => void
     void getFoundation().then((value) => { if (active) setFoundation(value) }).catch((e: Error) => { if (active) setError(e.message) })
     return () => { active = false }
   }, [revision])
-  usePanelReady(!!foundation || !!error)
   return <div className="page business-panel list-panel alliance-panel">
     <section aria-label="乡建DAO金库">
-      <div className="business-heading"><h2>乡建DAO金库</h2>{!!foundation?.documents.length && <Button label="更多" variant="ghost" aria-label="查看金库公示文件" onClick={() => setDocumentsOpen(true)} />}</div>
+      <div className="business-heading"><h2>乡建DAO金库</h2>{!!foundation?.documents.length && <Link to="/alliance/documents" aria-label="查看金库公示文件">更多</Link>}</div>
       {error && <p className="inline-error" role="alert">{error} <Button label="重试" variant="ghost" onClick={() => setRevision((v) => v + 1)} /></p>}
       {!foundation && !error && <LoadingState label="正在加载金库信息…" />}
       {foundation && <div className="alliance-stats grain-metrics">
@@ -73,15 +69,13 @@ export function AlliancePanel({ onOpenDirectory }: { onOpenDirectory: () => void
       </div>}
     </section>
     <Announcements />
-    <NodePreview onOpenDirectory={onOpenDirectory} />
+    <NodePreview />
     <Proposals />
-    {documentsOpen && foundation && <DetailDialog title="金库公示文件" onClose={() => setDocumentsOpen(false)}><div className="page business-panel"><ul className="business-history">{foundation.documents.map((document) => <li key={document.id}><a href={publicAttachmentUrl(document.url)} target="_blank" rel="noopener noreferrer">{document.filename}</a></li>)}</ul></div></DetailDialog>}
   </div>
 }
 
-function NodePreview({ onOpenDirectory }: { onOpenDirectory: () => void }) {
+function NodePreview() {
   const [nodes, setNodes] = useState<CommunityNode[] | null>(null)
-  const [selected, setSelected] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [revision, setRevision] = useState(0)
   useEffect(() => {
@@ -90,27 +84,22 @@ function NodePreview({ onOpenDirectory }: { onOpenDirectory: () => void }) {
     void getNodes({ data: {} }).then((value) => { if (active) setNodes(value) }).catch((e: Error) => { if (active) setError(e.message) })
     return () => { active = false }
   }, [revision])
-  usePanelReady(!!nodes || !!error)
-  return <section aria-label="节点"><div className="business-heading"><h2>节点</h2><Button label="更多" variant="ghost" aria-label="查看全部节点" onClick={onOpenDirectory} /></div>
+  return <section aria-label="节点"><div className="business-heading"><h2>节点</h2><Link to="/alliance/nodes" aria-label="查看全部节点">更多</Link></div>
     {error && <p className="inline-error" role="alert">{error} <Button label="重试" variant="ghost" onClick={() => setRevision((v) => v + 1)} /></p>}
     {!nodes && !error && <LoadingState label="正在加载节点…" />}
-    <div className="alliance-node-preview">{nodes?.slice(0, 4).map((node) => <button type="button" key={node.id} onClick={() => setSelected(node.id)}><Avatar name={node.name} src={node.logo?.url} /><strong>{node.name}</strong></button>)}</div>
+    <div className="alliance-node-preview">{nodes?.slice(0, 4).map((node) => <Link to="/nodes/$nodeId" params={{ nodeId: node.id }} key={node.id}><Avatar name={node.name} src={node.logo?.url} /><strong>{node.name}</strong></Link>)}</div>
     {nodes && !nodes.length && <p className="muted">暂无节点。</p>}
-    {selected && <DetailDialog title="社区详情" onClose={() => setSelected(null)}><NodeDetail key={selected} nodeId={selected} /></DetailDialog>}
   </section>
 }
 
 function Announcements() {
   const list = useGovernanceList('announcements', (before) => getAnnouncements({ data: { before } }))
-  const [selected, setSelected] = useState<string | null>(null)
-  usePanelReady(!!list.page || !!list.error)
   return <section aria-label="公告栏"><h2>公告栏</h2>
     {list.error && <p className="inline-error" role="alert">{list.error}</p>}
     {!list.page && (list.error ? <Button label="重试" variant="secondary" onClick={list.retry} /> : <LoadingState label="正在加载公告…" />)}
-    <div className="node-list">{list.page?.data.map((announcement) => <button key={announcement.id} type="button" className="profile-menu-row node-card" onClick={() => setSelected(announcement.id)}><span className="profile-menu-copy"><strong>{announcement.title}</strong><small>{formatTimestamp(announcement.inserted_at, true)}</small></span><ArrowRight size={18} /></button>)}</div>
+    <div className="node-list">{list.page?.data.map((announcement) => <Link key={announcement.id} to="/alliance/announcements/$id" params={{ id: announcement.id }} className="profile-menu-row node-card"><span className="profile-menu-copy"><strong>{announcement.title}</strong><small>{formatTimestamp(announcement.inserted_at, true)}</small></span><ArrowRight size={18} /></Link>)}</div>
     {list.page && !list.page.data.length && <p className="muted">暂无公告。</p>}
     {list.page?.meta.next_cursor && <AutoLoadMore cursor={list.page.meta.next_cursor} loading={list.loading} failed={!!list.error} onLoadMore={list.more} />}
-    {selected && <DetailDialog title="公告详情" onClose={() => setSelected(null)}><GovernanceDetail key={selected} kind="announcement" id={selected} /></DetailDialog>}
   </section>
 }
 
@@ -118,35 +107,29 @@ function Proposals() {
   const { session } = useStoredSession()
   const token = session?.token
   const [status, setStatus] = useState<ProposalStatus | undefined>()
-  const [selected, setSelected] = useState<string | null>(null)
   const list = useGovernanceList(`${token}:${status}`, (before) => getProposals({ data: { token, status, before } }))
-  usePanelReady(!!list.page || !!list.error)
   return <section aria-label="提案"><h2>提案</h2>
     <div className="filter-buttons" role="group" aria-label="提案状态">{([[undefined, '全部'], ['open', '进行中'], ['passed', '通过'], ['rejected', '未通过']] as const).map(([value, label]) => <Button key={label} label={label} variant="ghost" className={status === value ? 'active' : undefined} aria-pressed={status === value} onClick={() => setStatus(value)} />)}</div>
     {list.error && <p className="inline-error" role="alert">{list.error}</p>}
     {!list.page && (list.error ? <Button label="重试" variant="secondary" onClick={list.retry} /> : <LoadingState label="正在加载提案…" />)}
     <div className="post-list">{list.page?.data.map((proposal) => <article key={proposal.id} className="content-card business-card task-card">
       <ProposalHeader proposal={proposal} />
-      <button type="button" className="business-card-body" onClick={() => setSelected(proposal.id)}><h2>{proposal.title}</h2><VoteResults proposal={proposal} /></button>
+      <Link to="/alliance/proposals/$id" params={{ id: proposal.id }} className="business-card-body"><h2>{proposal.title}</h2><VoteResults proposal={proposal} /></Link>
     </article>)}</div>
     {list.page && !list.page.data.length && <p className="muted">暂无{status ? statusLabels[status] : ''}提案。</p>}
     {list.page?.meta.next_cursor && <AutoLoadMore key={`${token}:${status}`} cursor={list.page.meta.next_cursor} loading={list.loading} failed={!!list.error} onLoadMore={list.more} />}
-    {selected && <DetailDialog title="提案详情" onClose={() => setSelected(null)}><GovernanceDetail key={`${token}:${selected}`} kind="proposal" id={selected} onVoted={list.replace} /></DetailDialog>}
   </section>
 }
 
 function ProposalHeader({ proposal }: { proposal: Proposal }) {
-  const [authorOpen, setAuthorOpen] = useState(false)
-  return <><ContentCardHeader name={proposal.author?.nickname || proposal.author?.handle || '乡建DAO'} onAuthorClick={proposal.author ? () => setAuthorOpen(true) : undefined} avatarUrl={proposal.author?.avatar ? publicAttachmentUrl(proposal.author.avatar.url) : undefined} timestamp={formatTimestamp(proposal.inserted_at, true)} aside={<span className="task-status">{statusLabels[proposal.status]}</span>} />
-    {authorOpen && proposal.author && <DetailDialog title="个人主页" onClose={() => setAuthorOpen(false)}><UserProfilePage actor={proposal.author.did} /></DetailDialog>}
-  </>
+  return <ContentCardHeader name={proposal.author?.nickname || proposal.author?.handle || '乡建DAO'} profileActor={proposal.author?.did} avatarUrl={proposal.author?.avatar ? publicAttachmentUrl(proposal.author.avatar.url) : undefined} timestamp={formatTimestamp(proposal.inserted_at, true)} aside={<span className="task-status">{statusLabels[proposal.status]}</span>} />
 }
 
 function VoteResults({ proposal }: { proposal: Proposal }) {
   return <div className="proposal-results">{([['同意', proposal.agree_count], ['反对', proposal.oppose_count]] as const).map(([label, count]) => <div key={label}><span>{label}</span><meter min={0} max={proposal.total_votes || 1} value={count} aria-label={`${label} ${count} 票`} /><span>{count}（{proposal.total_votes ? Math.round(count / proposal.total_votes * 100) : 0}%）</span></div>)}</div>
 }
 
-function GovernanceDetail({ kind, id, onVoted }: { kind: 'announcement' | 'proposal'; id: string; onVoted?: (proposal: Proposal) => void }) {
+export function GovernanceDetail({ kind, id }: { kind: 'announcement' | 'proposal'; id: string }) {
   const { session } = useStoredSession()
   const token = session?.token
   const [document, setDocument] = useState<Announcement | Proposal | null>(null)
@@ -160,10 +143,9 @@ function GovernanceDetail({ kind, id, onVoted }: { kind: 'announcement' | 'propo
   useEffect(() => {
     let active = true
     setError('')
-    void (kind === 'proposal' ? getProposal({ data: { id, token } }) : getAnnouncement({ data: { id } })).then((value) => { if (active) { setDocument(value); if ('status' in value) onVoted?.(value) } }).catch((e: Error) => { if (active) setError(e.message) })
+    void (kind === 'proposal' ? getProposal({ data: { id, token } }) : getAnnouncement({ data: { id } })).then((value) => { if (active) setDocument(value) }).catch((e: Error) => { if (active) setError(e.message) })
     return () => { active = false }
   }, [kind, id, token, revision])
-  usePanelReady(!!document || !!error)
   const proposal = document && 'status' in document ? document : null
   const now = useTimeBoundary([proposal?.closes_at])
   const open = proposal?.status === 'open' && Date.parse(proposal.closes_at) > now
@@ -177,7 +159,7 @@ function GovernanceDetail({ kind, id, onVoted }: { kind: 'announcement' | 'propo
       setDocument((value) => value && 'status' in value ? { ...value, my_vote: receipt.choice } : value)
       setVoteChoice(null)
       const value = await getProposal({ data: { id, token } })
-      if (current()) { setDocument(value); onVoted?.(value) }
+      if (current()) setDocument(value)
     } catch (e) { if (current()) setError(e instanceof Error ? e.message : '投票失败。') }
     finally { pending.current = false; if (current()) setBusy(false) }
   }

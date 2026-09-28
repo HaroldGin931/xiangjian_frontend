@@ -1,6 +1,5 @@
 import { EmptyState } from '@astryxdesign/core/EmptyState'
 import { Link } from '@tanstack/react-router'
-import { ArrowLeft } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { authorDisplayName } from '~/lib/format'
@@ -67,13 +66,6 @@ export function PeopleListPage({
 
   return (
     <div className="page people-list-page">
-      <header className="standalone-header social-page-header">
-        <Link to="/profile/$actor" params={{ actor }} className="back-link" aria-label="返回用户主页">
-          <ArrowLeft size={18} aria-hidden="true" />
-        </Link>
-        <strong>{page ? `${authorDisplayName(page.subject)}的${title}` : title}</strong>
-      </header>
-
       {error ? <div className="form-error" role="alert">{error}</div> : null}
       {page?.profiles.length ? (
         <div className="people-list">

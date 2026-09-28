@@ -1,16 +1,10 @@
 import { Button } from '@astryxdesign/core/Button'
-import { Link } from '@tanstack/react-router'
-import { ArrowLeft, Bell, ChevronRight } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
+import { Bell, ChevronRight } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
-import { DetailDialog, usePanelReady } from '~/components/DetailDialog'
 import { AutoLoadMore } from '~/components/AutoLoadMore'
 import { LoadingState } from '~/components/LoadingState'
-import { EventDetail } from '../events/EventDetail'
-import { NodeDetail } from '../nodes/NodesPanel'
-import { TaskDetailPage } from '../tasks/TaskDetailPage'
-import { PostThreadPanel } from '../feed/PostThreadPanel'
-import { UserProfilePage } from '../social/UserProfilePage'
 import { authorDisplayName, formatTimestamp } from '~/lib/format'
 import type { NotificationView, RiceSession } from '~/lib/models'
 
@@ -51,13 +45,13 @@ export function notificationTitle(notification: NotificationView) {
   return `${authorDisplayName(notification.author)} ${reasonCopy[notification.reason]?.action || '与你有新的互动'}`
 }
 
-export function NotificationsPage({ embedded = false }: { embedded?: boolean }) {
+export function NotificationsPage() {
   const { session, isReady } = useStoredSession()
-  return <NotificationInbox key={session?.pds.did ?? 'guest'} session={session} isReady={isReady} embedded={embedded} />
+  return <NotificationInbox key={session?.pds.did ?? 'guest'} session={session} isReady={isReady} />
 }
 
-function NotificationInbox({ session, isReady, embedded }: { session: RiceSession | null; isReady: boolean; embedded: boolean }) {
-  const [selected, setSelected] = useState<NotificationTarget | null>(null)
+function NotificationInbox({ session, isReady }: { session: RiceSession | null; isReady: boolean }) {
+  const navigate = useNavigate()
   const [marking, setMarking] = useState(false)
   const [clearing, setClearing] = useState(false)
   const [rows, setRows] = useState<NotificationView[]>([])
@@ -77,7 +71,6 @@ function NotificationInbox({ session, isReady, embedded }: { session: RiceSessio
   const notifications = account ? applyNotificationState(account, rows) : []
   const lifetime = useRef(0)
   const loadRequest = useRef(0)
-  usePanelReady(isReady && (!session || !isLoading))
 
   useEffect(() => {
     const refresh = () => refreshLocalState((value) => value + 1)
@@ -107,7 +100,6 @@ function NotificationInbox({ session, isReady, embedded }: { session: RiceSessio
     if (!accessJwt || !riceToken) {
       setRows([])
       setCursors({ social: null, business: null })
-      setSelected(null)
       setLoading(false)
       return
     }
@@ -223,11 +215,17 @@ function NotificationInbox({ session, isReady, embedded }: { session: RiceSessio
   }
 
   const unreadCount = notifications.filter((notification) => !notification.isRead).length
+  const openTarget = (target: NotificationTarget) => {
+    if (target.kind === 'task') void navigate({ to: '/tasks/$taskId', params: { taskId: target.id } })
+    else if (target.kind === 'event') void navigate({ to: '/events/$eventId', params: { eventId: target.id } })
+    else if (target.kind === 'node') void navigate({ to: '/nodes/$nodeId', params: { nodeId: target.id } })
+    else if (target.kind === 'post') void navigate({ to: '/post', search: { uri: target.uri } })
+    else if (target.kind === 'profile') void navigate({ to: '/profile/$actor', params: { actor: target.actor } })
+  }
 
   if (isReady && !session) {
     return (
-      <div className={`page signed-out-state${embedded ? ' business-panel list-panel' : ''}`}>
-        {!embedded && <Link to="/" className="back-link"><ArrowLeft size={18} aria-hidden="true" /> 返回广场</Link>}
+      <div className="page signed-out-state">
         <Bell size={34} aria-hidden="true" />
         <strong>登录后查看通知</strong>
         <p>新的互动会集中显示在这里。</p>
@@ -237,10 +235,9 @@ function NotificationInbox({ session, isReady, embedded }: { session: RiceSessio
   }
 
   return (
-    <div className={`page notifications-page${embedded ? ' business-panel list-panel' : ''}`}>
-      {!embedded && <Link to="/" className="back-link"><ArrowLeft size={18} aria-hidden="true" /> 返回广场</Link>}
+    <div className="page notifications-page">
       <div className="business-heading notification-heading">
-        <div>{embedded ? <strong>全部消息</strong> : <h1>通知</h1>}{unreadCount > 0 && <span className="notification-count">{unreadCount} 条未读</span>}</div>
+        <div><h1>通知</h1>{unreadCount > 0 && <span className="notification-count">{unreadCount} 条未读</span>}</div>
         <div className="notification-actions">
           <Button label={marking ? '正在标记…' : '全部已读'} variant="ghost" isDisabled={isLoading || paging || marking || clearing || (!unreadCount && !hasMore)} clickAction={markAll} />
           <Button label="清除所有已读消息" variant="ghost" isLoading={clearing} isDisabled={isLoading || paging || marking || clearing || (!notifications.some((notification) => notification.isRead) && !hasMore)} clickAction={clearAllRead} />
@@ -272,10 +269,9 @@ function NotificationInbox({ session, isReady, embedded }: { session: RiceSessio
               key={`${notificationSource(notification)}-${notification.uri}-${notification.reason}`}
               type="button"
               onClick={() => {
-                if (target) setSelected(target)
                 if (!notification.isRead) saveLocalState([notification], 'read')
+                if (target) openTarget(target)
               }}
-              aria-haspopup={target ? 'dialog' : undefined}
             >
               <span className={`notification-reason reason-${notification.reason}`}>
                 {notification.subjectType === 'event' ? '活动' : notification.subjectType === 'node' ? '社区' : reasonCopy[notification.reason]?.label || '互动'}
@@ -295,13 +291,6 @@ function NotificationInbox({ session, isReady, embedded }: { session: RiceSessio
       {hasMore && !isLoading && (notifications.length
         ? <AutoLoadMore cursor={JSON.stringify(cursors)} loading={paging || isLoading} failed={!!pagingError} onLoadMore={more} />
         : <Button label="加载更早通知" variant="secondary" isLoading={paging} isDisabled={paging || isLoading} clickAction={more} />)}
-      {selected && <DetailDialog title={{ task: '任务详情', event: '活动详情', node: '社区详情', post: '帖子详情', profile: '个人主页' }[selected.kind]} onClose={() => setSelected(null)}>
-        {selected.kind === 'event' && <EventDetail eventId={selected.id} />}
-        {selected.kind === 'node' && <NodeDetail nodeId={selected.id} />}
-        {selected.kind === 'task' && <TaskDetailPage taskId={selected.id} embedded />}
-        {selected.kind === 'post' && <PostThreadPanel uri={selected.uri} onPostDeleted={() => setSelected(null)} />}
-        {selected.kind === 'profile' && <UserProfilePage actor={selected.actor} embedded />}
-      </DetailDialog>}
     </div>
   )
 }

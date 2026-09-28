@@ -4,7 +4,7 @@ import { Repeat2 } from 'lucide-react'
 import { useState } from 'react'
 
 import { ContentCardHeader } from '~/components/ContentCardHeader'
-import { ImageCover, ImageGroup } from '~/components/ContentImages'
+import { ImageGroup } from '~/components/ContentImages'
 import { PostText } from '~/components/PostText'
 import { PostActions, type RepostChange } from '~/components/PostActions'
 import { isPostHidden } from '~/features/feed/api'
@@ -14,12 +14,10 @@ import type { PostView } from '~/lib/models'
 
 export function PostList({
   posts,
-  onOpenPost,
   onRepostChange,
   onPostDeleted,
 }: {
   posts: PostView[]
-  onOpenPost?: (post: PostView, focusReply: boolean) => void
   onRepostChange?: (change: RepostChange) => void
   onPostDeleted?: (uri: string) => void
 }) {
@@ -44,7 +42,6 @@ export function PostList({
       {visiblePosts.map((post) => (
         <PostCard
           post={post}
-          onOpenPost={onOpenPost}
           onRepostChange={onRepostChange}
           onPostDeleted={(uri) => {
             setDeletedUris((current) => new Set(current).add(uri))
@@ -59,23 +56,17 @@ export function PostList({
 
 export function PostCard({
   post,
-  onOpenPost,
   onRepostChange,
   onPostDeleted,
 }: {
   post: PostView
-  onOpenPost?: (post: PostView, focusReply: boolean) => void
   onRepostChange?: (change: RepostChange) => void
   onPostDeleted?: (uri: string) => void
 }) {
   const navigate = useNavigate()
   const category = postCategory(post.record)
   const openPost = () => {
-    if (onOpenPost) {
-      onOpenPost(post, false)
-    } else {
-      void navigate({ to: '/post', search: { uri: post.uri } })
-    }
+    void navigate({ to: '/post', search: { uri: post.uri } })
   }
 
   return (
@@ -110,13 +101,9 @@ export function PostCard({
       >
         <PostText text={postDisplayText(post.record.text, category)} />
       </p>
-      {post.images?.length ? post.images.length === 1
-        ? <button type="button" className="post-image-link" onClick={openPost} aria-label="查看帖子图片"><ImageCover images={post.images} /></button>
-        : <ImageGroup images={post.images} onOpen={openPost} />
-        : null}
+      {post.images?.length ? <ImageGroup images={post.images} className="post-image-grid" /> : null}
       <PostActions
         post={post}
-        onOpenComments={onOpenPost ? () => onOpenPost(post, true) : undefined}
         onRepostChange={onRepostChange}
         onPostDeleted={onPostDeleted}
       />

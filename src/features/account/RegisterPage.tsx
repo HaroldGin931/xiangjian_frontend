@@ -1,7 +1,7 @@
 import { Button } from '@astryxdesign/core/Button'
 import { TextInput } from '@astryxdesign/core/TextInput'
-import { Link, useNavigate } from '@tanstack/react-router'
-import { ArrowLeft, UserPlus } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
+import { UserPlus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { useStoredSession } from '../session/session'
@@ -76,7 +76,6 @@ export function RegisterPage({ returnTo }: { returnTo?: string }) {
 
   return (
     <div className="page narrow-page account-entry-page">
-      <Link to="/login" search={{ returnTo }} className="back-link"><ArrowLeft size={16} /> 登录</Link>
       <section className="page-intro">
         <div className="eyebrow">一个身份，走遍全联盟</div>
         <h1>{step === 'username' ? '设置你的用户名' : '创建账号'}</h1>

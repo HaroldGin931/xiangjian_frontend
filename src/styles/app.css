@@ -76,6 +76,7 @@ input:-webkit-autofill:focus {
 }
 .brand { display: inline-flex; align-items: baseline; gap: 4px; font-size: var(--xj-font-heading); font-weight: 760; letter-spacing: .08em; }
 .brand small { color: var(--xj-muted); font-size: var(--xj-font-caption); font-weight: 650; letter-spacing: .05em; }
+.child-back { width: 48px; height: 48px; border: 0; border-radius: 50%; display: grid; place-items: center; background: transparent; color: var(--xj-text); }
 .section-title { font-size: var(--xj-font-heading); letter-spacing: .02em; }
 .topbar-actions { display: flex; align-items: center; gap: 7px; }
 .header-publish {
@@ -97,7 +98,6 @@ input:-webkit-autofill:focus {
 .header-search svg { width: 18px; height: 18px; }
 
 .page-frame { width: 100%; margin: 0 auto; padding: 14px 10px 80px; }
-.standalone-shell .page-frame { padding: 0; }
 .page { width: 100%; max-width: var(--xj-content-width); margin: 0 auto; }
 .narrow-page { max-width: 620px; margin: 0 auto; }
 
@@ -276,7 +276,7 @@ input:-webkit-autofill:focus {
 .grain-balance-row { margin: 4px 0 12px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .grain-balance-row > strong { color: var(--xj-accent); font-size: 38px; }
 .personal-grain-actions { display: flex; align-items: center; gap: 8px; }
-.personal-grain-actions button { min-width: 72px; min-height: 64px; height: auto; padding: 4px; color: var(--xj-text-soft); font-size: var(--xj-font-caption); }
+.personal-grain-actions :is(button, a) { min-width: 72px; min-height: 64px; height: auto; padding: 4px; color: var(--xj-text-soft); font-size: var(--xj-font-caption); }
 .grain-action-content { display: flex; flex-direction: column; align-items: center; gap: 4px; white-space: nowrap; }
 .grain-action-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: rgba(23,61,47,.08); }
 .grain-recipient-field { position: relative; min-width: 0; }
@@ -290,7 +290,7 @@ input:-webkit-autofill:focus {
 .alliance-stats.grain-metrics b { font-size: var(--xj-font-heading); overflow-wrap: anywhere; }
 .alliance-panel section h2 { margin-top: 0; }
 .alliance-node-preview { padding: 16px; border-radius: 16px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; background: var(--xj-surface-tint); }
-.alliance-node-preview > button { display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 0; padding: 12px 4px; border: 0; background: transparent; color: inherit; }
+.alliance-node-preview > a { display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 0; padding: 12px 4px; border: 0; background: transparent; color: inherit; }
 .alliance-node-preview strong { font-size: var(--xj-font-body); overflow-wrap: anywhere; text-align: center; }
 .alliance-panel section > .post-list { margin-top: 16px; }
 .proposal-results { display: grid; gap: 8px; margin-top: 12px; font-size: var(--xj-font-caption); }
@@ -338,8 +338,6 @@ input:-webkit-autofill:focus {
 
 /* Public profile and social graph */
 .social-profile-page, .people-list-page { max-width: var(--xj-content-width); padding-bottom: 72px; }
-.social-page-header { margin: 12px; border: 1px solid var(--xj-line); border-radius: 18px; background: var(--xj-surface); }
-.social-page-header strong { font-size: var(--xj-font-lead); }
 .social-profile-card { margin: 12px; padding: 22px 16px 16px; border: 1px solid var(--xj-line); border-radius: 18px; position: relative; display: flex; flex-direction: column; align-items: center; background: var(--xj-surface); text-align: center; }
 .social-profile-card h1 { margin: 12px 0 3px; font-size: 28px; }
 .social-profile-handle { margin: 0; color: var(--xj-muted); font-size: var(--xj-font-body); overflow-wrap: anywhere; }
@@ -397,9 +395,7 @@ button.notification-row:focus-visible { outline: 2px solid var(--xj-green, #1b60
 .notification-empty-state p { max-width: 250px; margin: 0; font-size: var(--xj-font-body); }
 
 /* Standalone search, post and composer */
-.standalone-header { min-height: 64px; padding: 12px; display: flex; align-items: center; gap: 9px; }
-.back-link { margin: 0 0 10px; display: inline-flex; align-items: center; gap: 5px; color: var(--xj-accent); font-size: var(--xj-font-body); }
-.standalone-header .back-link { width: 48px; height: 48px; margin: 0; flex: 0 0 auto; border-radius: 50%; display: grid; place-items: center; }
+.search-header { min-height: 64px; padding: 12px; display: flex; align-items: center; gap: 9px; }
 .global-search-field { min-width: 0; flex: 1; display: flex; align-items: flex-end; gap: var(--xj-form-inline-gap); }
 .global-search-field > :first-child { flex: 1; min-width: 0; }
 .global-search-field > button { flex-shrink: 0; }
@@ -435,8 +431,6 @@ button.notification-row:focus-visible { outline: 2px solid var(--xj-green, #1b60
 .post-dialog-header { min-height: 58px; padding: 0 18px; border-bottom: 1px solid var(--xj-line); flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; background: var(--xj-surface); }
 .post-dialog-header strong { font-size: var(--xj-font-lead); }
 .post-dialog-scroll { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; }
-.post-dialog .post-thread-panel { padding: 16px; }
-.post-dialog .post-detail-card { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .post-detail-copy { margin: 14px 0 10px; font-size: var(--xj-font-lead); line-height: 1.65; white-space: pre-wrap; }
 .detail-actions { padding-top: 9px; }
 .reply-section { margin-top: 14px; }
@@ -470,8 +464,6 @@ button.notification-row:focus-visible { outline: 2px solid var(--xj-green, #1b60
 .activity-participation small, .activity-participation em { grid-column: 1 / -1; color: var(--xj-muted); font-size: var(--xj-font-caption); font-style: normal; }
 .loading-line { padding: 36px 0; color: var(--xj-muted); font-size: var(--xj-font-body); text-align: center; }
 .compose-page { padding: 12px; padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
-.compose-header { margin-bottom: 12px; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px; }
-.compose-header .back-link { margin: 0; }
 .compose-type-tabs { width: 100%; max-width: 100%; justify-content: flex-start; overscroll-behavior-inline: contain; }
 .compose-type-tabs button { min-height: 44px; padding-inline: 14px; }
 .compose-editor { width: 100%; }
@@ -606,7 +598,6 @@ button.notification-row:focus-visible { outline: 2px solid var(--xj-green, #1b60
   .brand { font-size: 26px; }
   .section-title { font-size: 26px; }
   .page-frame { max-width: 1120px; padding: 28px 28px 120px; }
-  .standalone-shell .page-frame { padding: 24px 28px 80px; }
   .bottom-nav {
     left: 50%;
     bottom: 18px;
@@ -626,7 +617,7 @@ button.notification-row:focus-visible { outline: 2px solid var(--xj-green, #1b60
   .profile-identity { padding: 30px 22px; border: 1px solid var(--xj-line); border-radius: 18px; background: var(--xj-surface); }
   .profile-identity h1 { font-size: 28px; }
   .grain-card { padding: 18px; }
-  .social-page-header, .social-profile-card, .social-counts, .social-profile-tabs, .social-profile-page > .post-list, .public-profile-list, .public-profile-state, .people-list { margin-inline: 0; }
+  .social-profile-card, .social-counts, .social-profile-tabs, .social-profile-page > .post-list, .public-profile-list, .public-profile-state, .people-list { margin-inline: 0; }
   .notification-row { padding: 16px 10px; }
   .notification-body strong { font-size: var(--xj-font-body-strong); }
   .search-page, .compose-page, .post-page { width: 100%; }
@@ -641,9 +632,7 @@ button.notification-row:focus-visible { outline: 2px solid var(--xj-green, #1b60
 
 @media (max-width: 420px) {
   .task-facts { grid-template-columns: repeat(2, 1fr); }
-  .compose-header { grid-template-columns: 1fr; }
   .post-dialog { width: 100%; height: 100dvh; border: 0; border-radius: 0; }
-  .post-dialog .post-thread-panel { padding: 10px; }
   .post-dialog-header { padding-inline: 12px; }
 }
 
@@ -682,12 +671,9 @@ button.content-card-author { padding: 0; border: 0; background: transparent; col
 .hero-action { min-height: 50px; padding: 10px 20px; color: white; border: 1px solid #ffffff50; border-radius: 12px; background: #ffffff20; font-weight: 650; }
 .business-dialog { width: min(760px, calc(100% - 28px)); height: auto; max-height: 90dvh; margin: auto; border-radius: 22px; background: var(--xj-surface); }
 .business-dialog .post-dialog-shell { max-height: 90dvh; }
-.compose-dialog .post-dialog-shell { height: auto; }
 .business-dialog .post-dialog-scroll { flex: 1 1 auto; }
 .post-dialog.compose-close-dialog { position: fixed; inset: 0; width: min(480px, calc(100% - 32px)); height: fit-content; max-height: calc(100dvh - 32px); margin: auto; }
-.business-dialog .task-detail-page { padding: 0; }
-.business-dialog .task-detail-card { border: 0; box-shadow: none; border-radius: 0; }
-.business-panel, .business-dialog .compose-page, .business-dialog .events-page, .business-dialog .task-page, .business-dialog .grain-history-page { padding: 26px; }
+.business-panel { padding: 26px; }
 .business-panel h1 { font-size: 30px; margin: 12px 0; }
 .business-panel h2 { font-size: 23px; margin-bottom: 14px; }
 .list-panel { display: flex; flex-direction: column; gap: 20px; }
@@ -724,7 +710,6 @@ button.content-card-author { padding: 0; border: 0; background: transparent; col
 .node-card { width: 100%; border: 1px solid var(--xj-line); border-radius: 16px; padding: 22px; background: var(--xj-surface); text-align: left; color: inherit; }
 .node-card > .profile-menu-copy { flex: 1; min-width: 0; }
 .node-card small { color: var(--xj-text-soft); }
-.profile-menu button.profile-menu-row { width: 100%; border: 0; border-bottom: 1px solid var(--xj-line); background: transparent; color: inherit; text-align: left; }
 .profile-identity { background: transparent; border: 0; padding: 24px 12px; }
 .profile-identity p { font-size: 18px; margin: 8px 0; }
 .profile-public-action { display: inline-flex; margin-top: 14px; }
@@ -736,7 +721,7 @@ button.content-card-author { padding: 0; border: 0; background: transparent; col
 .receipt-reference { margin-top: 8px; font-size: 16px; overflow-wrap: anywhere; }
 .receipt-reference summary { cursor: pointer; }
 @media (max-width: 620px) {
-  .business-panel, .business-dialog .compose-page, .business-dialog .events-page, .business-dialog .task-page, .business-dialog .grain-history-page { padding: 20px; }
+  .business-panel { padding: 20px; }
   .task-hero h1 { font-size: 36px; }
   .business-card h2 { font-size: 22px; }
   .topbar-actions { gap: 3px; }
@@ -745,8 +730,6 @@ button.content-card-author { padding: 0; border: 0; background: transparent; col
   .business-counts { gap: 16px; }
   .button-row, .form-actions { flex-wrap: wrap; }
 }
-.business-dialog .profile-edit-page { padding: 24px; }
-.business-dialog .social-profile-page { padding: 16px; }
 
 /* Short requests stay silent; slow requests do not add a popup or move content. */
 .session-placeholder { display: inline-block; width: 88px; height: 44px; }

@@ -1,23 +1,19 @@
 import { Button } from '@astryxdesign/core/Button'
 import { TextArea } from '~/components/AutoTextArea'
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { ArrowRight } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { DetailDialog, usePanelReady } from '~/components/DetailDialog'
 import { Avatar } from '~/components/Avatar'
 import { LoadingState } from '~/components/LoadingState'
 import { formatTimestamp } from '~/lib/format'
 import { useStoredSession } from '../session/session'
-import { TasksPage } from '../tasks/TasksPage'
-import { EventsPage } from '../events/EventsPage'
-import { GrainHistoryPage } from '../grains/GrainHistoryPage'
 import { applyToNode, getNode, getNodes, reviewNodeApplication, updateNodeMemberRole, type CommunityNode, type NodeMine } from './api'
 
-export function NodeCard({ node, onOpen }: { node: CommunityNode; onOpen: () => void }) {
-  return <button type="button" className="profile-menu-row node-card" onClick={onOpen}>
+export function NodeCard({ node }: { node: CommunityNode }) {
+  return <Link to="/nodes/$nodeId" params={{ nodeId: node.id }} className="profile-menu-row node-card">
     <Avatar name={node.name} src={node.logo?.url} />
     <span className="profile-menu-copy"><strong>{node.name}</strong><small>{node.role === 'admin' ? '管理员' : node.role === 'member' ? '正式成员' : node.my_application?.status === 'pending' ? '申请中' : node.description}</small></span><ArrowRight size={18} />
-  </button>
+  </Link>
 }
 
 export function NodesPanel({ identity = false }: { identity?: boolean }) {
@@ -27,7 +23,6 @@ export function NodesPanel({ identity = false }: { identity?: boolean }) {
   const [filter, setFilter] = useState<NodeMine | undefined>(identity ? 'identity' : undefined)
   const [query, setQuery] = useState('')
   const [search, setSearch] = useState('')
-  const [selected, setSelected] = useState<{ owner: string; id: string } | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [version, setVersion] = useState(0)
@@ -45,27 +40,23 @@ export function NodesPanel({ identity = false }: { identity?: boolean }) {
     return () => { active = false }
   }, [isReady, owner, session?.token, filter, search, version])
   const nodes = data?.owner === owner ? data.nodes : null
-  usePanelReady(isReady && (nodes !== null || !!error))
   return <div className="page business-panel list-panel" aria-busy={loading || query !== search}>
     {!identity && <><input className="business-search" aria-label="搜索社区" placeholder="搜索社区" value={query} onChange={(e) => setQuery(e.target.value)} /><div className="filter-buttons">{([[undefined, '全部节点'], ['joined', '已加入'], ['pending', '申请中']] as const).map(([value, label]) => <Button key={label} label={label} variant="ghost" className={filter === value ? 'active' : undefined} aria-pressed={filter === value} onClick={() => setFilter(value)} />)}</div></>}
     {error && <p className="inline-error" role="alert">{error}</p>}{nodes && (loading || query !== search) && <p className="refresh-status" role="status">正在更新社区…</p>}{!nodes && !error && <LoadingState label="正在加载社区…" />}
-    <div className="node-list">{nodes?.map((node) => <NodeCard node={node} onOpen={() => setSelected({ owner, id: node.id })} key={node.id} />)}</div>
+    <div className="node-list">{nodes?.map((node) => <NodeCard node={node} key={node.id} />)}</div>
     {nodes && !error && !nodes.length && <p className="search-hint">{identity ? '还没有社区身份或待处理的申请。' : '没有找到社区。'}</p>}
-    {selected?.owner === owner && <DetailDialog title="社区详情" onClose={() => setSelected(null)}><NodeDetail nodeId={selected.id} /></DetailDialog>}
   </div>
 }
 
 export function NodeDetail({ nodeId }: { nodeId: string }) {
   const { session } = useStoredSession()
+  const navigate = useNavigate()
   const [node, setNode] = useState<CommunityNode | null>(null)
   const [error, setError] = useState('')
   const [reason, setReason] = useState('')
   const [applyOpen, setApplyOpen] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [stream, setStream] = useState<'tasks' | 'events' | null>(null)
-  const [walletOpen, setWalletOpen] = useState(false)
   const [roleChange, setRoleChange] = useState<{ userId: string; name: string; role: 'admin' | 'member' } | null>(null)
-  usePanelReady(node !== null || !!error)
   useEffect(() => {
     let active = true
     setNode(null); setError('')
@@ -75,7 +66,7 @@ export function NodeDetail({ nodeId }: { nodeId: string }) {
   const run = async (action: () => Promise<CommunityNode>) => { setBusy(true); setError(''); try { setNode(await action()); setApplyOpen(false); setRoleChange(null); window.dispatchEvent(new Event('rice-changed')) } catch (e) { setError(e instanceof Error ? e.message : '操作失败') } finally { setBusy(false) } }
   return <div className="page business-panel">{error && <p className="inline-error" role="alert">{error}</p>}{!node && !error && <LoadingState label="正在加载社区…" />}{node && <>
     <h1>{node.name}</h1><p className="business-description">{node.description}</p>
-    {node.role === 'admin' && <section className="business-section"><h2>社区账户</h2><p>节点稻米与个人稻米分开记账。</p><Button label="查看节点稻米" variant="secondary" onClick={() => setWalletOpen(true)} /></section>}
+    {node.role === 'admin' && <section className="business-section"><h2>社区账户</h2><p>节点稻米与个人稻米分开记账。</p><Button label="查看节点稻米" variant="secondary" onClick={() => void navigate({ to: '/nodes/$nodeId/grains', params: { nodeId } })} /></section>}
     <section className="business-section"><h2>社区成员</h2>{node.members?.map(({ user, role }) => <div className="candidate" key={user.id}>
       <div className="business-heading"><p><Link to="/profile/$actor" params={{ actor: user.did }}>{user.nickname || user.handle}</Link> · {role === 'admin' ? '管理员' : '成员'}</p>
         {node.can_manage_members && user.id !== node.owner?.id && <Button label={role === 'admin' ? '撤销管理员' : '设为管理员'} variant="ghost" isDisabled={busy} onClick={() => setRoleChange({ userId: user.id, name: user.nickname || user.handle, role: role === 'admin' ? 'member' : 'admin' })} />}
@@ -88,8 +79,6 @@ export function NodeDetail({ nodeId }: { nodeId: string }) {
     </section> : null}
     {node.role === 'admin' && session && <section className="business-section"><h2>待审批申请</h2>{node.applications?.filter((a) => a.status === 'pending').map((a) => <article className="candidate" key={a.id}><strong>{a.user?.nickname || a.user?.handle}</strong><p>{a.reason}</p><div className="form-actions"><Button label="拒绝" variant="secondary" isDisabled={busy} clickAction={() => run(() => reviewNodeApplication({ data: { token: session.token, nodeId, applicationId: a.id, action: 'reject' } }))} /><Button label="通过" variant="primary" isDisabled={busy} clickAction={() => run(() => reviewNodeApplication({ data: { token: session.token, nodeId, applicationId: a.id, action: 'approve' } }))} /></div></article>)}{!node.applications?.some((a) => a.status === 'pending') && <p>暂无待审批申请。</p>}</section>}
     {node.role === 'admin' && node.applications?.some((a) => a.status !== 'pending') && <details className="business-section"><summary>已处理申请</summary><ul className="business-history">{node.applications.filter((a) => a.status !== 'pending').map((a) => <li key={a.id}><strong>{a.user?.nickname || a.user?.handle} · {a.status === 'approved' ? '已通过' : '未通过'}</strong><p>{a.reason}</p>{a.review_reason && <p>{a.review_reason}</p>}<time>{formatTimestamp(a.reviewed_at || a.inserted_at, true)}</time></li>)}</ul></details>}
-    <section className="business-section"><h2>社区动态</h2><div className="button-row"><Button label="社区任务" variant="secondary" onClick={() => setStream('tasks')} /><Button label="社区活动" variant="secondary" onClick={() => setStream('events')} /></div></section>
-    {stream && <DetailDialog title={stream === 'tasks' ? '社区任务' : '社区活动'} onClose={() => setStream(null)}>{stream === 'tasks' ? <TasksPage nodeId={nodeId} embedded /> : <EventsPage nodeId={nodeId} embedded />}</DetailDialog>}
-    {walletOpen && node.role === 'admin' && <DetailDialog title="节点稻米" onClose={() => setWalletOpen(false)}><GrainHistoryPage embedded nodeId={nodeId} /></DetailDialog>}
+    <section className="business-section"><h2>社区动态</h2><div className="button-row"><Button label="社区任务" variant="secondary" onClick={() => void navigate({ to: '/nodes/$nodeId/tasks', params: { nodeId } })} /><Button label="社区活动" variant="secondary" onClick={() => void navigate({ to: '/nodes/$nodeId/events', params: { nodeId } })} /></div></section>
   </>}</div>
 }

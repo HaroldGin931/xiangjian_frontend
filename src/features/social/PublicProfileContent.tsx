@@ -4,16 +4,13 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { PostList } from '~/components/PostList'
 import { AutoLoadMore } from '~/components/AutoLoadMore'
-import { usePanelReady } from '~/components/DetailDialog'
 import { LoadingState } from '~/components/LoadingState'
 import { useActorPosts } from '~/features/feed/useActorPosts'
 import { getTaskPage } from '~/features/tasks/api'
 import { TaskCard } from '~/features/tasks/TaskCard'
 import { getEvents } from '../events/api'
 import { EventCard } from '../events/EventsPage'
-import { PostThreadDialog } from '../feed/PostThreadDialog'
 import { postCategory } from '../feed/tags'
-import type { PostView } from '~/lib/models'
 
 import { useStoredSession } from '../session/session'
 import { hasMoreHistory, loadPublicHistoryPage, type HistoryPage, type HistorySource, type PublicHistory } from './public-history'
@@ -56,15 +53,13 @@ export function PublicProfileContent({ actor }: { actor: string }) {
 
 function PublicPosts({ actor }: { actor: string }) {
   const { session } = useStoredSession()
-  const [selected, setSelected] = useState<PostView | null>(null)
   const { feed, error, loading, more } = useActorPosts(actor, '帖子暂时无法显示')
   const posts = feed?.posts ?? null
-  usePanelReady(Boolean(posts || error))
 
   if (!posts || (posts.length === 0 && !feed?.cursor)) {
     return <ProfileContentState error={error} items={posts} empty="还没有发布帖子" />
   }
-  return <>{error && <div className="inline-error" role="alert">{error}</div>}<PostList posts={posts.filter((p) => postCategory(p.record) === 'post')} onOpenPost={(post) => setSelected(post)} />{feed?.cursor && <AutoLoadMore key={`${actor}:${session?.pds.did}`} cursor={feed.cursor} loading={loading} failed={!!error} onLoadMore={more} />}{selected && <PostThreadDialog uri={selected.uri} category="post" focusReply={false} onClose={() => setSelected(null)} />}</>
+  return <>{error && <div className="inline-error" role="alert">{error}</div>}<PostList posts={posts.filter((p) => postCategory(p.record) === 'post')} />{feed?.cursor && <AutoLoadMore key={`${actor}:${session?.pds.did}`} cursor={feed.cursor} loading={loading} failed={!!error} onLoadMore={more} />}</>
 }
 
 function PublicTasks({ actor }: { actor: string }) {
@@ -105,7 +100,6 @@ function usePublicRiceHistory<T extends { id: string; inserted_at: string }>(
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const request = useRef(0)
-  usePanelReady(Boolean(history || error))
 
   useEffect(() => {
     const current = ++request.current
