@@ -1,16 +1,10 @@
 import { createServerFn } from '@tanstack/react-start'
 
-import { ACTIVITY_PARTICIPATION_TEXT, postCategory } from '~/features/feed/tags'
 import { BACKEND_BASE, requestJson } from '~/lib/http'
-import type { PostView, RicePublicUser, SocialConnectionPage, SocialProfile } from '~/lib/models'
+import type { RicePublicUser, SocialConnectionPage, SocialProfile } from '~/lib/models'
 import { appviewImageUrl, createPdsRecord, deletePdsRecord, recordKeyFromUri } from '~/lib/pds'
 
 export type SocialConnectionKind = 'followers' | 'following'
-
-export type ActivityParticipation = {
-  activity: PostView
-  participatedAt: string
-}
 
 export type UserSearchPage = {
   data: RicePublicUser[]
@@ -132,45 +126,6 @@ export async function updateFollowRecord(data: {
   return { recordUri: record.uri }
 }
 
-export async function loadActivityParticipations(
-  actor: string,
-): Promise<ActivityParticipation[]> {
-  const body = await requestJson<{
-    posts?: Array<{
-      post?: PostView
-      reply?: { root?: PostView }
-    }>
-  }>(`${BACKEND_BASE}/post/api/posts`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      repo: actor,
-      filter: 'reply',
-      is_personal: false,
-      page: 1,
-      per_page: 25,
-    }),
-  })
-
-  const seen = new Set<string>()
-  return (body.posts ?? []).flatMap((item) => {
-    const reply = item.post
-    const activity = item.reply?.root
-    if (
-      reply?.record.text !== ACTIVITY_PARTICIPATION_TEXT ||
-      !activity?.uri ||
-      postCategory(activity.record) !== 'activity' ||
-      seen.has(activity.uri)
-    ) return []
-
-    seen.add(activity.uri)
-    return [{
-      activity,
-      participatedAt: reply.record.createdAt || reply.indexedAt,
-    }]
-  })
-}
-
 export const getSocialProfile = createServerFn({ method: 'POST' })
   .validator((data: { actor: string; accessJwt?: string }) => data)
   .handler(({ data }) => loadSocialProfile(data.actor, data.accessJwt))
@@ -192,7 +147,3 @@ export const toggleFollow = createServerFn({ method: 'POST' })
     recordUri?: string
   }) => data)
   .handler(({ data }) => updateFollowRecord(data))
-
-export const getActivityParticipations = createServerFn({ method: 'POST' })
-  .validator((data: { actor: string }) => data)
-  .handler(({ data }) => loadActivityParticipations(data.actor))

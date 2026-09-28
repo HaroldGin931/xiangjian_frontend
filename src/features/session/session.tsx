@@ -77,19 +77,56 @@ export async function refreshStoredUser(
   return updated
 }
 
-export function tokenExpiresSoon(
-  token: string,
-  now = Date.now(),
-  thresholdMs = 60_000,
-) {
+function tokenExpiresAt(token: string) {
   try {
     const payload = token.split('.')[1]
-    if (!payload) return false
+    if (!payload) return null
     const normalized = payload.replace(/-/g, '+').replace(/_/g, '/')
     const { exp } = JSON.parse(atob(normalized)) as { exp?: number }
-    return typeof exp === 'number' && exp * 1000 <= now + thresholdMs
+    return typeof exp === 'number' && Number.isFinite(exp * 1000) ? exp * 1000 : null
   } catch {
-    return false
+    return null
+  }
+}
+
+export function tokenExpiresSoon(token: string, now = Date.now(), thresholdMs = 60_000) {
+  const expiresAt = tokenExpiresAt(token)
+  return expiresAt !== null && expiresAt <= now + thresholdMs
+}
+
+export function watchPdsSessionLifetime(sync: () => Promise<void>) {
+  let active = true
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const schedule = () => {
+    clearTimeout(timer)
+    if (!active) return
+    const stored = readStoredSession()
+    const expiresAt = stored && tokenExpiresAt(stored.pds.access_jwt)
+    if (expiresAt && expiresAt > Date.now() + 60_000) {
+      timer = setTimeout(check, Math.min(expiresAt - Date.now() - 60_000, 2_147_483_647))
+    }
+  }
+  const check = () => {
+    if (!active || document.visibilityState === 'hidden') return
+    const stored = readStoredSession()
+    if (stored && tokenExpiresSoon(stored.pds.access_jwt)) void sync().finally(schedule)
+    else schedule()
+  }
+  schedule()
+  window.addEventListener(CHANGE_EVENT, schedule)
+  window.addEventListener('storage', schedule)
+  window.addEventListener('focus', check)
+  window.addEventListener('pageshow', check)
+  document.addEventListener('visibilitychange', check)
+  void sync().finally(schedule)
+  return () => {
+    active = false
+    clearTimeout(timer)
+    window.removeEventListener(CHANGE_EVENT, schedule)
+    window.removeEventListener('storage', schedule)
+    window.removeEventListener('focus', check)
+    window.removeEventListener('pageshow', check)
+    document.removeEventListener('visibilitychange', check)
   }
 }
 
@@ -189,11 +226,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
     }
 
-    void sync()
     window.addEventListener(CHANGE_EVENT, sync)
     window.addEventListener('storage', sync)
+    const stopWatching = watchPdsSessionLifetime(sync)
     return () => {
       active = false
+      stopWatching()
       window.removeEventListener(CHANGE_EVENT, sync)
       window.removeEventListener('storage', sync)
     }

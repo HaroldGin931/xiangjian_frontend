@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 
 import { BACKEND_BASE, readJson, requestJson } from '~/lib/http'
 import type { RiceAttachment, RiceSession, RiceUser } from '~/lib/models'
+import { isRiceSession } from '../session/session-data'
 
 export type VerificationChannel = 'sms' | 'email'
 export type VerificationPurpose =
@@ -57,20 +58,34 @@ export const verifyRegistration = createServerFn({ method: 'POST' })
     return body.data
   })
 
-export const registerRice = createServerFn({ method: 'POST' })
-  .validator((data: { ticket: string; nickname: string; password: string }) => data)
-  .handler(async ({ data }) => {
-    const body = await requestJson<{ data: RiceSession }>(`${BACKEND_BASE}/api/registrations`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ticket: data.ticket,
-        nickname: data.nickname.trim(),
-        password: data.password,
-      }),
-    })
-    return body.data
+type RegistrationInput = { ticket: string; username: string; password: string }
+
+export function registrationUsernameError(username: unknown) {
+  if (typeof username !== 'string' || !/^[a-z0-9][a-z0-9-]{1,16}[a-z0-9]$/i.test(username.trim())) {
+    return '用户名须为 3–18 个字母、数字或连字符，不能以连字符开头或结尾。'
+  }
+  return ''
+}
+
+export async function requestRegistration(data: RegistrationInput) {
+  const error = registrationUsernameError(data.username)
+  if (error) throw new Error(error)
+  const body = await requestJson<{ data: RiceSession }>(`${BACKEND_BASE}/api/registrations`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ticket: data.ticket,
+      username: data.username.trim().toLowerCase(),
+      password: data.password,
+    }),
   })
+  if (!isRiceSession(body.data)) throw new Error('登录信息返回异常，请稍后重试。')
+  return body.data
+}
+
+export const registerRice = createServerFn({ method: 'POST' })
+  .validator((data: RegistrationInput) => data)
+  .handler(({ data }) => requestRegistration(data))
 
 export const resetRicePassword = createServerFn({ method: 'POST' })
   .validator((data: ContactInput & { code: string; password: string }) => data)

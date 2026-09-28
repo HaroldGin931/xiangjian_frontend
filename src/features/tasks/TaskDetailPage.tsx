@@ -1,10 +1,11 @@
 import { ImageGroup } from '~/components/ContentImages'
 import { ContactField } from '~/components/ContactField'
 import { usePanelReady } from '~/components/DetailDialog'
+import { LoadingState } from '~/components/LoadingState'
 import { useTimeBoundary } from '~/components/useTimeBoundary'
 import { attachmentImages } from '~/lib/attachments'
 import { Button } from '@astryxdesign/core/Button'
-import { TextArea } from '@astryxdesign/core/TextArea'
+import { TextArea } from '~/components/AutoTextArea'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft, CheckCircle2, CircleAlert, Sprout } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
@@ -95,7 +96,7 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
     }
   }
 
-  if (!isReady || (loading && !task)) return <div className="page loading-line">正在加载任务…</div>
+  if (!isReady || (loading && !task)) return <LoadingState label="正在加载任务…" className="page loading-line" />
   if (!task) return <div className="page"><div className="inline-error">{error || '任务不存在'}</div></div>
 
   const actions = new Set(task.allowed_actions)
@@ -171,7 +172,6 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
                   value={reason}
                   onChange={setReason}
                   maxLength={512}
-                  rows={5}
                   width="100%"
                   isOptional
                 />
@@ -211,7 +211,6 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
               value={appointmentReason}
               onChange={setAppointmentReason}
               maxLength={512}
-              rows={3}
               width="100%"
               isOptional
             />}
@@ -282,7 +281,6 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
               value={result}
               onChange={setResult}
               maxLength={4000}
-              rows={7}
               width="100%"
               isRequired
             />
@@ -307,7 +305,6 @@ function TaskDetails({ taskId, embedded, loadTask }: { taskId: string; embedded:
               value={reviewReason}
               onChange={setReviewReason}
               maxLength={512}
-              rows={4}
               width="100%"
             />
             <div className="form-actions">

@@ -4,6 +4,8 @@ import { ArrowLeft, Bell, ChevronRight } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 import { DetailDialog, usePanelReady } from '~/components/DetailDialog'
+import { AutoLoadMore } from '~/components/AutoLoadMore'
+import { LoadingState } from '~/components/LoadingState'
 import { EventDetail } from '../events/EventDetail'
 import { NodeDetail } from '../nodes/NodesPanel'
 import { TaskDetailPage } from '../tasks/TaskDetailPage'
@@ -23,7 +25,7 @@ import {
   notificationTarget,
   type NotificationTarget,
 } from './api'
-import { applyNotificationState, notificationSource, NOTIFICATION_STORAGE_PREFIX, saveNotificationState } from './local-state'
+import { applyNotificationState, mergeNotificationRows, notificationSource, NOTIFICATION_STORAGE_PREFIX, saveNotificationState } from './local-state'
 
 const reasonCopy: Record<string, { label: string; action: string }> = {
   like: { label: '点赞', action: '赞了你的帖子' },
@@ -57,9 +59,14 @@ export function NotificationsPage({ embedded = false }: { embedded?: boolean }) 
 function NotificationInbox({ session, isReady, embedded }: { session: RiceSession | null; isReady: boolean; embedded: boolean }) {
   const [selected, setSelected] = useState<NotificationTarget | null>(null)
   const [marking, setMarking] = useState(false)
+  const [clearing, setClearing] = useState(false)
   const [rows, setRows] = useState<NotificationView[]>([])
+  const [cursors, setCursors] = useState<{ social: string | null; business: string | null }>({ social: null, business: null })
   const [isLoading, setLoading] = useState(true)
+  const [paging, setPaging] = useState(false)
+  const [pagingError, setPagingError] = useState('')
   const [loadError, setLoadError] = useState('')
+  const [clearError, setClearError] = useState('')
   const [readError, setReadError] = useState('')
   const [error, setError] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
@@ -69,6 +76,7 @@ function NotificationInbox({ session, isReady, embedded }: { session: RiceSessio
   const account = session?.pds.did
   const notifications = account ? applyNotificationState(account, rows) : []
   const lifetime = useRef(0)
+  const loadRequest = useRef(0)
   usePanelReady(isReady && (!session || !isLoading))
 
   useEffect(() => {
@@ -87,31 +95,39 @@ function NotificationInbox({ session, isReady, embedded }: { session: RiceSessio
   useEffect(() => {
     lifetime.current += 1
     setMarking(false)
+    setClearing(false)
+    setClearError('')
     return () => { lifetime.current += 1 }
   }, [accessJwt, riceToken])
 
   useEffect(() => {
     if (!isReady) return
+    const current = ++loadRequest.current
+    setPaging(false)
     if (!accessJwt || !riceToken) {
       setRows([])
+      setCursors({ social: null, business: null })
       setSelected(null)
       setLoading(false)
       return
     }
-    let active = true
     setLoading(true)
     setLoadError('')
+    setPagingError('')
     void Promise.allSettled([
-      getNotifications({ data: accessJwt }),
-      getTaskNotifications({ data: riceToken }),
+      getNotifications({ data: { token: accessJwt } }),
+      getTaskNotifications({ data: { token: riceToken } }),
     ])
       .then(([social, tasks]) => {
-        if (!active) return
+        if (current !== loadRequest.current) return
 
         const nextNotifications = [social, tasks]
-          .flatMap((result) => result.status === 'fulfilled' ? result.value : [])
-          .sort((a, b) => b.indexedAt.localeCompare(a.indexedAt))
-        setRows(nextNotifications)
+          .flatMap((result) => result.status === 'fulfilled' ? result.value.notifications : [])
+        setRows(mergeNotificationRows([], nextNotifications))
+        setCursors({
+          social: social.status === 'fulfilled' ? social.value.cursor : null,
+          business: tasks.status === 'fulfilled' ? tasks.value.cursor : null,
+        })
 
         setLoadError(([
           ['帖子互动通知', social], ['任务、活动与社区通知', tasks],
@@ -120,13 +136,43 @@ function NotificationInbox({ session, isReady, embedded }: { session: RiceSessio
           : []).join(' '))
       })
       .finally(() => {
-        if (active) setLoading(false)
+        if (current === loadRequest.current) setLoading(false)
       })
-    return () => { active = false }
+    return () => { loadRequest.current++ }
   }, [accessJwt, isReady, reloadKey, riceToken])
 
+  const hasMore = Boolean(cursors.social || cursors.business)
+  const more = async () => {
+    if (!accessJwt || !riceToken || !hasMore || isLoading || paging || marking || clearing) return
+    const current = loadRequest.current
+    const sources: Array<'social' | 'business'> = (['social', 'business'] as const).filter((source) => Boolean(cursors[source]))
+    setPaging(true); setPagingError('')
+    const results = await Promise.allSettled(sources.map((source) => source === 'social'
+      ? getNotifications({ data: { token: accessJwt, cursor: cursors.social ?? undefined } })
+      : getTaskNotifications({ data: { token: riceToken, cursor: cursors.business ?? undefined } })))
+    if (current !== loadRequest.current) return
+    const next = { ...cursors }
+    const received: NotificationView[] = []
+    const failures: string[] = []
+    sources.forEach((source, index) => {
+      const result = results[index]
+      if (result.status === 'rejected') {
+        failures.push(`${source === 'social' ? '帖子互动通知' : '任务、活动与社区通知'}暂时无法加载更多。`)
+      } else if (result.value.cursor && result.value.cursor === cursors[source]) {
+        failures.push('通知分页游标未更新，请重试。')
+      } else {
+        received.push(...result.value.notifications)
+        next[source] = result.value.cursor
+      }
+    })
+    setRows((currentRows) => mergeNotificationRows(currentRows, received))
+    setCursors(next)
+    setPagingError(failures.join(' '))
+    setPaging(false)
+  }
+
   const markAll = async () => {
-    if (!accessJwt || !riceToken || marking) return
+    if (!accessJwt || !riceToken || isLoading || paging || marking || clearing) return
     const requestLifetime = lifetime.current
     setMarking(true); setReadError(''); setError('')
     const results = await Promise.allSettled([markNotificationsRead({ data: accessJwt }), markTaskNotificationsRead({ data: riceToken })])
@@ -146,6 +192,34 @@ function NotificationInbox({ session, isReady, embedded }: { session: RiceSessio
       saveNotificationState(account, items, state)
       setError('')
     } catch { setError(state === 'hidden' ? '未能清除已读消息，请检查浏览器存储后重试。' : '未能保存已读状态，请检查浏览器存储后重试。') }
+  }
+
+  const clearAllRead = async () => {
+    if (!account || !accessJwt || !riceToken || isLoading || paging || marking || clearing) return
+    const current = lifetime.current
+    setClearing(true); setClearError('')
+    try {
+      const all: NotificationView[] = []
+      const sources: Array<{ load: typeof getNotifications; token: string; name: string; cursor?: string | null }> = [
+        { load: getNotifications, token: accessJwt, name: '帖子通知' },
+        { load: getTaskNotifications, token: riceToken, name: '业务通知' },
+      ]
+      while (sources.some((source) => source.cursor !== null)) {
+        const pages = await Promise.all(sources.map((source) => source.cursor === null ? null
+          : source.load({ data: { token: source.token, cursor: source.cursor } })))
+        if (current !== lifetime.current) return
+        sources.forEach((source, index) => {
+          const page = pages[index]
+          if (!page) return
+          all.push(...page.notifications)
+          if (page.cursor && page.cursor === source.cursor) throw new Error(`${source.name}分页未前进`)
+          source.cursor = page.cursor
+        })
+      }
+      saveNotificationState(account, applyNotificationState(account, all).filter((notification) => notification.isRead), 'hidden')
+    } catch (reason) {
+      if (current === lifetime.current) setClearError(`未能清除已读消息：${reason instanceof Error ? reason.message : '请稍后重试。'}`)
+    } finally { if (current === lifetime.current) setClearing(false) }
   }
 
   const unreadCount = notifications.filter((notification) => !notification.isRead).length
@@ -168,21 +242,22 @@ function NotificationInbox({ session, isReady, embedded }: { session: RiceSessio
       <div className="business-heading notification-heading">
         <div>{embedded ? <strong>全部消息</strong> : <h1>通知</h1>}{unreadCount > 0 && <span className="notification-count">{unreadCount} 条未读</span>}</div>
         <div className="notification-actions">
-          <Button label={marking ? '正在标记…' : '全部已读'} variant="ghost" isDisabled={marking || !unreadCount} clickAction={markAll} />
-          <Button label="清除所有已读消息" variant="ghost" isDisabled={marking || !notifications.some((notification) => notification.isRead)} clickAction={() => saveLocalState(notifications.filter((notification) => notification.isRead), 'hidden')} />
+          <Button label={marking ? '正在标记…' : '全部已读'} variant="ghost" isDisabled={isLoading || paging || marking || clearing || (!unreadCount && !hasMore)} clickAction={markAll} />
+          <Button label="清除所有已读消息" variant="ghost" isLoading={clearing} isDisabled={isLoading || paging || marking || clearing || (!notifications.some((notification) => notification.isRead) && !hasMore)} clickAction={clearAllRead} />
         </div>
       </div>
-      {loadError || readError || error ? (
+      {loadError || readError || clearError || error ? (
         <div className="inline-error" role="alert">
-          <span>{[loadError, readError, error].filter(Boolean).join(' ')}</span>
-          <Button label="重试" variant="ghost" size="sm" isDisabled={marking} onClick={async () => {
+          <span>{[loadError, readError, clearError, error].filter(Boolean).join(' ')}</span>
+          {(loadError || readError || clearError) && <Button label="重试" variant="ghost" size="sm" isDisabled={marking || clearing} onClick={async () => {
+            if (clearError) { await clearAllRead(); return }
             if (readError) await markAll()
             if (loadError || !readError) setReloadKey((value) => value + 1)
-          }} />
+          }} />}
         </div>
       ) : null}
 
-      {notifications.length === 0 && !isLoading ? (
+      {notifications.length === 0 && !isLoading && !loadError && !readError && !hasMore ? (
         <section className="notification-empty-state">
           <Bell size={28} aria-hidden="true" />
           <strong>暂时没有通知</strong>
@@ -215,7 +290,11 @@ function NotificationInbox({ session, isReady, embedded }: { session: RiceSessio
           })}
         </section>
       )}
-      {isLoading ? <p className="loading-line" aria-live="polite">正在加载通知…</p> : null}
+      {isLoading ? <LoadingState label="正在加载通知…" /> : null}
+      {pagingError && <p className="inline-error" role="alert">{pagingError}</p>}
+      {hasMore && !isLoading && (notifications.length
+        ? <AutoLoadMore cursor={JSON.stringify(cursors)} loading={paging || isLoading} failed={!!pagingError} onLoadMore={more} />
+        : <Button label="加载更早通知" variant="secondary" isLoading={paging} isDisabled={paging || isLoading} clickAction={more} />)}
       {selected && <DetailDialog title={{ task: '任务详情', event: '活动详情', node: '社区详情', post: '帖子详情', profile: '个人主页' }[selected.kind]} onClose={() => setSelected(null)}>
         {selected.kind === 'event' && <EventDetail eventId={selected.id} />}
         {selected.kind === 'node' && <NodeDetail nodeId={selected.id} />}

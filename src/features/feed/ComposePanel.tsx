@@ -1,9 +1,10 @@
 import { Button } from '@astryxdesign/core/Button'
-import { TextArea } from '@astryxdesign/core/TextArea'
+import { TextArea } from '~/components/AutoTextArea'
 import { useBlocker, useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type Ref } from 'react'
 import { ImagePicker } from '~/components/ContentImages'
 import { DetailDialog, usePanelReady } from '~/components/DetailDialog'
+import { LoadingState } from '~/components/LoadingState'
 import { preparePostImage, readFileBase64 } from '~/lib/images'
 import type { PdsImage } from '~/lib/models'
 import type { FormCloseState } from '~/lib/form-state'
@@ -33,7 +34,6 @@ function ComposeContent({ initialKind = 'post', onPublished, onClose, ref }: Com
   const [kind, setKind] = useState(initialKind)
   const [visitedKinds, setVisitedKinds] = useState<ComposeKind[]>([initialKind])
   const [managedNodes, setManagedNodes] = useState<CommunityNode[] | null>(null)
-  usePanelReady(isReady && (!session || managedNodes !== null))
   useEffect(() => {
     if (!session) return
     let active = true
@@ -72,7 +72,7 @@ function ComposeContent({ initialKind = 'post', onPublished, onClose, ref }: Com
   const [previews, setPreviews] = useState<Array<{ src: string; alt: string }>>([])
   const uploadedImages = useRef(new Map<File, PdsImage>())
   const postRequest = useRef<{ rkey: string; createdAt: string } | null>(null)
-  usePanelReady(isReady && (!session || draftReady))
+  usePanelReady(isReady && (!session || (managedNodes !== null && draftReady)))
   useEffect(() => {
     if (!session) return
     let active = true
@@ -179,16 +179,16 @@ function ComposeContent({ initialKind = 'post', onPublished, onClose, ref }: Com
       await published('post')
     } catch (e) { if (mounted.current) setError(e instanceof Error ? e.message : '发布失败') } finally { if (mounted.current) setBusy(false) }
   }
-  if (!isReady) return <p className="loading-line">正在加载…</p>
+  if (!isReady) return <LoadingState label="正在加载…" />
   if (!session) return <LoginPage />
-  if (managedNodes === null || !draftReady) return <p className="loading-line">正在恢复发布内容…</p>
+  if (managedNodes === null || !draftReady) return <LoadingState label="正在恢复发布内容…" />
   const canPublishCommunity = managedNodes.length > 0
   const availableKinds = composeKinds.filter((item) => item.value === 'post' || canPublishCommunity)
   const selectKind = (value: ComposeKind) => { setKind(value); setVisitedKinds((visited) => visited.includes(value) ? visited : [...visited, value]) }
   return <div className="page compose-page">{availableKinds.length > 1 && <div className="compose-type-tabs filter-buttons" role="group" aria-label="发布类型">{availableKinds.map((item) => <Button label={item.label} variant="ghost" className={kind === item.value ? 'active' : undefined} aria-pressed={kind === item.value} isDisabled={submitting} onClick={() => selectKind(item.value)} key={item.value} />)}</div>}{notice && <p className="form-notice" role="status">{notice}</p>}
-    <div hidden={kind !== 'post'}><h2>发布帖子</h2><div className="form-stack"><div><TextArea isDisabled={busy} label="想分享什么" value={text} onChange={setText} rows={7} placeholder="分享社区里的见闻、想法或近况… 输入 #话题" width="100%" /><p className="compose-character-count">{text.trim().length}/300</p></div><ImagePicker images={previews} onSelect={(selected) => setFiles((current) => [...current, ...selected])} onRemove={(index) => setFiles((current) => current.filter((_, i) => i !== index))} disabled={busy} maxImages={MAX_POST_IMAGES} description="静态大图会自动压缩；GIF 动图需在 1 MB 以内。" />{error && <p className="form-error" role="alert">{error}</p>}<div className="form-actions"><Button label="发布帖子" variant="primary" isLoading={busy} isDisabled={!session || (!text.trim() && !files.length) || text.trim().length > 300 || busy} clickAction={submit} /></div></div></div>
-    {canPublishCommunity && visitedKinds.includes('activity') && <div hidden={kind !== 'activity'}><h2>发布活动</h2><EventCreateForm key={session.token} session={session} nodes={managedNodes} active={kind === 'activity'} onPublished={() => { void published('activity') }} onCloseStateChange={updateActivity} /></div>}
-    {canPublishCommunity && visitedKinds.includes('task') && <div hidden={kind !== 'task'}><h2>发布任务</h2><TaskCreatePage key={session.token} session={session} nodes={managedNodes} active={kind === 'task'} onPublished={id => { void published('task', id) }} onCloseStateChange={updateTask} /></div>}
+    <div hidden={kind !== 'post'}><div className="form-stack"><div><TextArea isDisabled={busy} label="想分享什么" value={text} onChange={setText} placeholder="分享社区里的见闻、想法或近况… 输入 #话题" width="100%" /><p className="compose-character-count">{text.trim().length}/300</p></div><ImagePicker images={previews} onSelect={(selected) => setFiles((current) => [...current, ...selected])} onRemove={(index) => setFiles((current) => current.filter((_, i) => i !== index))} disabled={busy} maxImages={MAX_POST_IMAGES} />{error && <p className="form-error" role="alert">{error}</p>}<div className="publish-step-actions"><Button label="发布帖子" variant="primary" isLoading={busy} isDisabled={!session || (!text.trim() && !files.length) || text.trim().length > 300 || busy} clickAction={submit} /></div></div></div>
+    {canPublishCommunity && visitedKinds.includes('activity') && <div hidden={kind !== 'activity'}><EventCreateForm key={session.token} session={session} nodes={managedNodes} active={kind === 'activity'} onPublished={() => { void published('activity') }} onCloseStateChange={updateActivity} /></div>}
+    {canPublishCommunity && visitedKinds.includes('task') && <div hidden={kind !== 'task'}><TaskCreatePage key={session.token} session={session} nodes={managedNodes} active={kind === 'task'} onPublished={id => { void published('task', id) }} onCloseStateChange={updateTask} /></div>}
     {confirmClose && <DetailDialog title="保存草稿" className="post-dialog business-dialog compose-close-dialog" onClose={() => { if (!savingDrafts) finishClose(false) }}><div className="business-panel form-stack"><p>有内容尚未保存。请问是保存草稿还是直接关闭？</p>{dirtyPost && <p className="muted">帖子草稿含图片，仅保存在当前浏览器，重新打开发布窗口可继续编辑。</p>}{closeError && <p className="form-error" role="alert">{closeError}</p>}<div className="form-actions"><Button label="直接关闭" variant="secondary" isDisabled={savingDrafts} clickAction={() => finishClose(true)} /><Button label="保存草稿" variant="primary" isLoading={savingDrafts} isDisabled={savingDrafts} clickAction={saveAndClose} /></div></div></DetailDialog>}
   </div>
 }

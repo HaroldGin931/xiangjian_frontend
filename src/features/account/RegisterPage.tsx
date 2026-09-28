@@ -9,22 +9,25 @@ import { loginReturnTo } from '../session/login-redirect'
 import { useAuthOptions } from '../session/useAuthOptions'
 import {
   registerRice,
+  registrationUsernameError,
   verifyRegistration,
   type VerificationChannel,
 } from './api'
 import { VerificationFields } from './VerificationFields'
+import { ProfileEditPage } from './ProfileEditPage'
 
 export function RegisterPage({ returnTo }: { returnTo?: string }) {
   const [channel, setChannel] = useState<VerificationChannel>('sms')
   const [contact, setContact] = useState('')
   const [code, setCode] = useState('')
   const [ticket, setTicket] = useState('')
-  const [nickname, setNickname] = useState('')
+  const [username, setUsername] = useState('')
+  const [step, setStep] = useState<'credentials' | 'username'>('credentials')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
   const [busy, setBusy] = useState(false)
-  const { saveSession } = useStoredSession()
+  const { session, saveSession } = useStoredSession()
   const navigate = useNavigate()
   const { options, error: optionsError } = useAuthOptions()
   const channels = options?.registration_channels ?? []
@@ -33,6 +36,7 @@ export function RegisterPage({ returnTo }: { returnTo?: string }) {
   }, [options, channel])
 
   const verify = async () => {
+    if (busy || password.length < 8) return
     setBusy(true)
     setError('')
     try {
@@ -44,6 +48,7 @@ export function RegisterPage({ returnTo }: { returnTo?: string }) {
         },
       })
       setTicket(result.ticket)
+      setStep('username')
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '验证码校验失败')
     } finally {
@@ -52,12 +57,13 @@ export function RegisterPage({ returnTo }: { returnTo?: string }) {
   }
 
   const register = async () => {
+    if (busy || !options?.handle_domain || registrationUsernameError(username)) return
     setBusy(true)
     setError('')
     try {
-      const session = await registerRice({ data: { ticket, nickname, password } })
+      const session = await registerRice({ data: { ticket, username, password } })
       saveSession(session)
-      await navigate({ href: loginReturnTo(returnTo), replace: true })
+      setPassword('')
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : '注册失败')
     } finally {
@@ -65,13 +71,16 @@ export function RegisterPage({ returnTo }: { returnTo?: string }) {
     }
   }
 
+  const finish = () => navigate({ href: loginReturnTo(returnTo), replace: true })
+  if (session) return <ProfileEditPage avatarOnly onSaved={finish} />
+
   return (
     <div className="page narrow-page account-entry-page">
       <Link to="/login" search={{ returnTo }} className="back-link"><ArrowLeft size={16} /> 登录</Link>
       <section className="page-intro">
         <div className="eyebrow">一个身份，走遍全联盟</div>
-        <h1>创建账号</h1>
-        <p>验证联系方式，设置昵称和密码即可加入。</p>
+        <h1>{step === 'username' ? '设置你的用户名' : '创建账号'}</h1>
+        <p>{step === 'username' ? '选择一个用户名，方便大家找到你。' : '验证联系方式，设置密码即可加入。'}</p>
       </section>
       <section className="form-card">
         <div className="login-icon"><UserPlus size={28} /></div>
@@ -79,7 +88,7 @@ export function RegisterPage({ returnTo }: { returnTo?: string }) {
         {options && !channels.length ? <p>注册暂未开放，请稍后再试。</p> : null}
         {options?.verification_mode === 'log' ? <p className="form-notice">测试模式：验证码仅写入服务器日志，不会发送短信或邮件。</p> : null}
         {channels.length ? <>
-        {!ticket ? (
+        {step === 'credentials' ? (
           <>
             <VerificationFields
               channel={channel}
@@ -94,6 +103,16 @@ export function RegisterPage({ returnTo }: { returnTo?: string }) {
               onError={setError}
               onSent={() => setNotice(options?.verification_mode === 'log' ? '测试验证码已写入服务器日志。' : '验证码已发送，请检查短信或邮箱。')}
             />
+            <TextInput
+              label="密码"
+              type="password"
+              value={password}
+              onChange={setPassword}
+              description="至少 8 位。"
+              width="100%"
+              isDisabled={busy}
+              isRequired
+            />
             {notice ? <div className="form-notice">{notice}</div> : null}
             <div className="form-actions">
               <Button
@@ -102,38 +121,36 @@ export function RegisterPage({ returnTo }: { returnTo?: string }) {
                 size="lg"
                 clickAction={verify}
                 isLoading={busy}
-                isDisabled={!contact.trim() || !code.trim()}
+                isDisabled={busy || !contact.trim() || !code.trim() || password.length < 8}
               />
             </div>
           </>
         ) : (
           <>
             <TextInput
-              label="昵称"
-              value={nickname}
-              onChange={setNickname}
-              placeholder="怎么称呼你"
-              description="公开显示，可在个人资料中修改。"
+              label="用户名"
+              value={username}
+              onChange={setUsername}
+              placeholder="你的用户名"
+              description="仅限字母、数字和连字符，3–18 个字符；不能以连字符开头或结尾。"
               width="100%"
+              isDisabled={busy}
               isRequired
             />
-            <TextInput
-              label="密码"
-              type="password"
-              value={password}
-              onChange={setPassword}
-              description="至少 8 位。"
-              width="100%"
-            />
+            {options?.handle_domain ? <p className="form-notice" aria-live="polite">
+              @{username.trim().toLowerCase() || '用户名'}.{options.handle_domain}
+            </p> : <p className="form-error" role="alert">用户名配置暂时无法获取，请刷新后重试。</p>}
             <div className="form-actions">
-              <Button label="返回修改联系方式" variant="ghost" onClick={() => setTicket('')} />
+              <Button label="返回修改联系方式" variant="ghost" isDisabled={busy} onClick={() => {
+                setTicket(''); setStep('credentials'); setError('')
+              }} />
               <Button
-                label="完成注册"
+                label="下一步"
                 variant="primary"
                 size="lg"
                 clickAction={register}
                 isLoading={busy}
-                isDisabled={!nickname.trim() || password.length < 8}
+                isDisabled={busy || !options?.handle_domain || !!registrationUsernameError(username)}
               />
             </div>
           </>

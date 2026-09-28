@@ -5,8 +5,9 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 import { ArrowLeft, ChevronDown } from 'lucide-react'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { DetailDialog } from '~/components/DetailDialog'
+import { LoadingState } from '~/components/LoadingState'
 import { PostCard } from '~/components/PostList'
-import { getPostPage } from '~/features/feed/api'
+import { getPosts } from '~/features/feed/api'
 import { PostThreadDialog } from '~/features/feed/PostThreadDialog'
 import { postCategory } from '~/features/feed/tags'
 import { getEvents, type RiceEvent } from '~/features/events/api'
@@ -19,12 +20,16 @@ import { UserProfilePage } from '~/features/social/UserProfilePage'
 import { getTaskPage } from '~/features/tasks/api'
 import { TaskCard } from '~/features/tasks/TaskCard'
 import type { RiceTask } from '~/features/tasks/types'
-import type { PostView, RicePublicUser } from '~/lib/models'
+import type { PostView, RicePublicUser, RiceSession } from '~/lib/models'
 
 export const Route = createFileRoute('/search')({ validateSearch: (search: Record<string, unknown>): { q?: string } => typeof search.q === 'string' && search.q.trim() ? { q: search.q.trim() } : {}, component: SearchPage })
 function SearchPage() {
   const { q } = Route.useSearch()
   const { session } = useStoredSession()
+  return <SearchResults key={session?.token ?? 'guest'} q={q} session={session} />
+}
+
+function SearchResults({ q, session }: { q?: string; session: RiceSession | null }) {
   const [query, setQuery] = useState(q ?? '')
   const [searched, setSearched] = useState('')
   const [tasks, setTasks] = useState<RiceTask[]>([])
@@ -46,7 +51,7 @@ function SearchPage() {
     setLoading(true); setError(''); setSearched(value); setTasks([]); setPosts([]); setEvents([]); setNodes([]); setUsers([]); setCursors({}); setFailedGroups([])
     const result = await Promise.allSettled([
       getTaskPage({ data: { q: value, token: session?.token, limit: 10 } }),
-      getPostPage({ data: { query: value, accessJwt: session?.pds.access_jwt, did: session?.pds.did, limit: 10, category: 'post' } }),
+      getPosts({ data: { query: value, accessJwt: session?.pds.access_jwt, did: session?.pds.did, limit: 10, category: 'post' } }),
       getEvents({ data: { q: value, token: session?.token } }),
       getNodes({ data: { q: value, token: session?.token } }),
       searchUsers({ data: { q: value } }),
@@ -71,13 +76,14 @@ function SearchPage() {
       if (kind === 'tasks') { const page = await getTaskPage({ data: { q: searched, token: session?.token, before: cursors.tasks, limit: 10 } }); if (current === version.current) { setTasks((r) => [...r, ...page.data]); setCursors((c) => ({ ...c, tasks: page.meta.next_cursor ?? undefined })) } }
       else if (kind === 'events') { const page = await getEvents({ data: { q: searched, token: session?.token, before: cursors.events } }); if (current === version.current) { setEvents((r) => [...r, ...page.data]); setCursors((c) => ({ ...c, events: page.meta?.next_cursor ?? undefined })) } }
       else if (kind === 'users') { const page = await searchUsers({ data: { q: searched, before: cursors.users } }); if (current === version.current) { setUsers((r) => [...r, ...page.data]); setCursors((c) => ({ ...c, users: page.meta.next_cursor ?? undefined })) } }
-      else { const page = await getPostPage({ data: { query: searched, accessJwt: session?.pds.access_jwt, did: session?.pds.did, cursor: cursors.posts, limit: 10, category: 'post' } }); if (current === version.current) { setPosts((r) => [...r, ...page.posts]); setCursors((c) => ({ ...c, posts: page.cursor ?? undefined })) } }
+      else { const page = await getPosts({ data: { query: searched, accessJwt: session?.pds.access_jwt, did: session?.pds.did, cursor: cursors.posts, limit: 10, category: 'post' } }); if (current === version.current) { setPosts((r) => [...r, ...page.posts]); setCursors((c) => ({ ...c, posts: page.cursor ?? undefined })) } }
     } catch (e) { if (current === version.current) setError(e instanceof Error ? e.message : '加载失败') } finally { if (current === version.current) setLoading(false) }
   }
-  const emptyMessage = (title: string) => failedGroups.includes(title) ? '暂时无法加载，请重试。' : loading ? '正在搜索…' : `没有相关${title}`
+  const emptyMessage = (title: string) => failedGroups.includes(title) ? '暂时无法加载，请重试。' : loading ? '' : `没有相关${title}`
+  const hasResults = posts.length + tasks.length + events.length + nodes.length + users.length > 0
   return <div className="page search-page"><header className="standalone-header"><Link to="/" className="back-link" aria-label="返回广场"><ArrowLeft size={20} /></Link><div className="global-search-field"><TextInput label="搜索帖子、任务、活动、社区、用户" isLabelHidden placeholder="搜索帖子、任务、活动、社区、用户" value={query} onChange={setQuery} onEnter={() => void search()} width="100%" hasClear /><Button label="搜索" variant="primary" isDisabled={!query.trim() || loading} clickAction={() => search()} /></div></header>
-    {error && <p className="inline-error" role="alert">{error}</p>}{loading && <p className="loading-line">正在搜索…</p>}
-    {!searched ? <p className="search-hint">输入关键词，搜索帖子、任务、活动、社区、用户。</p> : <div key={searched}>
+    {error && <p className="inline-error" role="alert">{error}</p>}{loading && <LoadingState label={hasResults ? '正在加载更多结果…' : '正在搜索…'} />}
+    {!searched ? <p className="search-hint">输入关键词，搜索帖子、任务、活动、社区、用户。</p> : loading && !hasResults ? null : <div key={searched}>
       <SearchGroup title="帖子" count={posts.length} hasMore={!!cursors.posts} emptyMessage={emptyMessage('帖子')}>
         <div className="post-list">{posts.map((post) => <PostCard post={post} key={post.uri} onOpenPost={() => setSelectedPost(post)} />)}</div>
         {cursors.posts && <Button label="更多帖子" variant="ghost" isDisabled={loading} clickAction={() => more('posts')} />}
@@ -109,6 +115,6 @@ function SearchPage() {
 function SearchGroup({ title, count, hasMore, emptyMessage, children }: { title: string; count: number; hasMore?: boolean; emptyMessage: string; children: ReactNode }) {
   return <details className="business-section search-result-group" open>
     <summary><h2>{title} · {count}{hasMore ? '+' : ''}</h2><span className="search-group-toggle"><span className="search-group-collapse">收起</span><span className="search-group-expand">展开</span><ChevronDown size={18} aria-hidden="true" /></span></summary>
-    {count ? children : <p className="search-group-empty">{emptyMessage}</p>}
+    {count ? children : emptyMessage ? <p className="search-group-empty">{emptyMessage}</p> : null}
   </details>
 }

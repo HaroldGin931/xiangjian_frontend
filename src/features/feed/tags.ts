@@ -83,20 +83,6 @@ export function formatPostFieldValue(key: string, value?: string) {
   return key === 'deadline' ? value.replace('T', ' ') : value
 }
 
-export function withPostCategory(
-  text: string,
-  category: PostCategory,
-  values: Record<string, string> = {},
-) {
-  const body = text.trim()
-  const details = POST_CATEGORIES[category]
-  const metadata = details.fields.flatMap((field) => {
-    const value = values[field.key]?.trim()
-    return value ? [`${field.label}：${value}`] : []
-  })
-  return [body, ...metadata].filter(Boolean).join('\n')
-}
-
 export function postTextParts(text: string) {
   return text
     .split(/(#[\p{L}\p{N}_-]+)/gu)

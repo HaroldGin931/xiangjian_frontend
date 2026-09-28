@@ -63,14 +63,13 @@ function ImageViewer({ images, initialIndex, opener, onClose }: { images: Previe
   </dialog>, document.body)
 }
 
-export function ImagePicker({ images, onSelect, onRemove, disabled = false, maxImages = DEFAULT_IMAGE_MAX_COUNT, maxBytes = DEFAULT_IMAGE_MAX_BYTES, description }: {
+export function ImagePicker({ images, onSelect, onRemove, disabled = false, maxImages = DEFAULT_IMAGE_MAX_COUNT, maxBytes = DEFAULT_IMAGE_MAX_BYTES }: {
   images: PreviewImage[]
   onSelect: (files: File[]) => void
   onRemove: (index: number) => void
   disabled?: boolean
   maxImages?: number
   maxBytes?: number
-  description?: string
 }) {
   const [error, setError] = useState<string | null>(null)
   const id = useId()
@@ -88,7 +87,7 @@ export function ImagePicker({ images, onSelect, onRemove, disabled = false, maxI
       setError(failure)
       if (!failure) onSelect(files)
     }} /></label>
-    <p id={helpId} className="content-image-help">最多 {maxImages} 张，每张不超过 {imageSizeLabel(maxBytes)}。支持 JPEG、PNG、WebP、GIF；图片按添加顺序显示。{description}</p>
+    <p id={helpId} className="content-image-help">最多 {maxImages} 张，每张不超过 {imageSizeLabel(maxBytes)}。</p>
     {error && <p id={errorId} className="content-image-error" role="alert">{error}</p>}
   </section>
 }

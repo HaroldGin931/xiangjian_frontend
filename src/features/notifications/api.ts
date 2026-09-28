@@ -57,18 +57,13 @@ export function normalizeNotifications(payload: unknown): NotificationView[] {
     }>
   }
   return (Array.isArray(body.notifications) ? body.notifications : [])
-    .filter(
-      (notification) =>
-        notification != null &&
-        typeof notification.uri === 'string' &&
-        typeof notification.author?.handle === 'string',
-    )
-    .map(
-      (notification): NotificationView => ({
-        uri: notification.uri as string,
+    .flatMap((notification): NotificationView[] => {
+      if (notification == null || typeof notification.uri !== 'string' || typeof notification.author?.handle !== 'string') return []
+      return [{
+        uri: notification.uri,
         author: {
           ...(typeof notification.author?.did === 'string' ? { did: notification.author.did } : {}),
-          handle: notification.author?.handle as string,
+          handle: notification.author.handle,
           displayName:
             typeof notification.author?.displayName === 'string'
               ? notification.author.displayName
@@ -94,28 +89,46 @@ export function normalizeNotifications(payload: unknown): NotificationView[] {
         ...(typeof notification.taskId === 'string'
           ? { taskId: notification.taskId }
           : {}),
-      }),
-    )
+      }]
+    })
+}
+
+export type NotificationPage = { notifications: NotificationView[]; cursor: string | null }
+export function normalizeNotificationPage(payload: unknown): NotificationPage {
+  const body = (payload ?? {}) as { cursor?: unknown }
+  return {
+    notifications: normalizeNotifications(payload),
+    cursor: typeof body.cursor === 'string' && body.cursor ? body.cursor : null,
+  }
+}
+
+type NotificationPageInput = { token: string; cursor?: string }
+export async function loadSocialNotificationPage({ token, cursor }: NotificationPageInput): Promise<NotificationPage> {
+  const params = new URLSearchParams({ limit: '30' })
+  if (cursor) params.set('cursor', cursor)
+  const body = await requestJson<unknown>(
+    `${BACKEND_BASE}/pds/xrpc/app.bsky.notification.listNotifications?${params}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  )
+  return normalizeNotificationPage(body)
+}
+
+export async function loadBusinessNotificationPage({ token, cursor }: NotificationPageInput): Promise<NotificationPage> {
+  const params = new URLSearchParams()
+  if (cursor) params.set('before', cursor)
+  const body = await requestJson<unknown>(`${BACKEND_BASE}/api/notifications${params.size ? `?${params}` : ''}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  return normalizeNotificationPage(body)
 }
 
 export const getNotifications = createServerFn({ method: 'POST' })
-  .validator((accessJwt: string) => accessJwt)
-  .handler(async ({ data: accessJwt }) => {
-    const body = await requestJson<unknown>(
-      `${BACKEND_BASE}/pds/xrpc/app.bsky.notification.listNotifications?limit=30`,
-      { headers: { Authorization: `Bearer ${accessJwt}` } },
-    )
-    return normalizeNotifications(body)
-  })
+  .validator((data: NotificationPageInput) => data)
+  .handler(({ data }) => loadSocialNotificationPage(data))
 
 export const getTaskNotifications = createServerFn({ method: 'POST' })
-  .validator((token: string) => token)
-  .handler(async ({ data: token }) => {
-    const body = await requestJson<unknown>(`${BACKEND_BASE}/api/notifications`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-    return normalizeNotifications(body)
-  })
+  .validator((data: NotificationPageInput) => data)
+  .handler(({ data }) => loadBusinessNotificationPage(data))
 
 export async function updateSeenNotifications(accessJwt: string) {
   const response = await fetch(`${BACKEND_BASE}/pds/xrpc/app.bsky.notification.updateSeen`, {

@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from 'react'
 import { authorDisplayName } from '~/lib/format'
 import { Avatar } from '~/components/Avatar'
 import { AutoLoadMore } from '~/components/AutoLoadMore'
+import { LoadingState } from '~/components/LoadingState'
 import type { SocialConnectionPage } from '~/lib/models'
 
 import { useStoredSession } from '../session/session'
@@ -100,7 +101,7 @@ export function PeopleListPage({
           />
         </div>
       ) : !error ? (
-        <p className="loading-line">正在加载{title}列表…</p>
+        <LoadingState label={`正在加载${title}列表…`} />
       ) : null}
       {page?.cursor && <AutoLoadMore key={`${actor}:${kind}:${session?.pds.did}`} cursor={page.cursor} loading={isLoading} failed={!!error} onLoadMore={() => load(page.cursor)} />}
     </div>

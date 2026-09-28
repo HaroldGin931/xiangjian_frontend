@@ -1,5 +1,5 @@
 import { Button } from '@astryxdesign/core/Button'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import type { RepostChange } from '~/components/PostActions'
 import { PostList } from '~/components/PostList'
@@ -14,6 +14,16 @@ import type { PostCategory } from '~/lib/models'
 
 
 export function PlazaPage({ initialFeed }: { initialFeed: PostFeed }) {
+  const { session } = useStoredSession()
+  const did = session?.pds.did
+  const scopedFeed = useMemo(() => readCachedFeed(did) ?? {
+    ...initialFeed,
+    posts: initialFeed.posts.map(({ viewer: _viewer, ...post }) => post),
+  }, [did, initialFeed])
+  return <PlazaFeed key={did ?? 'guest'} initialFeed={scopedFeed} />
+}
+
+function PlazaFeed({ initialFeed }: { initialFeed: PostFeed }) {
   const [feed, setFeed] = useState(initialFeed)
   const [isLoading, setLoading] = useState(false)
   const [error, setError] = useState('')

@@ -1,6 +1,7 @@
 import { isValidElement, type ReactElement, type ReactNode } from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
 import type { NotificationView } from '~/lib/models'
+import { applyNotificationState } from './local-state'
 
 const mock = vi.hoisted(() => ({
   social: vi.fn(), business: vi.fn(), readSocial: vi.fn(), readBusiness: vi.fn(),
@@ -69,7 +70,7 @@ it('keeps failed post reads unread while Rice succeeds, then retries the write a
   const business: NotificationView[] = ['task', 'event'].map((subjectType) => ({
     ...notification, uri: `business:${subjectType}`, reason: `${subjectType}-application_created`, subjectType, subjectId: subjectType,
   }))
-  mock.social.mockResolvedValue([social]); mock.business.mockResolvedValue(business)
+  mock.social.mockResolvedValue({ notifications: [social], cursor: null }); mock.business.mockResolvedValue({ notifications: business, cursor: null })
   mock.readBusiness.mockResolvedValue(undefined)
   let fail!: (error: Error) => void
   mock.readSocial.mockReturnValueOnce(new Promise((_resolve, reject) => { fail = reject }))
@@ -92,4 +93,85 @@ it('keeps failed post reads unread while Rice succeeds, then retries the write a
   expect(unread()).toHaveLength(0)
   expect(render().find((element) => element.props.role === 'alert')).toBeUndefined()
   expect(mock.social).toHaveBeenCalledTimes(1)
+})
+
+it('loads later pages from each source without duplicating the first page', async () => {
+  vi.stubGlobal('window', new EventTarget())
+  const row = (uri: string, subjectType?: string): NotificationView => ({
+    uri, reason: 'reply', author: { handle: 'actor.test' }, text: '', isRead: false,
+    indexedAt: '2026-09-22T00:00:00Z', ...(subjectType ? { subjectType, subjectId: uri } : {}),
+  })
+  mock.social.mockImplementation(async ({ data }: { data: { cursor?: string } }) => data.cursor
+    ? { notifications: [row('social-old'), row('social-first')], cursor: null }
+    : { notifications: [row('social-first')], cursor: 'social-next' })
+  mock.business.mockImplementation(async ({ data }: { data: { cursor?: string } }) => data.cursor
+    ? { notifications: [row('business-old', 'task')], cursor: null }
+    : { notifications: [row('business-first', 'task')], cursor: 'business-next' })
+  const listed = () => render().filter((element) => String(element.props.className).includes('notification-row'))
+  await vi.waitFor(() => expect(listed()).toHaveLength(2))
+  const load = render().find((element) => element.props.onLoadMore)!.props.onLoadMore as () => Promise<void>
+  await load()
+  expect(listed()).toHaveLength(4)
+  expect(mock.social).toHaveBeenCalledWith({ data: { token: 'pds-token', cursor: 'social-next' } })
+  expect(mock.business).toHaveBeenCalledWith({ data: { token: 'rice-token', cursor: 'business-next' } })
+})
+
+it('does not mark all as read while an older page is still loading', async () => {
+  vi.stubGlobal('window', new EventTarget())
+  const row: NotificationView = {
+    uri: 'social-first', reason: 'reply', author: { handle: 'actor.test' }, text: '',
+    indexedAt: '2026-09-22T00:00:00Z', isRead: false,
+  }
+  let finishPage!: (page: { notifications: NotificationView[]; cursor: null }) => void
+  mock.social.mockImplementation(({ data }: { data: { cursor?: string } }) => data.cursor
+    ? new Promise((resolve) => { finishPage = resolve })
+    : Promise.resolve({ notifications: [row], cursor: 'social-next' }))
+  mock.business.mockResolvedValue({ notifications: [], cursor: null })
+  await vi.waitFor(() => expect(render().filter((element) => element.props.className === 'notification-row unread')).toHaveLength(1))
+
+  const load = render().find((element) => element.props.onLoadMore)!.props.onLoadMore as () => Promise<void>
+  const pending = load()
+  const mark = render().find((element) => element.props.label === '全部已读')!
+  expect(mark.props.isDisabled).toBe(true)
+  await (mark.props.clickAction as () => Promise<void>)()
+  expect(mock.readSocial).not.toHaveBeenCalled()
+  finishPage({ notifications: [{ ...row, uri: 'social-old' }], cursor: null })
+  await pending
+  expect(render().filter((element) => element.props.className === 'notification-row unread')).toHaveLength(2)
+})
+
+it('allows marking all when older pages may contain unread notifications', async () => {
+  vi.stubGlobal('window', new EventTarget())
+  mock.social.mockResolvedValue({ notifications: [{
+    uri: 'social-first', reason: 'reply', author: { handle: 'actor.test' }, text: '',
+    indexedAt: '2026-09-22T00:00:00Z', isRead: true,
+  }], cursor: 'social-next' })
+  mock.business.mockResolvedValue({ notifications: [], cursor: null })
+  mock.readSocial.mockResolvedValue(undefined)
+  mock.readBusiness.mockResolvedValue(undefined)
+  await vi.waitFor(() => expect(render().find((element) => element.props.onLoadMore)).toBeDefined())
+  const mark = render().find((element) => element.props.label === '全部已读')!
+  expect(mark.props.isDisabled).toBe(false)
+  await (mark.props.clickAction as () => Promise<void>)()
+  expect(mock.readSocial).toHaveBeenCalledTimes(1)
+  expect(mock.readBusiness).toHaveBeenCalledTimes(1)
+})
+
+it('clears read notifications across unloaded pages while retaining unread ones', async () => {
+  const storage = new Map<string, string>()
+  vi.stubGlobal('window', Object.assign(new EventTarget(), {
+    localStorage: { getItem: (key: string) => storage.get(key) ?? null, setItem: (key: string, value: string) => storage.set(key, value) },
+  }))
+  const read = (uri: string): NotificationView => ({ uri, reason: 'reply', author: { handle: 'actor.test' }, text: '', indexedAt: '2026-09-22T00:00:00Z', isRead: true })
+  const unread: NotificationView = { ...read('business-unread'), subjectType: 'task', subjectId: 'task-id', isRead: false }
+  mock.social.mockImplementation(async ({ data }: { data: { cursor?: string } }) => data.cursor
+    ? { notifications: [read('social-old')], cursor: null }
+    : { notifications: [read('social-first')], cursor: 'social-next' })
+  mock.business.mockResolvedValue({ notifications: [unread], cursor: null })
+  await vi.waitFor(() => expect(render().filter((element) => String(element.props.className).includes('notification-row'))).toHaveLength(2))
+  const clear = render().find((element) => element.props.label === '清除所有已读消息')!.props.clickAction as () => Promise<void>
+  await clear()
+  expect(applyNotificationState('did:plc:reader', [read('social-first'), read('social-old')])).toEqual([])
+  expect(applyNotificationState('did:plc:reader', [unread])).toEqual([unread])
+  expect(mock.social).toHaveBeenCalledWith({ data: { token: 'pds-token', cursor: 'social-next' } })
 })

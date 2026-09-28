@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { notificationTarget, normalizeNotifications, updateSeenNotifications } from './api'
+import { loadBusinessNotificationPage, loadSocialNotificationPage, notificationTarget, normalizeNotificationPage, normalizeNotifications, updateSeenNotifications } from './api'
 import { notificationTitle } from './NotificationsPage'
 
 afterEach(() => vi.unstubAllGlobals())
@@ -36,6 +36,19 @@ function targetFor(fields: Record<string, unknown>) {
 }
 
 describe('notification data', () => {
+  it('keeps each source cursor and sends it to the correct endpoint', async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => Response.json({ notifications: [{ uri: interactionUri, author, reason: 'like' }], cursor: 'next-page' }))
+    vi.stubGlobal('fetch', fetchMock)
+    const social = await loadSocialNotificationPage({ token: 'pds-token', cursor: 'older/social' })
+    const business = await loadBusinessNotificationPage({ token: 'rice-token', cursor: 'older/business' })
+    expect(social.notifications).toHaveLength(1)
+    expect(business.cursor).toBe('next-page')
+    expect(new URL(String(fetchMock.mock.calls[0][0])).searchParams.get('cursor')).toBe('older/social')
+    expect(new URL(String(fetchMock.mock.calls[1][0])).searchParams.get('before')).toBe('older/business')
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe('Bearer pds-token')
+    expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe('Bearer rice-token')
+    expect(normalizeNotificationPage({ notifications: [], cursor: 42 }).cursor).toBeNull()
+  })
   it('distinguishes a rejected application without claiming another worker was appointed', () => {
     const [notification] = normalizeNotifications({ notifications: [{ uri: 'task-notification:1', author, reason: 'task-application_rejected', record: { text: '社区任务' } }] })
     expect(notificationTitle(notification)).toBe('小莫 拒绝了你的任务申请，本次申请未入选')

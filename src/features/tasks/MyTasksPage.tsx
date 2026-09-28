@@ -3,6 +3,7 @@ import { Button } from '@astryxdesign/core/Button'
 import { Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { DetailDialog, usePanelReady } from '~/components/DetailDialog'
+import { LoadingState } from '~/components/LoadingState'
 import { useStoredSession } from '../session/session'
 import { getTaskPage } from './api'
 import { TaskCard } from './TaskCard'
@@ -39,7 +40,7 @@ export function MyTasksPage({ embedded = false }: { embedded?: boolean }) {
   const tasks = data && data.owner === session?.user.id ? data.tasks : null
   usePanelReady(isReady && (!session || tasks !== null || !!error))
   if (isReady && !session) return <div className="page"><LoginLink className="primary-link">登录后查看我的任务</LoginLink></div>
-  if (!tasks) return <div className="page business-panel list-panel">{!embedded && <Link to="/me" className="back-link">返回我的</Link>}<h1>我的任务</h1>{error ? <p className="inline-error" role="alert">{error}</p> : <p className="loading-line">正在加载任务…</p>}</div>
+  if (!tasks) return <div className="page business-panel list-panel">{!embedded && <Link to="/me" className="back-link">返回我的</Link>}<h1>我的任务</h1>{error ? <p className="inline-error" role="alert">{error}</p> : <LoadingState label="正在加载任务…" />}</div>
   const own = (task: RiceTask) => task.creator.id === session?.user.id || task.can_manage === true
   const groupOf = (task: RiceTask) => myTaskGroup(task, own(task))
   const publisher = tasks.some(own)

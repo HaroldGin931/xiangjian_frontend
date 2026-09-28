@@ -10,6 +10,7 @@ import { useTimeBoundary } from '~/components/useTimeBoundary'
 import { ContentCardHeader } from '~/components/ContentCardHeader'
 import { DetailDialog, usePanelReady } from '~/components/DetailDialog'
 import { AutoLoadMore } from '~/components/AutoLoadMore'
+import { LoadingState } from '~/components/LoadingState'
 import { formatTimestamp } from '~/lib/format'
 import { useStoredSession } from '../session/session'
 import { EventDetail } from './EventDetail'
@@ -81,7 +82,7 @@ function EventList({ nodeId, embedded = false, mine = false, initialPage, refres
   return <div className={`page events-page${embedded ? ' business-panel list-panel' : ''}`}><div className="business-heading"><h1>{mine ? '我的活动' : '活动'}</h1>{session && !mine && !embedded && <Link to="/me/events">我的活动</Link>}</div>
     {mine && <div className="filter-buttons">{(['applied', 'managed'] as const).map((value) => <Button key={value} label={value === 'applied' ? '我申请的' : '我管理的'} variant="ghost" className={tab === value ? 'active' : undefined} aria-pressed={tab === value} onClick={() => setTab(value)} />)}</div>}
     {mine && !session && isReady && <LoginLink className="primary-link">登录后查看我的活动</LoginLink>}
-    {visibleError && <p className="inline-error" role="alert">{visibleError}</p>}{loading && <p className={rows.length ? 'refresh-status' : 'loading-line'} role="status">正在加载活动…</p>}
+    {visibleError && <p className="inline-error" role="alert">{visibleError}</p>}{loading && (rows.length ? <p className="refresh-status" role="status">正在加载活动…</p> : <LoadingState label="正在加载活动…" />)}
     <section className="task-list" aria-busy={loading}>{rows.map((event) => <EventCard event={event} key={event.id} onOpen={(load) => setSelectedEvent({ id: event.id, load })} onOpenCommunity={setSelectedCommunity} />)}</section>
     {!loading && !visibleError && !rows.length && <p className="search-hint">暂时没有活动。</p>}{cursor && <AutoLoadMore key={`${nodeId}:${mine}:${tab}`} cursor={cursor} loading={loading || !isReady} failed={!!error} onLoadMore={more} />}
     {selectedEvent && <DetailDialog key={selectedEvent.id} title="活动详情" onClose={() => setSelectedEvent(null)}><EventDetail eventId={selectedEvent.id} loadEvent={selectedEvent.load} /></DetailDialog>}

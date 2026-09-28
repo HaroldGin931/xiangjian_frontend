@@ -1,26 +1,28 @@
 import { Button } from '@astryxdesign/core/Button'
 import { EmptyState } from '@astryxdesign/core/EmptyState'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
-import { ArrowLeft, Pencil, UserRound } from 'lucide-react'
+import { ArrowLeft, Pencil } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
 import { authorDisplayName } from '~/lib/format'
 import { Avatar } from '~/components/Avatar'
 import { usePanelReady } from '~/components/DetailDialog'
+import { LoadingState } from '~/components/LoadingState'
 import type { SocialProfile } from '~/lib/models'
 
 import { useStoredSession } from '../session/session'
 import { getSocialProfile, toggleFollow } from './api'
 import { PublicProfileContent } from './PublicProfileContent'
+import { PersonalGrainActions } from '../grains/PersonalGrainActions'
 
-type UserProfileProps = { actor: string; onEdit?: () => void; embedded?: boolean }
+type UserProfileProps = { actor: string; onEdit?: () => void; embedded?: boolean; initialSend?: boolean }
 
 export function UserProfilePage(props: UserProfileProps) {
   const { session } = useStoredSession()
   return <UserProfileContent key={`${props.actor}:${session?.user.id ?? 'guest'}`} {...props} />
 }
 
-function UserProfileContent({ actor, onEdit, embedded = false }: UserProfileProps) {
+function UserProfileContent({ actor, onEdit, embedded = false, initialSend = false }: UserProfileProps) {
   const { session, isReady } = useStoredSession()
   const navigate = useNavigate()
   const returnTo = useRouterState({ select: (state) => state.location.href })
@@ -124,6 +126,7 @@ function UserProfileContent({ actor, onEdit, embedded = false }: UserProfileProp
               </div>
             ) : null}
             {followError ? <div className="social-follow-error" role="alert">{followError}</div> : null}
+            <PersonalGrainActions key={`${profile.did}:${initialSend}`} to={profile.did} initialSend={initialSend} />
           </section>
 
           {profile.socialAvailable !== false && <nav className="social-counts" aria-label="关注关系">
@@ -140,10 +143,7 @@ function UserProfileContent({ actor, onEdit, embedded = false }: UserProfileProp
           <PublicProfileContent actor={profile.did} />
         </>
       ) : !error ? (
-        <div className="social-loading">
-          {isReady ? <UserRound size={28} aria-hidden="true" /> : null}
-          <span>正在加载用户主页…</span>
-        </div>
+        <LoadingState label="正在加载用户主页…" className="social-loading" />
       ) : (
         <div className="empty-panel">
           <EmptyState title="无法显示这个用户" description="请稍后重试或返回广场。" />

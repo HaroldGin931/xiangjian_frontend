@@ -66,73 +66,51 @@ export const getTask = createServerFn({ method: 'POST' })
     return body.data
   })
 
+type TaskDraftFields = {
+  token: string
+  title: string
+  description: string
+  applicationDeadline?: string | null
+  rewardAmount: number
+  nodeId?: string
+  requirement?: string
+  executionDeadline?: string | null
+  clientRequestId?: string
+  attachmentIds?: string[]
+  organizerContact?: string
+}
+
+export const taskDraftBody = (data: TaskDraftFields) => ({
+  title: data.title,
+  description: data.description,
+  application_deadline: data.applicationDeadline,
+  reward_amount: data.rewardAmount,
+  node_id: data.nodeId,
+  requirement: data.requirement,
+  execution_deadline: data.executionDeadline,
+  client_request_id: data.clientRequestId,
+  attachment_ids: data.attachmentIds,
+  organizer_contact: data.organizerContact,
+})
+
 export const createTask = createServerFn({ method: 'POST' })
-  .validator((data: {
-    token: string
-    title: string
-    description: string
-    status: 'draft' | 'open'
-    applicationDeadline?: string
-    rewardAmount: number
-    nodeId?: string
-    requirement?: string
-    executionDeadline?: string | null
-    clientRequestId?: string
-    attachmentIds?: string[]
-    organizerContact?: string
-  }) => data)
+  .validator((data: TaskDraftFields & { status: 'draft' | 'open'; applicationDeadline?: string }) => data)
   .handler(async ({ data }) => {
     const body = await requestJson<{ data: RiceTask }>(`${BACKEND_BASE}/api/tasks`, {
       method: 'POST',
       headers: { ...authHeaders(data.token), 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: data.title,
-        description: data.description,
-        status: data.status,
-        application_deadline: data.applicationDeadline,
-        reward_amount: data.rewardAmount,
-        node_id: data.nodeId,
-        requirement: data.requirement,
-        execution_deadline: data.executionDeadline,
-        client_request_id: data.clientRequestId,
-        attachment_ids: data.attachmentIds,
-        organizer_contact: data.organizerContact,
-      }),
+      body: JSON.stringify({ ...taskDraftBody(data), status: data.status }),
     })
     return body.data
   })
 
 export const updateTaskDraft = createServerFn({ method: 'POST' })
-  .validator((data: {
-    token: string
-    taskId: string
-    title: string
-    description: string
-    applicationDeadline: string | null
-    rewardAmount: number
-    nodeId?: string
-    requirement?: string
-    executionDeadline?: string | null
-    clientRequestId?: string
-    attachmentIds?: string[]
-    organizerContact?: string
-  }) => data)
+  .validator((data: TaskDraftFields & { taskId: string; applicationDeadline: string | null }) => data)
   .handler(async ({ data }) => {
     const body = await requestJson<{ data: RiceTask }>(`${BACKEND_BASE}/api/tasks/${data.taskId}`, {
       method: 'PATCH',
       headers: { ...authHeaders(data.token), 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        title: data.title,
-        description: data.description,
-        application_deadline: data.applicationDeadline,
-        reward_amount: data.rewardAmount,
-        node_id: data.nodeId,
-        requirement: data.requirement,
-        execution_deadline: data.executionDeadline,
-        client_request_id: data.clientRequestId,
-        attachment_ids: data.attachmentIds,
-        organizer_contact: data.organizerContact,
-      }),
+      body: JSON.stringify(taskDraftBody(data)),
     })
     return body.data
   })

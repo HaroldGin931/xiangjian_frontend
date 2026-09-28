@@ -1,10 +1,16 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import type { NotificationView } from '~/lib/models'
-import { applyNotificationState, saveNotificationState } from './local-state'
+import { applyNotificationState, mergeNotificationRows, saveNotificationState } from './local-state'
 
 afterEach(() => vi.unstubAllGlobals())
 
 const unread = { uri: 'message-1', reason: 'reply', author: { handle: 'actor.test' }, text: '', indexedAt: '2026-09-21T00:00:00Z', isRead: false } satisfies NotificationView
+
+it('merges paginated notifications by source and record without duplicate rows', () => {
+  const business = { ...unread, subjectType: 'event', subjectId: 'event-1' }
+  const older = { ...unread, uri: 'message-2', indexedAt: '2026-09-20T00:00:00Z' }
+  expect(mergeNotificationRows([unread], [older, business, unread])).toEqual([unread, business, older])
+})
 
 it('keeps precise reads and cleared messages across reopening, isolated by account and source', () => {
   const storage = new Map<string, string>()

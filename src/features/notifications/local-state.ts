@@ -12,6 +12,11 @@ function notificationKey(notification: NotificationView) {
   return JSON.stringify([notificationSource(notification), notification.uri, notification.reason])
 }
 
+export function mergeNotificationRows(current: NotificationView[], next: NotificationView[]) {
+  return [...new Map([...current, ...next].map((notification) => [notificationKey(notification), notification])).values()]
+    .sort((a, b) => b.indexedAt.localeCompare(a.indexedAt))
+}
+
 function readState(account: string): LocalState {
   if (typeof window === 'undefined') return {}
   try {

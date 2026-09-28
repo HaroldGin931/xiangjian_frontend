@@ -1,11 +1,12 @@
 import { Button } from '@astryxdesign/core/Button'
 import { EmptyState } from '@astryxdesign/core/EmptyState'
-import { TextArea } from '@astryxdesign/core/TextArea'
+import { TextArea } from '~/components/AutoTextArea'
 import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useId, useState } from 'react'
 
 import { ContentCardHeader } from '~/components/ContentCardHeader'
 import { usePanelReady } from '~/components/DetailDialog'
+import { LoadingState } from '~/components/LoadingState'
 import { ImageGroup } from '~/components/ContentImages'
 import { PostText } from '~/components/PostText'
 import {
@@ -215,7 +216,6 @@ function PostThreadContent({
                   label={replyTo ? `回复 ${authorDisplayName(replyTo.author)}` : '写下评论'}
                   value={replyText}
                   onChange={setReplyText}
-                  rows={6}
                   maxLength={300}
                   width="100%"
                   placeholder="写下你的评论…"
@@ -280,7 +280,7 @@ function PostThreadContent({
           )}
         </>
       ) : !error ? (
-        <div className="loading-line">正在加载帖子…</div>
+        <LoadingState label="正在加载帖子…" />
       ) : null}
     </div>
   )

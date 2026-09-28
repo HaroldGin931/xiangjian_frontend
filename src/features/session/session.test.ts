@@ -7,10 +7,11 @@ import {
   refreshStoredSession,
   refreshStoredUser,
   tokenExpiresSoon,
+  watchPdsSessionLifetime,
   writeStoredSession,
 } from './session'
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
 function useMemoryStorage() {
   const values = new Map<string, string>()
@@ -39,6 +40,30 @@ const storedSession = {
 function jwt(exp: number) {
   const payload = Buffer.from(JSON.stringify({ exp })).toString('base64url')
   return `header.${payload}.signature`
+}
+
+function useLifecycleStorage() {
+  useMemoryStorage()
+  const events = new EventTarget()
+  Object.assign(window, {
+    addEventListener: events.addEventListener.bind(events),
+    removeEventListener: events.removeEventListener.bind(events),
+    dispatchEvent: events.dispatchEvent.bind(events),
+  })
+  const page = Object.assign(new EventTarget(), { visibilityState: 'visible' })
+  vi.stubGlobal('document', page)
+  vi.useFakeTimers()
+  vi.setSystemTime(Date.UTC(2026, 8, 27))
+  const stored = { ...storedSession, pds: { ...storedSession.pds, access_jwt: jwt(Date.now() / 1000 + 120) } }
+  writeStoredSession(stored)
+  return { stored, page }
+}
+
+function renewCurrentSession(refresh: Parameters<typeof refreshStoredSession>[1]) {
+  return async () => {
+    const stored = readStoredSession()
+    if (stored && tokenExpiresSoon(stored.pds.access_jwt)) await refreshStoredSession(stored, refresh)
+  }
 }
 
 describe('PDS session lifetime', () => {
@@ -103,6 +128,84 @@ describe('PDS session lifetime', () => {
     })
 
     expect(readStoredSession()).toEqual({ ...updated, pds })
+  })
+
+  it('renews a long-lived page before expiry and stops its timer and listeners on cleanup', async () => {
+    const { stored } = useLifecycleStorage()
+    const pds = { ...stored.pds, access_jwt: jwt(Date.now() / 1000 + 3600), refresh_jwt: 'rotated' }
+    const refresh = vi.fn(async () => pds)
+    const stop = watchPdsSessionLifetime(renewCurrentSession(refresh))
+    await vi.advanceTimersByTimeAsync(59_999)
+    expect(refresh).not.toHaveBeenCalled()
+    await vi.advanceTimersByTimeAsync(1)
+    expect(refresh).toHaveBeenCalledExactlyOnceWith({ data: stored.pds })
+    expect(readStoredSession()).toEqual({ ...stored, pds })
+    expect(vi.getTimerCount()).toBe(1)
+    stop()
+    writeStoredSession(stored)
+    window.dispatchEvent(new Event('focus'))
+    await vi.advanceTimersByTimeAsync(3600_000)
+    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('refreshes an expired token on returning from a hidden page or browser history, once for concurrent events', async () => {
+    const { stored, page } = useLifecycleStorage()
+    const pds = { ...stored.pds, access_jwt: jwt(Date.now() / 1000 + 3600), refresh_jwt: 'rotated' }
+    const refresh = vi.fn(async () => pds)
+    const stop = watchPdsSessionLifetime(renewCurrentSession(refresh))
+    page.visibilityState = 'hidden'
+    await vi.advanceTimersByTimeAsync(120_000)
+    expect(refresh).not.toHaveBeenCalled()
+    page.visibilityState = 'visible'
+    page.dispatchEvent(new Event('visibilitychange'))
+    window.dispatchEvent(new Event('focus'))
+    window.dispatchEvent(new Event('pageshow'))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(readStoredSession()).toEqual({ ...stored, pds })
+    stop()
+  })
+
+  it('preserves failed refreshes without retrying indefinitely, and does not refresh after logout', async () => {
+    const { stored } = useLifecycleStorage()
+    const failure = new Error('PDS unavailable')
+    const refresh = vi.fn().mockRejectedValue(failure)
+    const errors: unknown[] = []
+    const stop = watchPdsSessionLifetime(async () => {
+      try { await renewCurrentSession(refresh)() } catch (error) { errors.push(error) }
+    })
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(errors).toEqual([failure])
+    expect(readStoredSession()).toEqual(stored)
+    await vi.advanceTimersByTimeAsync(3600_000)
+    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(vi.getTimerCount()).toBe(0)
+    writeStoredSession(null)
+    window.dispatchEvent(new Event('focus'))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(refresh).toHaveBeenCalledTimes(1)
+    stop()
+  })
+
+  it('arms the lifetime timer after the initial incomplete cache is repaired', async () => {
+    const { stored } = useLifecycleStorage()
+    const { user, ...credentials } = stored
+    window.localStorage.setItem('xiangjian-rice-session', JSON.stringify(credentials))
+    const refresh = vi.fn(async () => ({ ...stored.pds, access_jwt: jwt(Date.now() / 1000 + 3600) }))
+    const loadUser = vi.fn(async () => user)
+    const stop = watchPdsSessionLifetime(async () => {
+      if (!readStoredSession()) await refreshStoredUser(credentials, loadUser)
+      else await renewCurrentSession(refresh)()
+    })
+    await vi.advanceTimersByTimeAsync(0)
+    expect(loadUser).toHaveBeenCalledTimes(1)
+    expect(readStoredSession()).toEqual(stored)
+    expect(vi.getTimerCount()).toBe(1)
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(refresh).toHaveBeenCalledTimes(1)
+    expect(readStoredSession()?.token).toBe(stored.token)
+    stop()
   })
 })
 

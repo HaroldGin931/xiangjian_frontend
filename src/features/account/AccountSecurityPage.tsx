@@ -75,6 +75,9 @@ export function AccountSecurityPage() {
     }
   }
 
+  const editContact = editing === 'sms' ? phone : email
+  const editCode = editing === 'sms' ? phoneCode : emailCode
+
   return (
     <div className="page narrow-page account-security-page">
       <Link to="/me/settings" className="back-link"><ArrowLeft size={16} /> 设置</Link>
@@ -101,32 +104,17 @@ export function AccountSecurityPage() {
         </Link>
       </section>
 
-      {editing === 'sms' ? (
-        <section className="form-card compact-form-card">
-          <h2>更换手机号</h2>
-          <TextInput label="新手机号" value={phone} onChange={setPhone} width="100%" />
+      {editing ? (
+        <section key={editing} className="form-card compact-form-card">
+          <h2>更换{editing === 'sms' ? '手机号' : '邮箱'}</h2>
+          <TextInput label={editing === 'sms' ? '新手机号' : '新邮箱'} type={editing === 'email' ? 'email' : undefined} value={editContact} onChange={editing === 'sms' ? setPhone : setEmail} width="100%" />
           <div className="code-row">
-            <TextInput label="验证码" value={phoneCode} onChange={setPhoneCode} width="100%" />
-            <VerificationCodeButton channel="sms" contact={phone} purpose="modify_phone" disabled={busy} onError={setError} onSent={() => setNotice('验证码已发送。')} />
+            <TextInput label="验证码" value={editCode} onChange={editing === 'sms' ? setPhoneCode : setEmailCode} width="100%" />
+            <VerificationCodeButton channel={editing} contact={editContact} purpose={editing === 'sms' ? 'modify_phone' : 'modify_email'} disabled={busy} onError={setError} onSent={() => setNotice('验证码已发送。')} />
           </div>
           <div className="form-actions">
             <Button label="取消" variant="secondary" onClick={() => setEditing(null)} />
-            <Button label="确认更换" variant="primary" clickAction={() => changeContact('sms')} isLoading={busy} isDisabled={!phone.trim() || !phoneCode.trim()} />
-          </div>
-        </section>
-      ) : null}
-
-      {editing === 'email' ? (
-        <section className="form-card compact-form-card">
-          <h2>更换邮箱</h2>
-          <TextInput label="新邮箱" type="email" value={email} onChange={setEmail} width="100%" />
-          <div className="code-row">
-            <TextInput label="验证码" value={emailCode} onChange={setEmailCode} width="100%" />
-            <VerificationCodeButton channel="email" contact={email} purpose="modify_email" disabled={busy} onError={setError} onSent={() => setNotice('验证码已发送。')} />
-          </div>
-          <div className="form-actions">
-            <Button label="取消" variant="secondary" onClick={() => setEditing(null)} />
-            <Button label="确认更换" variant="primary" clickAction={() => changeContact('email')} isLoading={busy} isDisabled={!email.trim() || !emailCode.trim()} />
+            <Button label="确认更换" variant="primary" clickAction={() => changeContact(editing)} isLoading={busy} isDisabled={!editContact.trim() || !editCode.trim()} />
           </div>
         </section>
       ) : null}

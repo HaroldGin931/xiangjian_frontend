@@ -12,7 +12,6 @@ import {
   isPostHidden,
   loadPostPage,
   loadPostThread,
-  loadPosts,
   normalizePostFeed,
   normalizePostImages,
   normalizePostThread,
@@ -28,7 +27,6 @@ import {
   postFieldValues,
   postTextParts,
   postTags,
-  withPostCategory,
 } from './tags'
 
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs() })
@@ -143,20 +141,20 @@ describe('feed data', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
     const input = { did: post.author.did, accessJwt: 'pds-token' }
-    const first = await loadPosts(input)
+    const first = await loadPostPage(input)
     expect(first.posts.map(item => item.uri)).toEqual([uri, post.uri])
     expect(first.posts[0].author).toMatchObject({ handle: 'author.test', displayName: '作者' })
     indexed = true
-    const second = await loadPosts(input)
+    const second = await loadPostPage(input)
     expect(second.posts.filter(item => item.uri === uri)).toHaveLength(1)
     expect(second.posts[0].likeCount).toBe(3)
     const ownReads = () => fetchMock.mock.calls.filter(([url]) => String(url).includes('collection=app.bsky.feed.post'))
     expect(ownReads()).toHaveLength(2)
     expect(String(ownReads()[0][0])).toContain('limit=20')
     expect(String(ownReads()[0][0])).not.toContain('reverse=true')
-    await loadPosts({ ...input, cursor: '2' })
-    await loadPosts({ ...input, repo: 'did:someone-else' })
-    await loadPosts({})
+    await loadPostPage({ ...input, cursor: '2' })
+    await loadPostPage({ ...input, repo: 'did:someone-else' })
+    await loadPostPage({})
     expect(ownReads()).toHaveLength(2)
   })
 
@@ -167,7 +165,7 @@ describe('feed data', () => {
       ? new Response(JSON.stringify({ posts: [legacyPost], page: 3, total: 81 }))
       : new Response(JSON.stringify({ data: { did: post.author.did, nickname: null, avatar: null } })))
     vi.stubGlobal('fetch', fetchMock)
-    const result = await loadPosts({ cursor: '2', category: 'post' })
+    const result = await loadPostPage({ cursor: '2', category: 'post' })
     expect(result.cursor).toBe('4')
     expect(result.posts[0]).toMatchObject({ author: { displayName: '老用户', avatar: '/bsky/img/avatar.jpg' }, record: legacyPost.record })
     expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toMatchObject({ page: 2, per_page: 20 })
@@ -177,7 +175,7 @@ describe('feed data', () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string | URL) => String(url).includes('/post/api/posts/list')
       ? new Response(JSON.stringify({ posts: [], page: 2, total: 40 }))
       : new Response(JSON.stringify({ error: 'not_found' }), { status: 404 })))
-    await expect(loadPosts({ cursor: '2' })).resolves.toEqual({ posts: [], cursor: null })
+    await expect(loadPostPage({ cursor: '2' })).resolves.toEqual({ posts: [], cursor: null })
   })
 
   it('loads a public thread for guests without bearer headers or private viewer record reads', async () => {
@@ -259,20 +257,10 @@ describe('feed data', () => {
     expect(postTextParts('开放日 #活动').filter((part) => part.isTag)).toEqual([
       { value: '#活动', isTag: true },
     ])
-    expect(withPostCategory('开放日 #商品', 'activity')).toBe('开放日 #商品')
-    expect(withPostCategory('开放日', 'activity')).toBe('开放日')
   })
 
-  it('stores special fields in the post and reads them back for rendering', () => {
-    const text = withPostCategory('古村开放日 #乡村', 'activity', {
-      deadline: '2026-09-10T18:00',
-      location: '漈下村村委',
-      conditions: '自带水杯',
-    })
-
-    expect(text).toBe(
-      '古村开放日 #乡村\n截止时间：2026-09-10T18:00\n活动地点：漈下村村委\n参与条件：自带水杯',
-    )
+  it('reads existing special post fields for rendering', () => {
+    const text = '古村开放日 #乡村\n截止时间：2026-09-10T18:00\n活动地点：漈下村村委\n参与条件：自带水杯'
     expect(postFieldValues(text, 'activity')).toEqual({
       deadline: '2026-09-10T18:00',
       location: '漈下村村委',
@@ -280,11 +268,7 @@ describe('feed data', () => {
     })
     expect(postDisplayText(text, 'activity')).toBe('古村开放日 #乡村')
 
-    const product = withPostCategory('秋收新米', 'product', {
-      price: '88',
-      availability: '可提供',
-      fulfillment: '村口自提',
-    })
+    const product = '秋收新米\n参考稻米：88\n可用状态：可提供\n履约说明：村口自提'
     expect(postFieldValues(product, 'product')).toEqual({
       price: '88',
       availability: '可提供',
@@ -329,7 +313,7 @@ describe('feed data', () => {
       )
     vi.stubGlobal('fetch', fetchMock)
 
-    const feed = await loadPosts({ category: 'activity', accessJwt: 'access-token' })
+    const feed = await loadPostPage({ category: 'activity', accessJwt: 'access-token' })
 
     expect(feed.posts).toHaveLength(2)
     expect(feed.posts.every((item) => postCategory(item.record) === 'activity')).toBe(true)
@@ -485,7 +469,7 @@ describe('feed data', () => {
     })
     vi.stubGlobal('fetch', fetchMock)
 
-    const feed = await loadPosts({
+    const feed = await loadPostPage({
       did: 'did:example',
       accessJwt: 'expired-access',
     })
@@ -617,7 +601,7 @@ describe('viewer interaction isolation', () => {
       if (url.includes('listRecords')) return new Response(JSON.stringify({ message: 'PDS unavailable' }), { status: 503 })
       return response({ feed: [] })
     }))
-    const feed = await loadPosts({ did: bob, accessJwt: 'bob-token' })
+    const feed = await loadPostPage({ did: bob, accessJwt: 'bob-token' })
     expect(feed.posts[0].viewer).toBeUndefined()
     expect(feed.posts[0].likeCount).toBe(1)
   })
@@ -655,7 +639,7 @@ describe('viewer interaction isolation', () => {
       return response({ records: [{ uri: bobLike, value: { subject: { uri: post.uri } } }] })
     })
     vi.stubGlobal('fetch', fetchMock)
-    const feed = await loadPosts({ did: bob, accessJwt: 'bob-token' })
+    const feed = await loadPostPage({ did: bob, accessJwt: 'bob-token' })
     expect(feed.posts[0].viewer).toEqual({ like: bobLike })
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes('cursor=older-page'))).toBe(true)
   })

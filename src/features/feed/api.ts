@@ -357,15 +357,7 @@ export async function loadPostPage(data: GetPostsInput) {
   }
 }
 
-export async function loadPosts(data: GetPostsInput) {
-  return loadPostPage(data)
-}
-
 export const getPosts = createServerFn({ method: 'POST' })
-  .validator((data: GetPostsInput) => data)
-  .handler(({ data }) => loadPosts(data))
-
-export const getPostPage = createServerFn({ method: 'POST' })
   .validator((data: GetPostsInput) => data)
   .handler(({ data }) => loadPostPage(data))
 

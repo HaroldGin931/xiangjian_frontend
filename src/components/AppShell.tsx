@@ -11,6 +11,7 @@ import { NotificationsPage } from '~/features/notifications/NotificationsPage'
 import { applyNotificationState, NOTIFICATION_STORAGE_PREFIX } from '~/features/notifications/local-state'
 import { DetailDialog } from './DetailDialog'
 import { LoadingProgress } from './LoadingProgress'
+import { LoadingState } from './LoadingState'
 import { ComposePanel, type ComposeKind, type ComposeHandle } from '~/features/feed/ComposePanel'
 import { useStoredSession } from '~/features/session/session'
 
@@ -60,14 +61,14 @@ export function AppShell({ children }: { children: ReactNode }) {
     let active = true
     const refresh = async () => {
       const results = await Promise.allSettled([
-        getNotifications({ data: session.pds.access_jwt }),
-        getTaskNotifications({ data: session.token }),
+        getNotifications({ data: { token: session.pds.access_jwt } }),
+        getTaskNotifications({ data: { token: session.token } }),
       ])
       if (!active) return
 
       const hasUnread = results.some(
         (result) =>
-          result.status === 'fulfilled' && applyNotificationState(session.pds.did, result.value).some((item) => !item.isRead),
+          result.status === 'fulfilled' && applyNotificationState(session.pds.did, result.value.notifications).some((item) => !item.isRead),
       )
       if (hasUnread || results.every((result) => result.status === 'fulfilled')) {
         setHasUnreadNotifications(hasUnread)
@@ -107,7 +108,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header> : null}
 
-      <main key={session?.user.id ?? 'guest'} className="page-frame">{recoveryError && <p className="inline-error" role="alert">{recoveryError}</p>}{isReady ? children : <div className="page initial-loading" aria-busy="true"><span className="visually-hidden" role="status">正在恢复登录状态</span></div>}</main>
+      <main key={session?.user.id ?? 'guest'} className="page-frame">{recoveryError && <p className="inline-error" role="alert">{recoveryError}</p>}{isReady ? children : <LoadingState label="正在恢复登录状态" className="page initial-loading loading-line" />}</main>
       {navigating && <LoadingProgress label="正在加载页面…" />}
 
       {!isStandalone ? <nav className="bottom-nav" aria-label="主要导航">
@@ -130,7 +131,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           我的
         </Link>
       </nav> : null}
-      {session && compose && <DetailDialog title="发布" onClose={() => composeRef.current?.requestClose()}><ComposePanel ref={composeRef} initialKind={compose} onClose={() => setCompose(null)} onPublished={() => setCompose(null)} /></DetailDialog>}
+      {session && compose && <DetailDialog title="发布" className="post-dialog business-dialog compose-dialog" onClose={() => composeRef.current?.requestClose()}><ComposePanel ref={composeRef} initialKind={compose} onClose={() => setCompose(null)} onPublished={() => setCompose(null)} /></DetailDialog>}
       {session && notificationsOpen && <DetailDialog title="通知" onClose={() => setNotificationsOpen(false)}><NotificationsPage key={session?.user.id ?? 'guest'} embedded /></DetailDialog>}
     </div>
   )

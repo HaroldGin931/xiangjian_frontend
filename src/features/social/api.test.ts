@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
-  loadActivityParticipations,
   loadSocialConnections,
   loadSocialProfile,
   normalizeSocialProfile,
@@ -86,42 +85,4 @@ describe('social graph data', () => {
     })
   })
 
-  it('keeps only activity participation replies and their root posts', async () => {
-    const activity = {
-      uri: 'at://did:plc:bob/app.bsky.feed.post/activity',
-      cid: 'activity-cid',
-      indexedAt: '2026-09-03T08:00:00Z',
-      author: { did: 'did:plc:bob', handle: 'bob.local' },
-      record: {
-        text: '村庄开放日\n#乡村',
-        createdAt: '2026-09-03T08:00:00Z',
-        xjdaoCategory: 'activity' as const,
-      },
-      replyCount: 1,
-      repostCount: 0,
-      likeCount: 0,
-    }
-    const reply = {
-      ...activity,
-      uri: 'at://did:plc:alice/app.bsky.feed.post/reply',
-      author: { did: 'did:plc:alice', handle: 'alice.local' },
-      record: {
-        text: '参与活动',
-        createdAt: '2026-09-03T09:00:00Z',
-        reply: {
-          root: { uri: activity.uri, cid: activity.cid },
-          parent: { uri: activity.uri, cid: activity.cid },
-        },
-      },
-    }
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ posts: [{ post: reply, reply: { root: activity } }] }), {
-        status: 200,
-      }),
-    ))
-
-    await expect(loadActivityParticipations('did:plc:alice')).resolves.toEqual([
-      { activity, participatedAt: '2026-09-03T09:00:00Z' },
-    ])
-  })
 })

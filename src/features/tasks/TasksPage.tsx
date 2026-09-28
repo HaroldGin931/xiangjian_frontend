@@ -2,6 +2,7 @@ import { Button } from '@astryxdesign/core/Button'
 import { useEffect, useRef, useState } from 'react'
 import { DetailDialog, usePanelReady } from '~/components/DetailDialog'
 import { AutoLoadMore } from '~/components/AutoLoadMore'
+import { LoadingState } from '~/components/LoadingState'
 import { getNodes, type CommunityNode } from '../nodes/api'
 import { NodeDetail } from '../nodes/NodesPanel'
 import { useStoredSession } from '../session/session'
@@ -11,7 +12,13 @@ import { TaskCard } from './TaskCard'
 import { TaskDetailPage } from './TaskDetailPage'
 import type { RiceTask } from './types'
 
-export function TasksPage({ nodeId, embedded = false, initialPage, initialNodes, refreshError = '' }: { nodeId?: string; embedded?: boolean; initialPage?: TaskPage; initialNodes?: CommunityNode[]; refreshError?: string }) {
+type TasksPageProps = { nodeId?: string; embedded?: boolean; initialPage?: TaskPage; initialNodes?: CommunityNode[]; refreshError?: string }
+export function TasksPage(props: TasksPageProps) {
+  const { session } = useStoredSession()
+  return <TaskList key={`${props.nodeId ?? 'all'}:${session?.token ?? 'guest'}`} {...props} />
+}
+
+function TaskList({ nodeId, embedded = false, initialPage, initialNodes, refreshError = '' }: TasksPageProps) {
   const { session, isReady } = useStoredSession()
   const [tasks, setTasks] = useState<RiceTask[]>(initialPage?.data ?? [])
   const [nodes, setNodes] = useState<CommunityNode[]>(initialNodes ?? [])
@@ -58,7 +65,7 @@ export function TasksPage({ nodeId, embedded = false, initialPage, initialNodes,
   return <div className="page task-page">
     {!embedded && <section className="task-hero"><span>TASKS · COMMUNITY COLLABORATION</span><h1>一起把事情<br />真正做完</h1><p>申请、交付、验收与稻米结算，任务进展都在这里。</p>{session ? <button type="button" className="hero-action" onClick={() => setMyTasks(true)}>我的任务</button> : null}</section>}
     <div className="business-heading"><h2>{embedded ? '社区任务' : '全部任务'}</h2>{!nodeId && <select aria-label="任务筛选" value={filter} onChange={(e) => setFilter(e.target.value)}><option value="all">全部</option><option value="available">可申请</option>{nodes.map((n) => <option value={n.id} key={n.id}>{n.name}</option>)}</select>}</div>
-    {visibleError && <p className="inline-error" role="alert">{visibleError}</p>}{loading && <p className={tasks.length ? 'refresh-status' : 'loading-line'} role="status">正在加载任务…</p>}<section className="task-list" aria-busy={loading}>{tasks.map((task) => <TaskCard task={task} key={task.id} onOpen={(load) => setSelectedTask({ id: task.id, load })} onOpenCommunity={setSelectedCommunity} />)}</section>
+    {visibleError && <p className="inline-error" role="alert">{visibleError}</p>}{loading && (tasks.length ? <p className="refresh-status" role="status">正在加载任务…</p> : <LoadingState label="正在加载任务…" />)}<section className="task-list" aria-busy={loading}>{tasks.map((task) => <TaskCard task={task} key={task.id} onOpen={(load) => setSelectedTask({ id: task.id, load })} onOpenCommunity={setSelectedCommunity} />)}</section>
     {!loading && !visibleError && !tasks.length && (filter === 'available' ? <div className="form-stack">
       <p className="search-hint">{session ? '当前账号暂无可申请的任务。已截止、已申请或由你发布的任务不会出现在这里。' : '登录后才能查看当前账号可申请的任务。你也可以继续浏览全部任务。'}</p>
       <div className="empty-state-actions"><Button label="查看全部任务" variant="secondary" onClick={() => setFilter('all')} /></div>

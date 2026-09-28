@@ -1,10 +1,11 @@
 import { ImageGroup } from '~/components/ContentImages'
 import { ContactField } from '~/components/ContactField'
 import { usePanelReady } from '~/components/DetailDialog'
+import { LoadingState } from '~/components/LoadingState'
 import { useTimeBoundary } from '~/components/useTimeBoundary'
 import { attachmentImages } from '~/lib/attachments'
 import { Button } from '@astryxdesign/core/Button'
-import { TextArea } from '@astryxdesign/core/TextArea'
+import { TextArea } from '~/components/AutoTextArea'
 import { Link } from '@tanstack/react-router'
 import { Sprout } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -49,7 +50,7 @@ function EventDetails({ eventId, loadEvent }: { eventId: string; loadEvent?: (to
   const canApply = acceptsApplications && Boolean(event?.allowed_actions.includes('apply'))
   const canWithdraw = Boolean(event?.my_application?.allowed_actions.includes('withdraw') && Date.parse(event.starts_at) > now)
   const hasEventActions = canApply || canWithdraw || event?.allowed_actions.some(action => ['finish', 'cancel', 'edit'].includes(action))
-  return <div className="page business-panel">{error && <p className="inline-error" role="alert">{error}</p>}{!event && !error && <p>正在加载活动…</p>}{event && <>
+  return <div className="page business-panel">{error && <p className="inline-error" role="alert">{error}</p>}{!event && !error && <LoadingState label="正在加载活动…" />}{event && <>
     <span className={`task-status status-${event.status}`}>{eventDisplayStatus(event, now)}</span><h1>{event.title}</h1><p className="muted">{event.node.name} · {event.creator.nickname || event.creator.handle}发起</p>
     <div className="business-money"><strong className="rice-amount">{event.fee_amount ? <><Sprout size={25} />{event.fee_amount}<small> / 人</small></> : '免费'}</strong></div>
     <p>{formatTimestamp(event.starts_at, true)} — {formatTimestamp(event.ends_at, true)}</p><p>{event.location}</p><p className="muted">报名截止：{formatTimestamp(event.application_deadline, true)}</p>
@@ -61,7 +62,7 @@ function EventDetails({ eventId, loadEvent }: { eventId: string; loadEvent?: (to
     {session && (confirm || hasEventActions) && (confirm ? <section className="business-section"><h2>{confirm === 'apply' ? '申请参加' : confirm === 'withdraw' ? '确认撤销申请' : confirm === 'finish' ? '确认活动结束' : '确认取消活动'}</h2>
       {confirm === 'apply' ? <p>{event.fee_amount ? `本次报名费 ${event.fee_amount} 稻米，未入选将全额退回。` : '本次活动免费。'}</p> : confirm === 'withdraw' ? <p>撤销后将保留申请记录，不能再次申请本场活动。{event.fee_amount ? `已冻结的 ${event.fee_amount} 稻米将全额退回。` : ''}</p> : <p>{confirm === 'finish' ? `确认后，将完成 ${event.approved_count} 位有效参与者的活动记录${event.fee_amount ? `，并结算 ${event.approved_count * event.fee_amount} 稻米` : ''}。` : '取消后不能继续报名，尚未结算的报名费将退回申请人。'}</p>}
       <div className="form-stack">
-        {confirm === 'apply' && <><TextArea label="参与说明" value={reason} onChange={setReason} maxLength={512} rows={3} width="100%" /><ContactField value={contact} onChange={setContact} disabled={busy} /></>}
+        {confirm === 'apply' && <><TextArea label="参与说明" value={reason} onChange={setReason} maxLength={512} width="100%" /><ContactField value={contact} onChange={setContact} disabled={busy} /></>}
         <div className="form-actions"><Button label="返回" variant="secondary" isDisabled={busy} onClick={() => setConfirm(null)} /><Button label={confirm === 'apply' ? '确认申请' : confirm === 'withdraw' ? '确认撤销' : confirm === 'finish' ? '确认结束' : '确认取消'} variant={confirm === 'cancel' || confirm === 'withdraw' ? 'destructive' : 'primary'} isDisabled={busy || (confirm === 'apply' && (!canApply || !contact.trim() || contact.trim().length > 256)) || (confirm === 'withdraw' && !canWithdraw)} clickAction={() => run(confirm, confirm === 'withdraw' ? event.my_application?.id : undefined)} /></div>
       </div>
     </section> : <div className="button-row business-section">{canApply && <Button label="申请参加" variant="primary" onClick={() => setConfirm('apply')} />}{canWithdraw && <Button label="撤销申请" variant="secondary" onClick={() => setConfirm('withdraw')} />}{event.allowed_actions.includes('finish') && <Button label="确认活动结束" variant="primary" onClick={() => setConfirm('finish')} />}{event.allowed_actions.includes('cancel') && <Button label="取消活动" variant="destructive" onClick={() => setConfirm('cancel')} />}{event.allowed_actions.includes('edit') && <Link to="/compose" search={{ kind: 'activity' }}>继续编辑</Link>}</div>)}
