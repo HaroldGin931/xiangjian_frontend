@@ -1,6 +1,11 @@
-export const IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif'
+export const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+export const IMAGE_ACCEPT = IMAGE_TYPES.join(',')
 export const MAX_IMAGE_BYTES = 20_000_000
 export const MAX_IMAGE_COUNT = 9
+const MAX_IMAGE_DIMENSION = 2048
+const MAX_COMPRESSION_ATTEMPTS = 6
+const COMPRESSION_SHRINK_FACTOR = 0.75
+const COMPRESSED_IMAGE_QUALITY = 0.85
 
 export function imageSizeLabel(bytes: number) {
   return `${Number((bytes / 1_000_000).toFixed(2))} MB`
@@ -12,7 +17,7 @@ export function validateImageFiles(
 ) {
   if (currentCount + files.length > MAX_IMAGE_COUNT) return `最多添加 ${MAX_IMAGE_COUNT} 张图片。`
   for (const file of files) {
-    if (!IMAGE_ACCEPT.split(',').includes(file.type)) return `“${file.name}”格式不支持，请选择 JPEG、PNG、WebP 或 GIF 图片。`
+    if (!IMAGE_TYPES.includes(file.type)) return `“${file.name}”格式不支持，请选择 JPEG、PNG、WebP 或 GIF 图片。`
     if (!file.size) return `“${file.name}”是空文件，请重新选择。`
     if (file.size > MAX_IMAGE_BYTES) return `“${file.name}”超过 ${imageSizeLabel(MAX_IMAGE_BYTES)}，请选择较小的图片。`
   }
@@ -60,12 +65,12 @@ export async function preparePostImage(file: File, maxBytes: number): Promise<Fi
     const canvas = document.createElement('canvas')
     const context = canvas.getContext('2d')
     if (!context) throw new Error('当前浏览器无法处理大图，请选择较小的图片。')
-    let scale = Math.min(1, 2048 / Math.max(image.width, image.height))
-    for (let attempt = 0; attempt < 6; attempt++, scale *= 0.75) {
+    let scale = Math.min(1, MAX_IMAGE_DIMENSION / Math.max(image.width, image.height))
+    for (let attempt = 0; attempt < MAX_COMPRESSION_ATTEMPTS; attempt++, scale *= COMPRESSION_SHRINK_FACTOR) {
       canvas.width = Math.max(1, Math.round(image.width * scale))
       canvas.height = Math.max(1, Math.round(image.height * scale))
       context.drawImage(image, 0, 0, canvas.width, canvas.height)
-      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, file.type === 'image/jpeg' ? 'image/jpeg' : 'image/webp', 0.85))
+      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, file.type === 'image/jpeg' ? 'image/jpeg' : 'image/webp', COMPRESSED_IMAGE_QUALITY))
       if (blob && blob.size <= maxBytes) return new File([blob], file.name, { type: blob.type })
     }
     throw new Error(`“${file.name}”压缩后仍过大，请选择较小的图片。`)

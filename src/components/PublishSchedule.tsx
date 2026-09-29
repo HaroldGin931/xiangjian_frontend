@@ -1,10 +1,12 @@
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useId, useRef, useState, type ReactNode } from 'react'
-import { nextTimeSlot } from '~/lib/date-time'
+import { nextTimeSlot, SLOT_MINUTES } from '~/lib/date-time'
 import { usePublishValidationAttempted } from './PublishSteps'
 
 type ScheduleField = { label: string; value: string; min?: string; max?: string; required?: boolean; onChange: (value: string) => void }
-const times = Array.from({ length: 96 }, (_, index) => `${String(Math.floor(index / 4)).padStart(2, '0')}:${String(index % 4 * 15).padStart(2, '0')}`)
+const MIN_YEAR = 1000
+const MAX_YEAR = 9999
+const times = Array.from({ length: 24 * 60 / SLOT_MINUTES }, (_, index) => `${String(Math.floor(index * SLOT_MINUTES / 60)).padStart(2, '0')}:${String(index * SLOT_MINUTES % 60).padStart(2, '0')}`)
 const validSlot = (day: string, slot: string, field: Pick<ScheduleField, 'min' | 'max'>) => (!field.min || `${day}T${slot}` >= field.min) && (!field.max || `${day}T${slot}` <= field.max)
 const weekday = (day: string) => `周${'日一二三四五六'[new Date(`${day}T12:00:00`).getDay()]}`
 
@@ -37,7 +39,7 @@ export function PublishSchedule({ fields, disabled = false, children }: { fields
   const jumpButton = useRef<HTMLButtonElement>(null)
   const field = fields[Math.min(active, fields.length - 1)]
   const year = month.getFullYear(), monthIndex = month.getMonth()
-  const validYear = /^\d{4}$/.test(jumpYear) && Number(jumpYear) >= 1000 && Number(jumpYear) <= 9999
+  const validYear = /^\d{4}$/.test(jumpYear) && Number(jumpYear) >= MIN_YEAR && Number(jumpYear) <= MAX_YEAR
   const dates = fields.map(item => item.value.slice(0, 10))
   const ordered = dates.filter(Boolean).sort()
   const start = ordered[0], end = ordered.at(-1)
@@ -68,18 +70,18 @@ export function PublishSchedule({ fields, disabled = false, children }: { fields
       <div className="month-head">
         <button ref={jumpButton} type="button" className="month-label" aria-expanded={jump} aria-controls={jumpId} disabled={disabled} onClick={() => { setJumpYear(String(year)); setJump(!jump) }}>{year} 年 {monthIndex + 1} 月 <ChevronDown size={16} aria-hidden="true" /></button>
         {!jump && <div className="arrows">
-          <button type="button" className="arrow" aria-label="上个月" disabled={disabled || year === 1000 && monthIndex === 0} onClick={() => changeMonth(-1)}><ChevronLeft size={22} aria-hidden="true" /></button>
-          <button type="button" className="arrow" aria-label="下个月" disabled={disabled || year === 9999 && monthIndex === 11} onClick={() => changeMonth(1)}><ChevronRight size={22} aria-hidden="true" /></button>
+          <button type="button" className="arrow" aria-label="上个月" disabled={disabled || year === MIN_YEAR && monthIndex === 0} onClick={() => changeMonth(-1)}><ChevronLeft size={22} aria-hidden="true" /></button>
+          <button type="button" className="arrow" aria-label="下个月" disabled={disabled || year === MAX_YEAR && monthIndex === 11} onClick={() => changeMonth(1)}><ChevronRight size={22} aria-hidden="true" /></button>
         </div>}
       </div>
       {jump ? <div className="schedule-jump" id={jumpId}>
         <div className="year-row">
-          <button type="button" className="arrow" aria-label="上一年" disabled={disabled || !validYear || Number(jumpYear) === 1000} onClick={() => setJumpYear(String(Number(jumpYear) - 1))}><ChevronLeft size={22} aria-hidden="true" /></button>
-          <label className="year-input"><input type="number" min="1000" max="9999" step="1" aria-label="跳转年份" aria-invalid={!validYear} value={jumpYear} disabled={disabled} onChange={event => setJumpYear(event.target.value)} /><span>年</span></label>
-          <button type="button" className="arrow" aria-label="下一年" disabled={disabled || !validYear || Number(jumpYear) === 9999} onClick={() => setJumpYear(String(Number(jumpYear) + 1))}><ChevronRight size={22} aria-hidden="true" /></button>
+          <button type="button" className="arrow" aria-label="上一年" disabled={disabled || !validYear || Number(jumpYear) === MIN_YEAR} onClick={() => setJumpYear(String(Number(jumpYear) - 1))}><ChevronLeft size={22} aria-hidden="true" /></button>
+          <label className="year-input"><input type="number" min={MIN_YEAR} max={MAX_YEAR} step="1" aria-label="跳转年份" aria-invalid={!validYear} value={jumpYear} disabled={disabled} onChange={event => setJumpYear(event.target.value)} /><span>年</span></label>
+          <button type="button" className="arrow" aria-label="下一年" disabled={disabled || !validYear || Number(jumpYear) === MAX_YEAR} onClick={() => setJumpYear(String(Number(jumpYear) + 1))}><ChevronRight size={22} aria-hidden="true" /></button>
         </div>
         <div className="months">{Array.from({ length: 12 }, (_, index) => <button type="button" key={index} aria-pressed={Number(jumpYear) === year && index === monthIndex} disabled={disabled || !validYear} onClick={() => { setMonth(new Date(Number(jumpYear), index, 1, 12)); setJump(false); jumpButton.current?.focus() }}>{index + 1} 月</button>)}</div>
-        {!validYear && <p className="form-error" role="alert">请输入 1000 至 9999 的完整四位年份。</p>}
+        {!validYear && <p className="form-error" role="alert">请输入 {MIN_YEAR} 至 {MAX_YEAR} 的完整四位年份。</p>}
       </div> : <>
         <div className="week" aria-hidden="true">{'一二三四五六日'.split('').map(day => <span key={day}>{day}</span>)}</div>
         <div className="days" role="group" aria-label={`${year} 年 ${monthIndex + 1} 月日期`}>

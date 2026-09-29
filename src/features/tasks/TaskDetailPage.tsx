@@ -1,6 +1,7 @@
 import { ImageGroup } from '~/components/ContentImages'
 import { HistoryChanges } from '~/components/HistoryChanges'
 import { ContactField } from '~/components/ContactField'
+import { DetailDialog } from '~/components/DetailDialog'
 import { LoadingState } from '~/components/LoadingState'
 import { useTimeBoundary } from '~/components/useTimeBoundary'
 import { attachmentImages } from '~/lib/attachments'
@@ -155,9 +156,9 @@ function TaskDetails({ taskId, initial }: { taskId: string; initial?: TaskDetail
         ) : null}
 
         {task.application_deadline ? (
-          <div className="task-neutral-note">申请截止：{formatTimestamp(task.application_deadline, true)}</div>
+          <div className="task-neutral-note">申请截止：{formatTimestamp(task.application_deadline)}</div>
         ) : null}
-        {task.execution_deadline && <div className="task-neutral-note">交付截止：{formatTimestamp(task.execution_deadline, true)}</div>}
+        {task.execution_deadline && <div className="task-neutral-note">交付截止：{formatTimestamp(task.execution_deadline)}</div>}
         {(task.status === 'overdue' || overdueProgress) && <div className="task-warning-note"><CircleAlert size={18} /><div><strong>任务已超时</strong><p>请与负责人 {task.creator.nickname || task.creator.handle} 联系，确认交付安排。</p><Link to="/profile/$actor" params={{ actor: task.creator.did }}>查看负责人主页</Link></div></div>}
 
         {task.status === 'completed' ? (
@@ -267,25 +268,12 @@ function TaskDetails({ taskId, initial }: { taskId: string; initial?: TaskDetail
 
         {actions.has('cancel') && token && !expiredOpen ? (
           <section className="task-action-section">
-            {!cancelOpen ? (
-              <Button label="取消任务" variant="destructive" onClick={() => setCancelOpen(true)} />
-            ) : (
-              <>
-                <div className="task-warning-note">
-                  <CircleAlert size={18} />
-                  <div><strong>确认取消这个任务？</strong><p>取消后任务保留记录，不能再申请；{task.reward_amount} 稻米报酬将退回。</p></div>
-                </div>
-                <div className="form-actions">
-                  <Button label="保留任务" variant="secondary" onClick={() => setCancelOpen(false)} />
-                  <Button
-                    label="确认取消"
-                    variant="destructive"
-                    isDisabled={busy}
-                    clickAction={() => run(() => cancelTask({ data: { token, taskId } }))}
-                  />
-                </div>
-              </>
-            )}
+            <Button label="取消任务" variant="destructive" onClick={() => setCancelOpen(true)} />
+            {cancelOpen && <DetailDialog title="确认取消任务" className="post-dialog business-dialog compose-close-dialog" onClose={() => { if (!busy) setCancelOpen(false) }}><div className="business-panel form-stack">
+              <p>取消后任务保留记录，不能再申请；{task.reward_amount} 稻米报酬将退回。</p>
+              {error && <p className="inline-error" role="alert">{error}</p>}
+              <div className="form-actions"><Button label="保留任务" variant="secondary" isDisabled={busy} onClick={() => setCancelOpen(false)} /><Button label="确认取消" variant="destructive" isDisabled={busy} clickAction={() => run(() => cancelTask({ data: { token, taskId } }))} /></div>
+            </div></DetailDialog>}
           </section>
         ) : null}
 
@@ -339,7 +327,11 @@ function TaskDetails({ taskId, initial }: { taskId: string; initial?: TaskDetail
                 <Button label="验收并发放" variant="primary" isDisabled={busy} onClick={() => setApproveOpen(true)} />
               </>}
             </div>
-            {approveOpen && <section className="business-confirm"><h3>确认验收并发放</h3><p>向 {task.assignee?.nickname || task.assignee?.handle} 发放 {task.reward_amount} 稻米，任务将完成。</p><div className="form-actions"><Button label="返回" variant="secondary" onClick={() => setApproveOpen(false)} /><Button label="确认验收并发放" variant="primary" isDisabled={busy} clickAction={() => run(() => approveTaskResult({ data: { token, taskId, submissionId: pendingSubmission.id } }))} /></div></section>}
+            {approveOpen && <DetailDialog title="确认验收并发放" className="post-dialog business-dialog compose-close-dialog" onClose={() => { if (!busy) setApproveOpen(false) }}><div className="business-panel form-stack">
+              <p>向 {task.assignee?.nickname || task.assignee?.handle} 发放 {task.reward_amount} 稻米，任务将完成。</p>
+              {error && <p className="inline-error" role="alert">{error}</p>}
+              <div className="form-actions"><Button label="返回" variant="secondary" isDisabled={busy} onClick={() => setApproveOpen(false)} /><Button label="确认验收并发放" variant="primary" isDisabled={busy} clickAction={() => run(() => approveTaskResult({ data: { token, taskId, submissionId: pendingSubmission.id } }))} /></div>
+            </div></DetailDialog>}
           </section>
         ) : null}
 
@@ -362,12 +354,12 @@ function TaskDetails({ taskId, initial }: { taskId: string; initial?: TaskDetail
             <ol>
               {pastRecords.map(item => item.type === 'application' ? <li key={item.value.id}>
                 <strong>第 {item.value.round} 期申请 · {taskApplicationStatusLabel[item.value.status]}</strong>
-                <span>{item.value.user.nickname || item.value.user.handle} · <time>{formatTimestamp(item.value.inserted_at, true)}</time></span>
+                <span>{item.value.user.nickname || item.value.user.handle} · <time>{formatTimestamp(item.value.inserted_at)}</time></span>
                 {item.value.reason && <blockquote>{item.value.reason}</blockquote>}
                 {item.value.contact && <p>联系方式：{item.value.contact}</p>}
               </li> : <li key={item.value.id}>
                 <strong>第 {item.value.round} 期交付 · {submissionStatus(item.value)}</strong>
-                <span>{item.value.user.nickname || item.value.user.handle} · <time>{formatTimestamp(item.value.inserted_at, true)}</time></span>
+                <span>{item.value.user.nickname || item.value.user.handle} · <time>{formatTimestamp(item.value.inserted_at)}</time></span>
                 <blockquote>{item.value.body}</blockquote>
                 {item.value.review_reason && <blockquote>{item.value.review_reason}</blockquote>}
               </li>)}
@@ -385,7 +377,7 @@ function TaskDetails({ taskId, initial }: { taskId: string; initial?: TaskDetail
                   <span>
                     {event.actor?.nickname || event.actor?.handle || '系统'}
                     {' · '}
-                    <time>{formatTimestamp(event.inserted_at, true)}</time>
+                    <time>{formatTimestamp(event.inserted_at)}</time>
                   </span>
                   {event.detail ? <blockquote>{event.detail}</blockquote> : null}
                   {event.action === 'edited' && <HistoryChanges before={event.before} after={event.after} fields={[

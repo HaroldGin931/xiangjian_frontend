@@ -1,5 +1,7 @@
-const SLOT_MS = 15 * 60_000
-const BEIJING_OFFSET_MS = 8 * 60 * 60_000
+export const SLOT_MINUTES = 15
+export const MINUTE_MS = 60_000
+const SLOT_MS = SLOT_MINUTES * MINUTE_MS
+const BEIJING_OFFSET_MS = 8 * 60 * MINUTE_MS
 
 export function beijingDateTimeValue(value: string | number | Date = Date.now()) {
   return new Date(new Date(value).getTime() + BEIJING_OFFSET_MS).toISOString().slice(0, 16)
@@ -20,7 +22,7 @@ export function roundedTimeValue(value: string) {
 }
 
 export function addMinutes(value: string, minutes: number) {
-  return beijingDateTimeValue(beijingTime(value) + minutes * 60_000)
+  return beijingDateTimeValue(beijingTime(value) + minutes * MINUTE_MS)
 }
 
 export function beijingTimeIso(value: string) {

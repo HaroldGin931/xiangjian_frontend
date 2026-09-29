@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 
 import { BACKEND_BASE, isSessionAuthError, requestJson } from '~/lib/http'
 import type { PdsImage, PostCategory, PostFeed, PostImage, PostThread, PostView, RicePublicUser, RiceSession } from '~/lib/models'
-import { appviewImageUrl, createPdsRecord, deletePdsRecord, MAX_POST_IMAGE_BYTES, MAX_POST_IMAGES, pdsBlobUrl, POST_IMAGE_TYPES, recordKeyFromUri, uploadPdsImage } from '~/lib/pds'
+import { appviewImageUrl, createPdsRecord, deletePdsRecord, MAX_POST_IMAGE_BYTES, MAX_POST_IMAGES, MAX_POST_TEXT_LENGTH, pdsBlobUrl, POST_IMAGE_TYPES, recordKeyFromUri, uploadPdsImage } from '~/lib/pds'
 
 import { hasPostTag, postCategory } from './tags'
 
@@ -10,6 +10,9 @@ let clientFeedCache: { owner: string | null; feed: PostFeed } | null = null
 let clientSelectedPost: { owner: string | null; post: PostView } | null = null
 const clientDeletedPostUris = new Set<string>()
 const clientThreadCache = new Map<string, { thread: PostThread; savedAt: number }>()
+const THREAD_CACHE_TTL_MS = 30_000
+const MAX_CACHED_THREADS = 25
+const FEED_PAGE_SIZE = 20
 const threadCacheKey = (uri: string, did?: string) => `${did ?? ''}\0${uri}`
 
 export function readCachedThread(uri: string, did?: string) {
@@ -17,7 +20,7 @@ export function readCachedThread(uri: string, did?: string) {
   const key = threadCacheKey(uri, did)
   const cached = clientThreadCache.get(key)
   if (!cached) return null
-  if (Date.now() - cached.savedAt < 30_000) return cached.thread
+  if (Date.now() - cached.savedAt < THREAD_CACHE_TTL_MS) return cached.thread
   clientThreadCache.delete(key)
   return null
 }
@@ -27,7 +30,7 @@ export function writeCachedThread(thread: PostThread, did?: string) {
   const key = threadCacheKey(thread.post.uri, did)
   clientThreadCache.delete(key)
   clientThreadCache.set(key, { thread, savedAt: Date.now() })
-  if (clientThreadCache.size > 25) clientThreadCache.delete(clientThreadCache.keys().next().value!)
+  if (clientThreadCache.size > MAX_CACHED_THREADS) clientThreadCache.delete(clientThreadCache.keys().next().value!)
 }
 
 export function readCachedFeed(did?: string) {
@@ -236,7 +239,7 @@ export function normalizePostImages(post: PostView): PostView {
   const originals = imageItems(record)
   const source = Array.isArray(viewed) && viewed.length ? viewed : originals
   if (!Array.isArray(source) || !source.length) return post
-  const images = source.slice(0, 9).flatMap((value, index): PostImage[] => {
+  const images = source.slice(0, MAX_POST_IMAGES).flatMap((value, index): PostImage[] => {
     if (!value || typeof value !== 'object') return []
     const item = value as { thumb?: unknown; thumbnail?: unknown; fullsize?: unknown; alt?: unknown; image?: { ref?: { $link?: unknown }; cid?: unknown }; aspectRatio?: { width?: number; height?: number } }
     const httpUrl = (url: unknown) => typeof url === 'string' && /^https?:\/\//i.test(url) ? url : undefined
@@ -302,7 +305,7 @@ async function loadTimelineReposts(accessJwt?: string) {
 
 async function loadOwnRecentPosts(did: string, accessJwt: string) {
   // Read-your-writes: the PDS has committed before the shared index/AppView catches up.
-  const params = new URLSearchParams({ repo: did, collection: 'app.bsky.feed.post', limit: '20' })
+  const params = new URLSearchParams({ repo: did, collection: 'app.bsky.feed.post', limit: String(FEED_PAGE_SIZE) })
   const payload = await requestJson<{ records?: Array<{ uri: string; cid: string; value: PostView['record'] }> }>(
     `${BACKEND_BASE}/pds/xrpc/com.atproto.repo.listRecords?${params}`,
     { headers: { Authorization: `Bearer ${accessJwt}` } },
@@ -379,7 +382,7 @@ export async function loadPostPage(data: GetPostsInput) {
       }
     : {
         page,
-        per_page: data.limit ?? 20,
+        per_page: data.limit ?? FEED_PAGE_SIZE,
         ...(data.repo ? { repo: data.repo } : {}),
         ...(data.tag ? { tag: data.tag } : {}),
       }
@@ -407,7 +410,7 @@ export async function loadPostPage(data: GetPostsInput) {
     posts: await hydrateAuthorNames(await hydrateViewerRecords(posts, data.did, data.accessJwt)),
     cursor: query
       ? typeof body.cursor === 'string' && body.cursor ? body.cursor : null
-      : currentPage * (data.limit ?? 20) < (body.total ?? 0) ? String(currentPage + 1) : null,
+      : currentPage * (data.limit ?? FEED_PAGE_SIZE) < (body.total ?? 0) ? String(currentPage + 1) : null,
   }
 }
 
@@ -476,7 +479,7 @@ export async function createTextPostRecord(data: TextPostInput) {
     const images = data.images ?? []
     if (!Array.isArray(images)) throw new Error('图片信息无效，请重新添加。')
     if (!text && !images.length) throw new Error('请填写帖子内容或添加图片')
-    if (text.length > 300) throw new Error('帖子内容最多 300 个字符')
+    if (text.length > MAX_POST_TEXT_LENGTH) throw new Error(`帖子内容最多 ${MAX_POST_TEXT_LENGTH} 个字符`)
     if (images.length > MAX_POST_IMAGES) throw new Error(`帖子最多添加 ${MAX_POST_IMAGES} 张图片。`)
     if (images.some((item) => item.image?.$type !== 'blob' || !item.image.ref?.$link || !POST_IMAGE_TYPES.includes(item.image.mimeType) || !Number.isFinite(item.image.size) || item.image.size <= 0 || item.image.size > MAX_POST_IMAGE_BYTES || typeof item.alt !== 'string')) throw new Error('图片信息无效，请重新添加。')
     if (images.some((item) => !item.aspectRatio || !Number.isInteger(item.aspectRatio.width) || item.aspectRatio.width < 1 || !Number.isInteger(item.aspectRatio.height) || item.aspectRatio.height < 1)) throw new Error('图片尺寸无效，请重新添加。')
@@ -591,7 +594,7 @@ export const createReply = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const text = data.text.trim()
     if (!text) throw new Error('评论内容不能为空')
-    if (text.length > 300) throw new Error('评论最多 300 个字符')
+    if (text.length > MAX_POST_TEXT_LENGTH) throw new Error(`评论最多 ${MAX_POST_TEXT_LENGTH} 个字符`)
 
     const createdAt = new Date().toISOString()
     const record = await createPdsRecord(data.accessJwt, {

@@ -12,6 +12,7 @@ import { PostText } from '~/components/PostText'
 import { PostActions } from '~/components/PostActions'
 import { authorDisplayName, formatTimestamp } from '~/lib/format'
 import type { PostThread, PostView } from '~/lib/models'
+import { MAX_POST_TEXT_LENGTH } from '~/lib/pds'
 
 import { useStoredSession } from '../session/session'
 import {
@@ -196,7 +197,7 @@ function PostThreadContent({
                   label={replyTo ? `回复 ${authorDisplayName(replyTo.author)}` : '写下评论'}
                   value={replyText}
                   onChange={setReplyText}
-                  maxLength={300}
+                  maxLength={MAX_POST_TEXT_LENGTH}
                   width="100%"
                   placeholder="写下你的评论…"
                   hasAutoFocus={focusReply}
@@ -208,7 +209,7 @@ function PostThreadContent({
                     variant="primary"
                     clickAction={submitReply}
                     isLoading={isReplying}
-                    isDisabled={!replyText.trim() || replyText.length > 300}
+                    isDisabled={!replyText.trim() || replyText.length > MAX_POST_TEXT_LENGTH}
                   />
                 </div>
               </div>}
@@ -264,7 +265,7 @@ function PostThreadContent({
 
 function CommentRow({ post, onReply, repliedTo }: { post: PostView; onReply?: () => void; repliedTo?: string }) {
   return <article className={`reply-row${repliedTo ? ' reply-row-child' : ''}`}>
-    <ContentCardHeader name={authorDisplayName(post.author)} timestamp={formatTimestamp(post.record.createdAt || post.indexedAt, true)} profileActor={post.author.did} avatarUrl={post.author.avatar} />
+    <ContentCardHeader name={authorDisplayName(post.author)} timestamp={formatTimestamp(post.record.createdAt || post.indexedAt)} profileActor={post.author.did} avatarUrl={post.author.avatar} />
     {repliedTo && <p className="reply-parent">回复 {repliedTo}</p>}
     <p><PostText text={post.record.text} /></p>
     <ImageGroup images={(post.images ?? []).map((image) => ({ ...image, src: image.fullsize ?? image.src }))} />

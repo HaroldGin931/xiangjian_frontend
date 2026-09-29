@@ -14,7 +14,7 @@ export function HistoryChanges({ before, after, fields }: {
   if (!changed.length) return null
   const value = (key: string, snapshot: HistorySnapshot) => {
     const raw = key === 'node_id' ? snapshot.node_name ?? snapshot.node_id : snapshot[key]
-    return raw == null || raw === '' ? '未填写' : dates.has(key) && typeof raw === 'string' ? formatTimestamp(raw, true) : String(raw)
+    return raw == null || raw === '' ? '未填写' : dates.has(key) && typeof raw === 'string' ? formatTimestamp(raw) : String(raw)
   }
   return <dl className="publish-review-fields">{changed.map(([key, label]) => <div key={key}><dt>{label}</dt>{key === 'attachment_ids' ? <dd>
     <span>编辑前</span>{(before[key] as string[] | null)?.length ? <ImageGroup images={(before[key] as string[]).map((id, index) => ({ src: `/api/attachments/${encodeURIComponent(id)}`, alt: `编辑前第 ${index + 1} 张图片` }))} /> : <span>无图片</span>}

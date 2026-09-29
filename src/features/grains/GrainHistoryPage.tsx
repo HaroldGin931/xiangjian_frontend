@@ -3,6 +3,7 @@ import { TextInput } from '@astryxdesign/core/TextInput'
 import { integerInputError } from '~/lib/integer-input'
 import { Button } from '@astryxdesign/core/Button'
 import { LoadingState } from '~/components/LoadingState'
+import { DetailDialog } from '~/components/DetailDialog'
 import { useEffect, useRef, useState } from 'react'
 import { formatTimestamp } from '~/lib/format'
 import { useStoredSession } from '../session/session'
@@ -34,7 +35,7 @@ function WalletHistory({ nodeId }: { nodeId?: string }) {
     <section className="grain-card"><header>稻米余额</header><div className="grain-balance-row"><strong>{wallet ? wallet.balance + wallet.frozen : '—'}</strong></div><div className="grain-metrics"><div><b>{wallet?.balance ?? '—'}</b><span>可用</span></div><div><b>{wallet?.frozen ?? '—'}</b><span>冻结</span></div><div><b>{wallet?.earned ?? '—'}</b><span>累计获得</span></div></div></section>
     {nodeId && session && wallet && <CommunityFunding nodeId={nodeId} token={session.token} onFunded={(value) => { ++request.current; setWallet(value); setLoading(false); setError('') }} />}
     <h2>稻米明细</h2>{error && <p className="inline-error" role="alert">{error}</p>}{loading && (wallet ? <p className="refresh-status" role="status">正在加载明细…</p> : <LoadingState label="正在加载明细…" />)}
-    <section className="grain-transfer-list">{wallet?.entries.map((entry) => { const incoming = walletEntryIncoming(entry, session?.user.id ?? '', nodeId); const party = incoming ? entry.from_user : entry.to_user; const node = incoming ? entry.from_node : entry.to_node; return <article className="grain-transfer-row" key={entry.id}><div><strong>{labels[entry.kind]}</strong>{(party || node) && <p>{node?.name || party?.nickname || party?.handle}</p>}<time>{formatTimestamp(entry.inserted_at, true)}</time><details className="receipt-reference"><summary>查看凭证</summary><p>凭证编号 {entry.id}</p></details></div><b className={incoming ? 'incoming' : 'outgoing'}>{incoming ? '+' : '−'}{entry.amount}</b></article> })}</section>
+    <section className="grain-transfer-list">{wallet?.entries.map((entry) => { const incoming = walletEntryIncoming(entry, session?.user.id ?? '', nodeId); const party = incoming ? entry.from_user : entry.to_user; const node = incoming ? entry.from_node : entry.to_node; return <article className="grain-transfer-row" key={entry.id}><div><strong>{labels[entry.kind]}</strong>{(party || node) && <p>{node?.name || party?.nickname || party?.handle}</p>}<time>{formatTimestamp(entry.inserted_at)}</time><details className="receipt-reference"><summary>查看凭证</summary><p>凭证编号 {entry.id}</p></details></div><b className={incoming ? 'incoming' : 'outgoing'}>{incoming ? '+' : '−'}{entry.amount}</b></article> })}</section>
     {!loading && !error && !wallet?.entries.length && <p className="search-hint">还没有资金记录。</p>}{wallet?.next_cursor && <Button label="加载更多" variant="secondary" isDisabled={loading} clickAction={more} />}
   </div>
 }
@@ -60,9 +61,14 @@ function CommunityFunding({ nodeId, token, onFunded }: { nodeId: string; token: 
   return <section className="business-section">
     {!open ? <Button label="从个人账户转入" variant="secondary" onClick={() => setOpen(true)} /> : <div className="form-stack">
       <TextInput label="转入金额" value={amount} onChange={value => { setAmount(value); setConfirm(false); setError('') }} isDisabled={busy} status={amountError ? { type: 'error', message: amountError } : undefined} width="100%" isRequired />
-      <p>{confirm ? `确认将个人账户的 ${amount} 稻米转入本社区？` : '社区与个人账户分开记账，转入后由社区管理员用于社区任务。'}</p>
+      <p>社区与个人账户分开记账，转入后由社区管理员用于社区任务。</p>
       {error && <p className="inline-error" role="alert">{error}</p>}
-      <div className="form-actions"><Button label="返回" variant="secondary" isDisabled={busy} onClick={() => { setOpen(false); setConfirm(false) }} /><Button label={confirm ? '确认转入' : '转入社区'} variant="primary" isDisabled={busy || !amount || !!amountError} clickAction={confirm ? submit : () => setConfirm(true)} /></div>
+      <div className="form-actions"><Button label="返回" variant="secondary" isDisabled={busy} onClick={() => { setOpen(false); setConfirm(false) }} /><Button label="转入社区" variant="primary" isDisabled={busy || !amount || !!amountError} onClick={() => setConfirm(true)} /></div>
+      {confirm && <DetailDialog title="确认转入社区" className="post-dialog business-dialog compose-close-dialog" onClose={() => { if (!busy) setConfirm(false) }}><div className="business-panel form-stack">
+        <p>确认将个人账户的 {amount} 稻米转入本社区？</p>
+        {error && <p className="inline-error" role="alert">{error}</p>}
+        <div className="form-actions"><Button label="返回修改" variant="secondary" isDisabled={busy} onClick={() => setConfirm(false)} /><Button label="确认转入" variant="primary" isDisabled={busy || !amount || !!amountError} clickAction={submit} /></div>
+      </div></DetailDialog>}
     </div>}
   </section>
 }

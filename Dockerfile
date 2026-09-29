@@ -10,9 +10,11 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
+RUN pnpm build
 
 ENV HTTP_PROXY=
 ENV HTTPS_PROXY=
 ENV ALL_PROXY=
+ENV NODE_ENV=production
 EXPOSE 3000
-CMD ["pnpm", "start:docker"]
+CMD ["pnpm", "start"]

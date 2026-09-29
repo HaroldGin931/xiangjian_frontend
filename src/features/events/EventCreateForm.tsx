@@ -6,7 +6,7 @@ import { PublishSchedule } from '~/components/PublishSchedule'
 import { LoadingState } from '~/components/LoadingState'
 import { PublishSteps } from '~/components/PublishSteps'
 import { useRiceImages } from '../media/useRiceImages'
-import { addMinutes, beijingDateTimeValue, beijingTime, beijingTimeIso, nextTimeSlot, roundedTimeValue } from '~/lib/date-time'
+import { addMinutes, beijingDateTimeValue, beijingTime, beijingTimeIso, MINUTE_MS, nextTimeSlot, roundedTimeValue, SLOT_MINUTES } from '~/lib/date-time'
 import { useFormCloseState, type FormCloseState } from '~/lib/form-state'
 import { integerInputError } from '~/lib/integer-input'
 import type { CommunityNode } from '../nodes/api'
@@ -15,7 +15,10 @@ import { getEvents, saveEvent, type RiceEvent } from './api'
 
 const emptyFields = { node_id: '', title: '', description: '', organizer_contact: '', location: '', application_deadline: '', starts_at: '', ends_at: '', fee_amount: '0', capacity: '' }
 type EventTimes = Pick<typeof emptyFields, 'application_deadline' | 'starts_at' | 'ends_at'>
-const durations = [[60, '1 小时'], [120, '2 小时'], [180, '3 小时'], [1440, '1 天'], [2880, '2 天'], [4320, '3 天']] as const
+const MINUTES_PER_HOUR = 60
+const MINUTES_PER_DAY = 24 * MINUTES_PER_HOUR
+const DEFAULT_DURATION_MINUTES = 2 * MINUTES_PER_HOUR
+const durations = [[MINUTES_PER_HOUR, '1 小时'], [DEFAULT_DURATION_MINUTES, '2 小时'], [3 * MINUTES_PER_HOUR, '3 小时'], [MINUTES_PER_DAY, '1 天'], [2 * MINUTES_PER_DAY, '2 天'], [3 * MINUTES_PER_DAY, '3 天']] as const
 
 export function eventTimeError(fields: EventTimes, now = Date.now(), through: keyof EventTimes = 'ends_at', editing = false) {
   const deadline = beijingTime(fields.application_deadline)
@@ -38,31 +41,34 @@ export function changeEventTime<T extends EventTimes>(fields: T, key: keyof Even
   const next = { ...fields, [key]: value }
   if (key === 'application_deadline' && value && (!next.starts_at || next.starts_at < value)) next.starts_at = value
   if (key !== 'ends_at' && next.starts_at && next.starts_at !== fields.starts_at) {
-    const minutes = duration === 'custom' ? (beijingTime(fields.ends_at) - beijingTime(fields.starts_at)) / 60_000 : Number(duration)
-    next.ends_at = addMinutes(next.starts_at, minutes > 0 ? minutes : 15)
+    const minutes = duration === 'custom' ? (beijingTime(fields.ends_at) - beijingTime(fields.starts_at)) / MINUTE_MS : Number(duration)
+    next.ends_at = addMinutes(next.starts_at, minutes > 0 ? minutes : SLOT_MINUTES)
   }
   return next
 }
 
-const durationMinutes = (fields: EventTimes) => Math.round((beijingTime(fields.ends_at) - beijingTime(fields.starts_at)) / 60_000)
+const durationMinutes = (fields: EventTimes) => Math.round((beijingTime(fields.ends_at) - beijingTime(fields.starts_at)) / MINUTE_MS)
 const durationValue = (fields: EventTimes) => durations.some(([minutes]) => minutes === durationMinutes(fields)) ? String(durationMinutes(fields)) : 'custom'
 function draftFields(draft: RiceEvent, editing = false) {
   const dateValue = editing ? beijingDateTimeValue : roundedTimeValue
   const restored = { node_id: draft.node.id, title: draft.title, description: draft.description, organizer_contact: draft.organizer_contact ?? '', location: draft.location, application_deadline: dateValue(draft.application_deadline), starts_at: dateValue(draft.starts_at), ends_at: dateValue(draft.ends_at), fee_amount: String(draft.fee_amount), capacity: String(draft.capacity) }
-  if (!editing && restored.ends_at <= restored.starts_at) restored.ends_at = addMinutes(restored.starts_at, 15)
+  if (!editing && restored.ends_at <= restored.starts_at) restored.ends_at = addMinutes(restored.starts_at, SLOT_MINUTES)
   return restored
 }
 export function eventDurationLabel(fields: EventTimes) {
   const minutes = durationMinutes(fields)
   if (!(minutes > 0)) return '请选择有效的开始和结束时间'
-  return [Math.floor(minutes / 1440) ? `${Math.floor(minutes / 1440)} 天` : '', Math.floor(minutes % 1440 / 60) ? `${Math.floor(minutes % 1440 / 60)} 小时` : '', minutes % 60 ? `${minutes % 60} 分钟` : ''].filter(Boolean).join(' ')
+  const days = Math.floor(minutes / MINUTES_PER_DAY)
+  const hours = Math.floor(minutes % MINUTES_PER_DAY / MINUTES_PER_HOUR)
+  const remainder = minutes % MINUTES_PER_HOUR
+  return [days ? `${days} 天` : '', hours ? `${hours} 小时` : '', remainder ? `${remainder} 分钟` : ''].filter(Boolean).join(' ')
 }
 
-export function EventCreateForm({ session, nodes, initialDraft, initialError = '', editing = false, onPublished, active, onCloseStateChange }: { session: RiceSession; nodes: Array<Pick<CommunityNode, 'id' | 'name'>>; initialDraft?: RiceEvent | null; initialError?: string; editing?: boolean; onPublished: (id: string) => void; active: boolean; onCloseStateChange: (state: FormCloseState) => void }) {
+export function EventCreateForm({ session, nodes, initialDraft, initialError = '', editing = false, onPublished, onCloseStateChange }: { session: RiceSession; nodes: Array<Pick<CommunityNode, 'id' | 'name'>>; initialDraft?: RiceEvent | null; initialError?: string; editing?: boolean; onPublished: (id: string) => void; onCloseStateChange: (state: FormCloseState) => void }) {
   const mounted = useRef(false)
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
-  const [fields, setFields] = useState(() => { if (initialDraft) return draftFields(initialDraft, editing); const start = nextTimeSlot(); return { ...emptyFields, node_id: initialDraft === null ? nodes[0]?.id ?? '' : '', application_deadline: start, starts_at: start, ends_at: addMinutes(start, 120) } })
-  const [duration, setDuration] = useState(() => initialDraft ? durationValue(fields) : '120')
+  const [fields, setFields] = useState(() => { if (initialDraft) return draftFields(initialDraft, editing); const start = nextTimeSlot(); return { ...emptyFields, node_id: initialDraft === null ? nodes[0]?.id ?? '' : '', application_deadline: start, starts_at: start, ends_at: addMinutes(start, DEFAULT_DURATION_MINUTES) } })
+  const [duration, setDuration] = useState(() => initialDraft ? durationValue(fields) : String(DEFAULT_DURATION_MINUTES))
   const [draftId, setDraftId] = useState<string | undefined>(initialDraft?.id)
   const [loading, setLoading] = useState(initialDraft === undefined)
   const [busy, setBusy] = useState(false)
@@ -172,7 +178,7 @@ export function EventCreateForm({ session, nodes, initialDraft, initialError = '
       {
         label: '结束时间', title: '活动什么时候结束？',
         content: <PublishSchedule disabled={busy} fields={[
-          { label: '结束时间', value: fields.ends_at, min: allowPastDates ? undefined : fields.starts_at ? addMinutes(fields.starts_at, 15) : nextTimeSlot(), required: true, onChange: value => setTime('ends_at', value) },
+          { label: '结束时间', value: fields.ends_at, min: allowPastDates ? undefined : fields.starts_at ? addMinutes(fields.starts_at, SLOT_MINUTES) : nextTimeSlot(), required: true, onChange: value => setTime('ends_at', value) },
         ]}>
           <label className="native-field">持续时长<select value={duration} disabled={busy} onChange={event => { const value = event.target.value; setDuration(value); if (value !== 'custom' && fields.starts_at) set('ends_at', addMinutes(fields.starts_at, Number(value))) }}>{durations.map(([minutes, label]) => <option key={minutes} value={minutes}>{label}</option>)}<option value="custom">自定义</option></select></label>
           <p className="muted">实际时长：{eventDurationLabel(fields)}</p>

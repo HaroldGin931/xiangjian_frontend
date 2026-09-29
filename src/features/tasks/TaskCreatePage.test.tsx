@@ -19,7 +19,7 @@ function renderTask(applicationDeadline: string | null, executionDeadline: strin
     requirement: '要求', organizer_contact: contact, reward_amount: 1, attachments: [], status,
     application_deadline: applicationDeadline, execution_deadline: executionDeadline,
   } as unknown as RiceTask
-  renderToStaticMarkup(<TaskCreatePage session={{ token: 'token' } as RiceSession} nodes={[{ id: 'node-1', name: '社区' } as CommunityNode]} initialDraft={draft} editing={editing} onPublished={() => undefined} active onCloseStateChange={() => undefined} />)
+  renderToStaticMarkup(<TaskCreatePage session={{ token: 'token' } as RiceSession} nodes={[{ id: 'node-1', name: '社区' } as CommunityNode]} initialDraft={draft} editing={editing} onPublished={() => undefined} onCloseStateChange={() => undefined} />)
   return captured.props!
 }
 

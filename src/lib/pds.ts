@@ -1,10 +1,12 @@
 import { BACKEND_BASE, requestJson, type JsonObject } from './http'
+import { IMAGE_TYPES, MAX_IMAGE_COUNT } from './images'
 import type { PdsImage } from './models'
 
 // The deployed PDS image lexicon still limits each blob to 1,000,000 bytes.
 export const MAX_POST_IMAGE_BYTES = 1_000_000
-export const MAX_POST_IMAGES = 9
-export const POST_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+export const MAX_POST_IMAGES = MAX_IMAGE_COUNT
+export const POST_IMAGE_TYPES = IMAGE_TYPES
+export const MAX_POST_TEXT_LENGTH = 300
 
 export async function uploadPdsImage(accessJwt: string, base64: string, contentType: string) {
   if (!POST_IMAGE_TYPES.includes(contentType)) throw new Error('请选择 JPG、PNG、WebP 或 GIF 图片。')

@@ -1,6 +1,6 @@
 import { beijingDateTimeValue } from './date-time'
 
-export function formatTimestamp(value: string, _includeYear = false) {
+export function formatTimestamp(value: string) {
   return beijingDateTimeValue(value).replace('T', ' ')
 }
 

@@ -97,7 +97,7 @@ function Announcements() {
   return <section aria-label="公告栏"><h2>公告栏</h2>
     {list.error && <p className="inline-error" role="alert">{list.error}</p>}
     {!list.page && (list.error ? <Button label="重试" variant="secondary" onClick={list.retry} /> : <LoadingState label="正在加载公告…" />)}
-    <div className="node-list">{list.page?.data.map((announcement) => <Link key={announcement.id} to="/alliance/announcements/$id" params={{ id: announcement.id }} className="profile-menu-row node-card"><span className="profile-menu-copy"><strong>{announcement.title}</strong><small>{formatTimestamp(announcement.inserted_at, true)}</small></span><ArrowRight size={18} /></Link>)}</div>
+    <div className="node-list">{list.page?.data.map((announcement) => <Link key={announcement.id} to="/alliance/announcements/$id" params={{ id: announcement.id }} className="profile-menu-row node-card"><span className="profile-menu-copy"><strong>{announcement.title}</strong><small>{formatTimestamp(announcement.inserted_at)}</small></span><ArrowRight size={18} /></Link>)}</div>
     {list.page && !list.page.data.length && <p className="muted">暂无公告。</p>}
     {list.page?.meta.next_cursor && <AutoLoadMore cursor={list.page.meta.next_cursor} loading={list.loading} failed={!!list.error} onLoadMore={list.more} />}
   </section>
@@ -122,7 +122,7 @@ function Proposals() {
 }
 
 function ProposalHeader({ proposal }: { proposal: Proposal }) {
-  return <ContentCardHeader name={proposal.author?.nickname || proposal.author?.handle || '乡建DAO'} profileActor={proposal.author?.did} avatarUrl={proposal.author?.avatar ? publicAttachmentUrl(proposal.author.avatar.url) : undefined} timestamp={formatTimestamp(proposal.inserted_at, true)} aside={<span className="task-status">{statusLabels[proposal.status]}</span>} />
+  return <ContentCardHeader name={proposal.author?.nickname || proposal.author?.handle || '乡建DAO'} profileActor={proposal.author?.did} avatarUrl={proposal.author?.avatar ? publicAttachmentUrl(proposal.author.avatar.url) : undefined} timestamp={formatTimestamp(proposal.inserted_at)} aside={<span className="task-status">{statusLabels[proposal.status]}</span>} />
 }
 
 function VoteResults({ proposal }: { proposal: Proposal }) {
@@ -168,9 +168,9 @@ export function GovernanceDetail({ kind, id }: { kind: 'announcement' | 'proposa
   return <div className="page business-panel">
     {!voteChoice && feedback}
     {!document && !error && <LoadingState label="正在加载详情…" />}
-    {document && <>{proposal && <ProposalHeader proposal={proposal} />}<h1>{document.title}</h1>{!proposal && <time className="muted">{formatTimestamp(document.inserted_at, true)}</time>}
+    {document && <>{proposal && <ProposalHeader proposal={proposal} />}<h1>{document.title}</h1>{!proposal && <time className="muted">{formatTimestamp(document.inserted_at)}</time>}
       {document.attachment ? <GovernanceBody key={document.attachment.id} attachment={document.attachment} /> : <p className="muted">暂无正文。</p>}
-      {proposal && <section className="business-section"><p>总投票数：{proposal.total_votes} · {open ? `截止时间：${formatTimestamp(proposal.closes_at, true)}` : '已结束'}</p><VoteResults proposal={proposal} />
+      {proposal && <section className="business-section"><p>总投票数：{proposal.total_votes} · {open ? `截止时间：${formatTimestamp(proposal.closes_at)}` : '已结束'}</p><VoteResults proposal={proposal} />
         {proposal.my_vote ? <p role="status">已投票：{proposal.my_vote === 'agree' ? '同意' : '反对'}</p> : open && (session ? <div className="form-actions"><Button label="同意" variant="primary" isDisabled={busy} onClick={() => { setError(''); setVoteChoice('agree') }} /><Button label="反对" variant="secondary" isDisabled={busy} onClick={() => { setError(''); setVoteChoice('oppose') }} /></div> : <LoginLink>登录后投票</LoginLink>)}
       </section>}
     </>}

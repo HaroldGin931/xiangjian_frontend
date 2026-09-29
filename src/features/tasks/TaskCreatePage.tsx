@@ -14,7 +14,7 @@ import type { RiceSession } from '~/lib/models'
 import { createTask, getTask, getTasks, publishTask, updateTask } from './api'
 import type { RiceTask } from './types'
 
-export function TaskCreatePage({ session, nodes, initialDraft, initialError = '', editing = false, onPublished, active, onCloseStateChange }: { session: RiceSession; nodes: Array<Pick<CommunityNode, 'id' | 'name'>>; initialDraft?: RiceTask | null; initialError?: string; editing?: boolean; onPublished: (id: string) => void; active: boolean; onCloseStateChange: (state: FormCloseState) => void }) {
+export function TaskCreatePage({ session, nodes, initialDraft, initialError = '', editing = false, onPublished, onCloseStateChange }: { session: RiceSession; nodes: Array<Pick<CommunityNode, 'id' | 'name'>>; initialDraft?: RiceTask | null; initialError?: string; editing?: boolean; onPublished: (id: string) => void; onCloseStateChange: (state: FormCloseState) => void }) {
   const mounted = useRef(false)
   useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   const originalApplication = initialDraft?.application_deadline ? beijingDateTimeValue(initialDraft.application_deadline) : ''
