@@ -54,6 +54,7 @@ function TaskDetails({ taskId, initial }: { taskId: string; initial?: TaskDetail
   const [applyOpen, setApplyOpen] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
   const [approveOpen, setApproveOpen] = useState(false)
+  const [rejectOpen, setRejectOpen] = useState(false)
   const [reason, setReason] = useState('')
   const [contact, setContact] = useState('')
   const [appointmentReason, setAppointmentReason] = useState('')
@@ -90,6 +91,7 @@ function TaskDetails({ taskId, initial }: { taskId: string; initial?: TaskDetail
       setTask(next)
       window.dispatchEvent(new Event('rice-changed'))
       setApproveOpen(false)
+      setRejectOpen(false)
       setApplyOpen(false)
       setCancelOpen(false)
       setReason('')
@@ -313,24 +315,29 @@ function TaskDetails({ taskId, initial }: { taskId: string; initial?: TaskDetail
           <section className="task-action-section review-section">
             <h2>承接者提交</h2>
             <p className="submission-copy">{pendingSubmission.body}</p>
-            <TextArea
+            {rejectOpen && <TextArea
               label="退回理由"
-              description="退回修改时必填"
+              isRequired
               value={reviewReason}
               onChange={setReviewReason}
               maxLength={512}
               width="100%"
-            />
+            />}
             <div className="form-actions">
-              <Button
-                label="退回修改"
-                variant="destructive"
-                isDisabled={!reviewReason.trim() || busy}
-                clickAction={() => run(() => requestTaskChanges({
-                  data: { token, taskId, submissionId: pendingSubmission.id, reason: reviewReason },
-                }))}
-              />
-              <Button label="验收并发放" variant="primary" isDisabled={busy} onClick={() => setApproveOpen(true)} />
+              {rejectOpen ? <>
+                <Button label="取消" variant="secondary" onClick={() => { setRejectOpen(false); setReviewReason('') }} />
+                <Button
+                  label="确认退回修改"
+                  variant="destructive"
+                  isDisabled={!reviewReason.trim() || busy}
+                  clickAction={() => run(() => requestTaskChanges({
+                    data: { token, taskId, submissionId: pendingSubmission.id, reason: reviewReason },
+                  }))}
+                />
+              </> : <>
+                <Button label="退回修改" variant="secondary" isDisabled={busy} onClick={() => { setRejectOpen(true); setApproveOpen(false) }} />
+                <Button label="验收并发放" variant="primary" isDisabled={busy} onClick={() => setApproveOpen(true)} />
+              </>}
             </div>
             {approveOpen && <section className="business-confirm"><h3>确认验收并发放</h3><p>向 {task.assignee?.nickname || task.assignee?.handle} 发放 {task.reward_amount} 稻米，任务将完成。</p><div className="form-actions"><Button label="返回" variant="secondary" onClick={() => setApproveOpen(false)} /><Button label="确认验收并发放" variant="primary" isDisabled={busy} clickAction={() => run(() => approveTaskResult({ data: { token, taskId, submissionId: pendingSubmission.id } }))} /></div></section>}
           </section>

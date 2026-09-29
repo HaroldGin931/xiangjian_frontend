@@ -169,7 +169,7 @@ it('clears read notifications across unloaded pages while retaining unread ones'
     : { notifications: [read('social-first')], cursor: 'social-next' })
   mock.business.mockResolvedValue({ notifications: [unread], cursor: null })
   await vi.waitFor(() => expect(render().filter((element) => String(element.props.className).includes('notification-row'))).toHaveLength(2))
-  const clear = render().find((element) => element.props.label === '清除所有已读消息')!.props.clickAction as () => Promise<void>
+  const clear = render().find((element) => element.props.label === '清除已读')!.props.clickAction as () => Promise<void>
   await clear()
   expect(applyNotificationState('did:plc:reader', [read('social-first'), read('social-old')])).toEqual([])
   expect(applyNotificationState('did:plc:reader', [unread])).toEqual([unread])

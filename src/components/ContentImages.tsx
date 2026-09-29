@@ -1,7 +1,7 @@
 import { Button } from '@astryxdesign/core/Button'
 import { Grid } from '@astryxdesign/core/Grid'
 import { IconButton } from '@astryxdesign/core/IconButton'
-import { ImagePlus, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ImagePlus, X } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { IMAGE_ACCEPT, MAX_IMAGE_BYTES, MAX_IMAGE_COUNT, imageSizeLabel, validateImageFiles } from '~/lib/images'
@@ -33,7 +33,7 @@ export function ImageGroup({ images, className = '' }: { images: PreviewImage[];
 
 function ImageViewer({ images, initialIndex, opener, onClose }: { images: PreviewImage[]; initialIndex: number; opener: HTMLButtonElement | null; onClose: () => void }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
-  const titleId = useId()
+  const touchStart = useRef<{ x: number; y: number } | null>(null)
   const [index, setIndex] = useState(initialIndex)
   const currentIndex = Math.min(index, images.length - 1)
   const image = images[currentIndex]
@@ -43,19 +43,28 @@ function ImageViewer({ images, initialIndex, opener, onClose }: { images: Previe
     dialog?.showModal()
     return () => { dialog?.close(); opener?.focus({ preventScroll: true }) }
   }, [opener])
-  return createPortal(<dialog ref={dialogRef} className="post-dialog business-dialog content-image-viewer" aria-labelledby={titleId}
+  return createPortal(<dialog ref={dialogRef} className="content-image-viewer" aria-label="查看图片"
     onCancel={(event) => { event.preventDefault(); event.stopPropagation(); onClose() }}
-    onKeyDown={(event) => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); event.stopPropagation(); move(event.key === 'ArrowLeft' ? -1 : 1) } }}
-    onClick={(event) => {
-      if (event.target !== event.currentTarget) return
-      const box = event.currentTarget.getBoundingClientRect()
-      if (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom) onClose()
-    }}>
-    <div className="post-dialog-shell">
-      <header className="post-dialog-header"><strong id={titleId}>查看图片</strong><IconButton label="关闭图片" icon={<X size={20} />} variant="ghost" onClick={onClose} /></header>
-      <div className="content-image-stage"><ContentImage key={image.fullsize ?? image.src} src={image.fullsize ?? image.src} alt={image.alt || `第 ${currentIndex + 1} 张图片`} canRetry /></div>
-      <footer className="content-image-controls"><Button label="上一张" variant="secondary" isDisabled={currentIndex === 0} onClick={() => move(-1)} /><span role="status" aria-live="polite">{currentIndex + 1} / {images.length}</span><Button label="下一张" variant="secondary" isDisabled={currentIndex === images.length - 1} onClick={() => move(1)} /></footer>
+    onKeyDown={(event) => { if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); event.stopPropagation(); move(event.key === 'ArrowLeft' ? -1 : 1) } }}>
+    <div className="content-image-stage" onClick={(event) => { if (event.target === event.currentTarget) onClose() }}
+      onTouchStart={(event) => { touchStart.current = { x: event.touches[0].clientX, y: event.touches[0].clientY } }}
+      onTouchEnd={(event) => {
+        const start = touchStart.current
+        touchStart.current = null
+        if (!start) return
+        const dx = event.changedTouches[0].clientX - start.x
+        const dy = event.changedTouches[0].clientY - start.y
+        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) move(dx > 0 ? -1 : 1)
+      }}>
+      <ContentImage key={image.fullsize ?? image.src} src={image.fullsize ?? image.src} alt={image.alt || `第 ${currentIndex + 1} 张图片`} canRetry />
     </div>
+    <IconButton className="content-image-control content-image-close" label="关闭图片" icon={<X size={22} />} variant="ghost" onClick={onClose} />
+    {images.length > 1 && <>
+      <div className="content-image-pager" aria-hidden="true">{images.map((_, dot) => <span key={dot} className={dot === currentIndex ? 'is-current' : ''} />)}</div>
+      {currentIndex > 0 && <IconButton className="content-image-control content-image-previous" label="上一张" icon={<ChevronLeft size={24} />} variant="ghost" onClick={() => move(-1)} />}
+      {currentIndex < images.length - 1 && <IconButton className="content-image-control content-image-next" label="下一张" icon={<ChevronRight size={24} />} variant="ghost" onClick={() => move(1)} />}
+      <span className="content-image-status" role="status">第 {currentIndex + 1} 张，共 {images.length} 张</span>
+    </>}
   </dialog>, document.body)
 }
 

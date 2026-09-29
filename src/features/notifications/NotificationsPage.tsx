@@ -240,7 +240,7 @@ function NotificationInbox({ session, isReady }: { session: RiceSession | null; 
         <div><h1>通知</h1>{unreadCount > 0 && <span className="notification-count">{unreadCount} 条未读</span>}</div>
         <div className="notification-actions">
           <Button label={marking ? '正在标记…' : '全部已读'} variant="ghost" isDisabled={isLoading || paging || marking || clearing || (!unreadCount && !hasMore)} clickAction={markAll} />
-          <Button label="清除所有已读消息" variant="ghost" isLoading={clearing} isDisabled={isLoading || paging || marking || clearing || (!notifications.some((notification) => notification.isRead) && !hasMore)} clickAction={clearAllRead} />
+          <Button label="清除已读" variant="ghost" isLoading={clearing} isDisabled={isLoading || paging || marking || clearing || (!notifications.some((notification) => notification.isRead) && !hasMore)} clickAction={clearAllRead} />
         </div>
       </div>
       {loadError || readError || clearError || error ? (

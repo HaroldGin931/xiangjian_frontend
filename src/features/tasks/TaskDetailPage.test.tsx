@@ -105,3 +105,21 @@ it('does not offer editing for a completed task even if an older response advert
   expect(html).toContain('已完成任务')
   expect(html).not.toContain('编辑任务')
 })
+
+it('keeps the return reason hidden until an administrator chooses to return a submission', () => {
+  const task = {
+    id: 'task-6', title: '待验收任务', description: '说明', status: 'in_progress',
+    creator: { id: 'publisher', did: 'did:example:publisher', handle: 'publisher' },
+    assignee: { id: 'assignee', did: 'did:example:assignee', handle: 'assignee' },
+    application_count: 1, reward_amount: 1, reward_status: 'reserved',
+    application_deadline: null, execution_deadline: null, applications: [], events: [],
+    submissions: [{ id: 'submission-1', status: 'pending', body: '已交付', inserted_at: '2026-09-29T09:00:00Z' }],
+    allowed_actions: ['approve_result', 'request_changes'],
+  } as unknown as RiceTask
+  state.session = { token: 'token', user: { id: 'publisher' } } as RiceSession
+  const html = renderToStaticMarkup(<TaskDetailPage taskId={task.id} initial={{ task, error: '', viewerToken: 'token' }} />)
+  expect(html).toContain('退回修改')
+  expect(html).toContain('验收并发放')
+  expect(html).not.toContain('退回理由')
+  expect(html).not.toContain('退回修改时必填')
+})
