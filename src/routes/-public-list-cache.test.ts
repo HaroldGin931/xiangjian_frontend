@@ -76,7 +76,7 @@ describe('public list route cache', () => {
     await router.navigate({ to: '/tasks' })
     await router.navigate({ to: '/events' })
 
-    expect(api.tasks).toHaveBeenCalledExactlyOnceWith({ data: { limit: 12 } })
+    expect(api.tasks).toHaveBeenCalledExactlyOnceWith({ data: { limit: 12, sort: 'published' } })
     expect(api.nodes).toHaveBeenCalledExactlyOnceWith({ data: {} })
     expect(api.events).toHaveBeenCalledExactlyOnceWith({ data: {} })
   })

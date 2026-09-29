@@ -1,4 +1,5 @@
 import { ImageGroup } from '~/components/ContentImages'
+import { HistoryChanges } from '~/components/HistoryChanges'
 import { ContactField } from '~/components/ContactField'
 import { LoadingState } from '~/components/LoadingState'
 import { useTimeBoundary } from '~/components/useTimeBoundary'
@@ -27,6 +28,7 @@ import {
   pastTaskApplicationDeadline,
   pastTaskExecutionDeadline,
   taskEventLabel,
+  taskApplicationStatusLabel,
   taskDisplayStatus,
   type RiceTask,
   type TaskSubmission,
@@ -111,6 +113,10 @@ function TaskDetails({ taskId, initial }: { taskId: string; initial?: TaskDetail
   const actions = new Set(task.allowed_actions)
   const token = session?.token
   const visibleEvents = (task.events ?? []).filter((event) => event.to_status !== 'draft')
+  const pastRecords = [
+    ...(task.past_applications ?? []).map(value => ({ type: 'application' as const, value })),
+    ...(task.past_submissions ?? []).map(value => ({ type: 'submission' as const, value })),
+  ].sort((a, b) => a.value.inserted_at.localeCompare(b.value.inserted_at) || a.value.id.localeCompare(b.value.id))
 
   return (
     <div className="page task-detail-page">
@@ -167,6 +173,7 @@ function TaskDetails({ taskId, initial }: { taskId: string; initial?: TaskDetail
             <Link to="/tasks/new" className="primary-link">继续编辑</Link>
           </section>
         ) : null}
+        {actions.has('edit') && token && task.status !== 'draft' && task.status !== 'completed' && <section className="task-action-section"><Link to="/compose" search={{ kind: 'task', editId: task.id }} className="primary-link">编辑任务</Link></section>}
 
         {actions.has('apply') && token && !task.application_closed && !expiredOpen ? (
           <section className="task-action-section">
@@ -342,6 +349,25 @@ function TaskDetails({ taskId, initial }: { taskId: string; initial?: TaskDetail
           </section>
         ) : null}
 
+        {pastRecords.length > 0 && (
+          <details className="task-event-history">
+            <summary>往期参与记录</summary>
+            <ol>
+              {pastRecords.map(item => item.type === 'application' ? <li key={item.value.id}>
+                <strong>第 {item.value.round} 期申请 · {taskApplicationStatusLabel[item.value.status]}</strong>
+                <span>{item.value.user.nickname || item.value.user.handle} · <time>{formatTimestamp(item.value.inserted_at, true)}</time></span>
+                {item.value.reason && <blockquote>{item.value.reason}</blockquote>}
+                {item.value.contact && <p>联系方式：{item.value.contact}</p>}
+              </li> : <li key={item.value.id}>
+                <strong>第 {item.value.round} 期交付 · {submissionStatus(item.value)}</strong>
+                <span>{item.value.user.nickname || item.value.user.handle} · <time>{formatTimestamp(item.value.inserted_at, true)}</time></span>
+                <blockquote>{item.value.body}</blockquote>
+                {item.value.review_reason && <blockquote>{item.value.review_reason}</blockquote>}
+              </li>)}
+            </ol>
+          </details>
+        )}
+
         {visibleEvents.length ? (
           <details className="task-event-history">
             <summary>查看进展</summary>
@@ -355,6 +381,11 @@ function TaskDetails({ taskId, initial }: { taskId: string; initial?: TaskDetail
                     <time>{formatTimestamp(event.inserted_at, true)}</time>
                   </span>
                   {event.detail ? <blockquote>{event.detail}</blockquote> : null}
+                  {event.action === 'edited' && <HistoryChanges before={event.before} after={event.after} fields={[
+                    ['node_id', '所属社区'], ['title', '任务标题'], ['organizer_contact', '组织方联系方式'],
+                    ['description', '任务说明'], ['requirement', '交付要求'], ['application_deadline', '申请截止'],
+                    ['execution_deadline', '交付截止'], ['reward_amount', '任务报酬'], ['attachment_ids', '图片'],
+                  ]} />}
                 </li>
               ))}
             </ol>

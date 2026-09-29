@@ -24,6 +24,7 @@ export type RiceUser = {
 }
 
 export type RiceAttachment = NonNullable<RiceUser['avatar']>
+export type HistorySnapshot = Record<string, string | number | string[] | null>
 export type RicePublicUser = Pick<
   RiceUser,
   'id' | 'did' | 'handle' | 'nickname' | 'bio' | 'avatar' | 'node_member'

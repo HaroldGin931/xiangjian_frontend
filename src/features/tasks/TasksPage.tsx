@@ -30,7 +30,7 @@ function TaskList({ nodeId, initialPage, initialNodes, refreshError = '' }: Task
   const paginated = useRef(false)
   const usesRoutePage = Boolean(initialPage && !nodeId && filter === 'all')
   const visibleError = error || (usesRoutePage ? refreshError : '')
-  const input = { token: session?.token, nodeId: nodeId ?? (filter === 'all' || filter === 'available' ? undefined : filter), available: filter === 'available', limit: 12 }
+  const input = { token: session?.token, nodeId: nodeId ?? (filter === 'all' || filter === 'available' ? undefined : filter), available: filter === 'available', sort: 'published' as const, limit: 12 }
   useEffect(() => { if (usesRoutePage) return; const refresh = () => setVersion((v) => v + 1); window.addEventListener('rice-changed', refresh); return () => window.removeEventListener('rice-changed', refresh) }, [usesRoutePage])
   useEffect(() => {
     if (routePage.current === initialPage) return

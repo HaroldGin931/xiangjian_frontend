@@ -3,13 +3,13 @@ import { expect, it, vi } from 'vitest'
 import type { RiceSession } from '~/lib/models'
 
 const state = vi.hoisted(() => ({ session: { token: 'rice-token', user: { id: 'account' }, pds: { did: 'did:plc:account' } } as RiceSession }))
-const api = vi.hoisted(() => ({ nodes: vi.fn(), postDraft: vi.fn(), tasks: vi.fn(), events: vi.fn() }))
+const api = vi.hoisted(() => ({ nodes: vi.fn(), postDraft: vi.fn(), tasks: vi.fn(), task: vi.fn(), events: vi.fn(), event: vi.fn() }))
 vi.mock('~/features/session/session', () => ({ readStoredSession: () => state.session }))
 vi.mock('~/features/feed/ComposePanel', () => ({ ComposePanel: () => null }))
 vi.mock('~/features/feed/post-draft', () => ({ readPostDraft: api.postDraft }))
 vi.mock('~/features/nodes/api', () => ({ getNodes: api.nodes }))
-vi.mock('~/features/tasks/api', () => ({ getTasks: api.tasks }))
-vi.mock('~/features/events/api', () => ({ getEvents: api.events }))
+vi.mock('~/features/tasks/api', () => ({ getTasks: api.tasks, getTask: api.task }))
+vi.mock('~/features/events/api', () => ({ getEvents: api.events, getEvent: api.event }))
 vi.mock('../routeTree.gen', async () => {
   const { createRootRoute, createRoute } = await import('@tanstack/react-router')
   const { Route } = await import('./compose')
@@ -18,6 +18,19 @@ vi.mock('../routeTree.gen', async () => {
   const home = createRoute({ getParentRoute: () => root, path: '/' })
   const compose = createRoute({ getParentRoute: () => root, path: '/compose', loader: options.loader, loaderDeps: options.loaderDeps, validateSearch: options.validateSearch, ssr: options.ssr, staleTime: options.staleTime, preloadStaleTime: options.preloadStaleTime })
   return { routeTree: root.addChildren([home, compose]) }
+})
+
+it('loads the explicitly selected published task without opening another draft', async () => {
+  api.tasks.mockReset()
+  api.nodes.mockResolvedValue([{ id: 'community', name: '社区' }])
+  const task = { id: 'published-task', status: 'open', allowed_actions: ['edit'] }
+  api.task.mockResolvedValue(task)
+  const router = getRouter()
+  router.update({ history: createMemoryHistory({ initialEntries: ['/compose?kind=task&editId=published-task'] }), isServer: false, origin: 'http://localhost', scrollRestoration: false })
+  await router.load()
+  expect(api.task).toHaveBeenCalledWith({ data: { token: 'rice-token', id: task.id } })
+  expect(api.tasks).not.toHaveBeenCalled()
+  expect(router.state.matches.at(-1)?.loaderData).toMatchObject({ editId: task.id, taskDraft: task })
 })
 
 import { getRouter } from '../router'

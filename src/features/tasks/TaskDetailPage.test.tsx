@@ -72,3 +72,36 @@ it('shows late delivery as overdue while leaving supplementary submission availa
   expect(html).toContain('任务已超时')
   expect(html).toContain('提交结果')
 })
+
+it('shows authorized old-round records in chronological order with contact', () => {
+  const user = { id: 'applicant', did: 'did:example:applicant', handle: 'applicant' }
+  const task = {
+    id: 'task-4', title: '修缮门楼', description: '说明', status: 'open',
+    creator: { id: 'publisher', did: 'did:example:publisher', handle: 'publisher' },
+    assignee: null, application_count: 0, reward_amount: 1, reward_status: 'reserved',
+    application_deadline: null, applications: [], submissions: [], events: [], allowed_actions: [],
+    past_applications: [
+      { id: 'application-2', round: 2, status: 'pending', reason: '第二期申请', contact: '第二期联系', user, inserted_at: '2026-09-03T09:00:00Z' },
+      { id: 'application-1', round: 1, status: 'appointed', reason: '第一期申请', contact: '第一期联系', user, inserted_at: '2026-09-01T09:00:00Z' },
+    ],
+    past_submissions: [{ id: 'submission-1', round: 1, status: 'approved', body: '第一期交付', review_reason: null, user, inserted_at: '2026-09-02T09:00:00Z' }],
+  } as unknown as RiceTask
+  state.session = { token: 'token', user: { id: 'publisher' } } as RiceSession
+  const html = renderToStaticMarkup(<TaskDetailPage taskId={task.id} initial={{ task, error: '', viewerToken: 'token' }} />)
+  expect(html.indexOf('第一期申请')).toBeLessThan(html.indexOf('第一期交付'))
+  expect(html.indexOf('第一期交付')).toBeLessThan(html.indexOf('第二期申请'))
+  expect(html).toContain('联系方式：第一期联系')
+})
+
+it('does not offer editing for a completed task even if an older response advertises edit', () => {
+  const task = {
+    id: 'task-5', title: '已完成任务', description: '说明', status: 'completed',
+    creator: { id: 'publisher', did: 'did:example:publisher', handle: 'publisher' },
+    assignee: null, application_count: 0, reward_amount: 1, reward_status: 'settled',
+    application_deadline: null, applications: [], submissions: [], events: [], allowed_actions: ['edit'],
+  } as unknown as RiceTask
+  state.session = { token: 'token', user: { id: 'publisher' } } as RiceSession
+  const html = renderToStaticMarkup(<TaskDetailPage taskId={task.id} initial={{ task, error: '', viewerToken: 'token' }} />)
+  expect(html).toContain('已完成任务')
+  expect(html).not.toContain('编辑任务')
+})

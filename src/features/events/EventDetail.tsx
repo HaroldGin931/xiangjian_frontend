@@ -1,4 +1,5 @@
 import { ImageGroup } from '~/components/ContentImages'
+import { HistoryChanges } from '~/components/HistoryChanges'
 import { ContactField } from '~/components/ContactField'
 import { LoadingState } from '~/components/LoadingState'
 import { useTimeBoundary } from '~/components/useTimeBoundary'
@@ -13,7 +14,7 @@ import { useStoredSession } from '../session/session'
 import { LoginLink } from '../session/LoginLink'
 import { applicationStatusLabel, eventAcceptsApplications, eventAction, eventDisplayStatus, eventStatusLabel, getEvent, type EventActionInput, type RiceEvent } from './api'
 
-const historyLabels: Record<string, string> = { applied: '提交申请', completed: '活动结束', application_completed: '完成参与记录', application_cancelled: '报名已取消', application_withdrawn: '撤销申请', created: '创建活动', published: '发布活动', application_created: '提交申请', application_approved: '通过申请', application_rejected: '拒绝申请', application_removed: '移除报名', started: '活动开始', finished: '活动结束', cancelled: '活动取消', application_not_selected: '申请未入选' }
+const historyLabels: Record<string, string> = { applied: '提交申请', completed: '活动结束', application_completed: '完成参与记录', application_cancelled: '报名已取消', application_withdrawn: '撤销申请', created: '创建活动', published: '发布活动', edited: '编辑活动', application_created: '提交申请', application_approved: '通过申请', application_rejected: '拒绝申请', application_removed: '移除报名', started: '活动开始', finished: '活动结束', cancelled: '活动取消', application_not_selected: '申请未入选' }
 type EventDetailInitial = { event: RiceEvent | null; error: string; viewerToken: string | null }
 
 export function EventDetail({ eventId, initial }: { eventId: string; initial?: EventDetailInitial }) {
@@ -53,7 +54,8 @@ function EventDetails({ eventId, initial }: { eventId: string; initial?: EventDe
   const acceptsApplications = Boolean(event && eventAcceptsApplications(event, now))
   const canApply = acceptsApplications && Boolean(event?.allowed_actions.includes('apply'))
   const canWithdraw = Boolean(event?.my_application?.allowed_actions.includes('withdraw') && Date.parse(event.starts_at) > now)
-  const hasEventActions = canApply || canWithdraw || event?.allowed_actions.some(action => ['finish', 'cancel', 'edit'].includes(action))
+  const canEdit = event?.status !== 'completed' && event?.allowed_actions.includes('edit')
+  const hasEventActions = canApply || canWithdraw || event?.allowed_actions.some(action => ['finish', 'cancel'].includes(action)) || canEdit
   return <div className="page business-panel event-detail-page">{error && <p className="inline-error" role="alert">{error}</p>}{!event && !error && <LoadingState label="正在加载活动…" />}{event && <>
     <span className={`task-status status-${event.status}`}>{eventDisplayStatus(event, now)}</span><h1>{event.title}</h1><p className="muted">{event.node.name} · {event.creator.nickname || event.creator.handle}发起</p>
     <div className="business-money"><strong className="rice-amount">{event.fee_amount ? <><Sprout size={25} />{event.fee_amount}<small> / 人</small></> : '免费'}</strong></div>
@@ -64,12 +66,12 @@ function EventDetails({ eventId, initial }: { eventId: string; initial?: EventDe
     {event.my_application?.contact && <p className="task-neutral-note">我的联系方式：{event.my_application.contact}</p>}
     {!session && acceptsApplications && <div className="business-section"><LoginLink className="primary-link" returnTo={`/events/${encodeURIComponent(eventId)}`}>登录后申请参加</LoginLink></div>}
     {session && (confirm || hasEventActions) && (confirm ? <section className="business-section"><h2>{confirm === 'apply' ? '申请参加' : confirm === 'withdraw' ? '确认撤销申请' : confirm === 'finish' ? '确认活动结束' : '确认取消活动'}</h2>
-      {confirm === 'apply' ? <p>{event.fee_amount ? `本次报名费 ${event.fee_amount} 稻米，未入选将全额退回。` : '本次活动免费。'}</p> : confirm === 'withdraw' ? <p>撤销后将保留申请记录，不能再次申请本场活动。{event.fee_amount ? `已冻结的 ${event.fee_amount} 稻米将全额退回。` : ''}</p> : <p>{confirm === 'finish' ? `确认后，将完成 ${event.approved_count} 位有效参与者的活动记录${event.fee_amount ? `，并结算 ${event.approved_count * event.fee_amount} 稻米` : ''}。` : '取消后不能继续报名，尚未结算的报名费将退回申请人。'}</p>}
+      {confirm === 'apply' ? <p>{event.fee_amount ? `本次报名费 ${event.fee_amount} 稻米，未入选将全额退回。` : '本次活动免费。'}</p> : confirm === 'withdraw' ? <p>撤销后将保留申请记录，本期不能再次申请。{event.fee_amount ? `已冻结的 ${event.fee_amount} 稻米将全额退回。` : ''}</p> : <p>{confirm === 'finish' ? `确认后，将完成 ${event.approved_count} 位有效参与者的活动记录${event.fee_amount ? `，并结算 ${event.approved_count * event.fee_amount} 稻米` : ''}。` : '取消后不能继续报名，尚未结算的报名费将退回申请人。'}</p>}
       <div className="form-stack">
         {confirm === 'apply' && <><TextArea label="参与说明" value={reason} onChange={setReason} maxLength={512} width="100%" /><ContactField value={contact} onChange={setContact} disabled={busy} /></>}
         <div className="form-actions"><Button label="返回" variant="secondary" isDisabled={busy} onClick={() => setConfirm(null)} /><Button label={confirm === 'apply' ? '确认申请' : confirm === 'withdraw' ? '确认撤销' : confirm === 'finish' ? '确认结束' : '确认取消'} variant={confirm === 'cancel' || confirm === 'withdraw' ? 'destructive' : 'primary'} isDisabled={busy || (confirm === 'apply' && (!canApply || !contact.trim() || contact.trim().length > 256)) || (confirm === 'withdraw' && !canWithdraw)} clickAction={() => run(confirm, confirm === 'withdraw' ? event.my_application?.id : undefined)} /></div>
       </div>
-    </section> : <div className="button-row business-section">{canApply && <Button label="申请参加" variant="primary" onClick={() => setConfirm('apply')} />}{canWithdraw && <Button label="撤销申请" variant="secondary" onClick={() => setConfirm('withdraw')} />}{event.allowed_actions.includes('finish') && <Button label="确认活动结束" variant="primary" onClick={() => setConfirm('finish')} />}{event.allowed_actions.includes('cancel') && <Button label="取消活动" variant="destructive" onClick={() => setConfirm('cancel')} />}{event.allowed_actions.includes('edit') && <Link to="/compose" search={{ kind: 'activity' }}>继续编辑</Link>}</div>)}
+    </section> : <div className="button-row business-section">{canApply && <Button label="申请参加" variant="primary" onClick={() => setConfirm('apply')} />}{canWithdraw && <Button label="撤销申请" variant="secondary" onClick={() => setConfirm('withdraw')} />}{event.allowed_actions.includes('finish') && <Button label="确认活动结束" variant="primary" onClick={() => setConfirm('finish')} />}{event.allowed_actions.includes('cancel') && <Button label="取消活动" variant="destructive" onClick={() => setConfirm('cancel')} />}{canEdit && <Link to="/compose" search={event.status === 'draft' ? { kind: 'activity' } : { kind: 'activity', editId: event.id }}>{event.status === 'draft' ? '继续编辑' : '编辑活动'}</Link>}</div>)}
     <section className="business-section"><h2>活动介绍</h2><p className="business-description">{event.description}</p><ImageGroup images={attachmentImages(event.attachments)} /></section>
     {(event.can_manage ?? event.creator.id === session?.user.id) && <section className="business-section"><h2>报名申请</h2>{event.applications.length ? event.applications.map((a) => {
       const actions = (['approve', 'reject', 'remove'] as const).filter(action => a.allowed_actions.includes(action) && (action === 'remove' || Date.parse(event.starts_at) > now))
@@ -80,6 +82,12 @@ function EventDetails({ eventId, initial }: { eventId: string; initial?: EventDe
         <div className="form-actions"><Button label="返回" variant="secondary" isDisabled={busy} onClick={() => setApplicationAction(null)} /><Button label={applicationAction.action === 'reject' ? '确认拒绝' : event.fee_amount ? '确认移除并退款' : '确认移除'} variant="destructive" isDisabled={busy} clickAction={() => run(applicationAction.action, a.id)} /></div>
       </> : actions.length > 0 && <div className="form-actions">{actions.map(action => <Button key={action} label={action === 'approve' ? '通过' : action === 'reject' ? '拒绝' : event.fee_amount ? '移除并退款' : '移除报名'} variant={action === 'approve' ? 'primary' : 'secondary'} isDisabled={busy} onClick={() => { if (action === 'approve') void run(action, a.id); else setApplicationAction({ id: a.id, action }) }} />)}</div>}
     </article>}) : <p>还没有申请。</p>}</section>}
-    {!!event.history.length && <details className="business-section"><summary>查看进展</summary><ol className="business-history">{event.history.map((h) => <li key={h.id}><time>{formatTimestamp(h.inserted_at, true)}</time><p>{h.actor?.nickname || h.actor?.handle || '系统'} · {historyLabels[h.action] || (h.to_status in eventStatusLabel ? eventStatusLabel[h.to_status as keyof typeof eventStatusLabel] : '更新了活动进展')}</p></li>)}</ol></details>}
+    {!!event.past_applications?.length && <details className="business-section"><summary>往期报名</summary><ul className="business-history">{event.past_applications.map(a => <li key={a.id}><strong>第 {a.round} 期 · {a.user.nickname || a.user.handle}</strong><p>{applicationStatusLabel[a.status]} · {a.fee_amount ?? 0} 稻米 · {a.payment_status === 'settled' ? '已结算' : a.payment_status === 'refunded' ? '已退回' : a.payment_status === 'reserved' ? '已冻结' : '未扣费'}</p><time>{formatTimestamp(a.inserted_at, true)}</time>{a.reason && <p>{a.reason}</p>}{a.contact && <p>联系方式：{a.contact}</p>}</li>)}</ul></details>}
+    {!!event.history.length && <details className="business-section"><summary>查看进展</summary><ol className="business-history">{event.history.map((h) => <li key={h.id}><time>{formatTimestamp(h.inserted_at, true)}</time><p>{h.actor?.nickname || h.actor?.handle || '系统'} · {historyLabels[h.action] || (h.to_status in eventStatusLabel ? eventStatusLabel[h.to_status as keyof typeof eventStatusLabel] : '更新了活动进展')}</p>{h.action === 'edited' && <HistoryChanges before={h.before} after={h.after} fields={[
+      ['node_id', '所属社区'], ['title', '活动标题'], ['organizer_contact', '组织方联系方式'],
+      ['description', '活动介绍'], ['location', '活动地点'], ['application_deadline', '报名截止'],
+      ['starts_at', '开始时间'], ['ends_at', '结束时间'], ['capacity', '参与名额'],
+      ['fee_amount', '报名费'], ['attachment_ids', '图片'],
+    ]} />}</li>)}</ol></details>}
   </>}</div>
 }

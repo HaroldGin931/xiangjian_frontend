@@ -76,6 +76,19 @@ it('recovers a published draft after a lost response without patching or publish
   expect(fetch.mock.calls[0][1].method).toBeUndefined()
 })
 
+it('edits the requested published activity with one PATCH and keeps ordered images', async () => {
+  const updated = { ...event, status: 'open', allowed_actions: ['edit'], title: '新的散步', attachments: [attachment('new-second'), attachment('new-first')] }
+  const fetch = vi.fn().mockResolvedValueOnce(response({ ...event, status: 'open', allowed_actions: ['edit'] })).mockResolvedValueOnce(response(updated))
+  vi.stubGlobal('fetch', fetch)
+  const changed = { ...fields, title: '新的散步', attachment_ids: ['new-second', 'new-first'] }
+  const result = await saveEventRequest({ token: 'rice-token', id: 'event-1', editing: true, status: 'open', fields: changed })
+  expect(result.attachments?.map((image) => image.id)).toEqual(changed.attachment_ids)
+  expect(fetch.mock.calls.map(([url, options]) => [new URL(url).pathname, options.method ?? 'GET'])).toEqual([
+    ['/api/events/event-1', 'GET'], ['/api/events/event-1', 'PATCH'],
+  ])
+  expect(JSON.parse(String(fetch.mock.calls[1][1].body)).attachment_ids).toEqual(changed.attachment_ids)
+})
+
 it.each(['draft', 'open'] as const)('recovers a lost draft creation response and saves corrected times and images before %s', async (status) => {
   let saved: typeof event | undefined
   let published = 0

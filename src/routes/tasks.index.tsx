@@ -14,7 +14,7 @@ export const Route = createFileRoute('/tasks/')({
   }),
   loader: { staleReloadMode: 'background', handler: async ({ context }): Promise<TaskRouteData> => {
     try {
-      const [page, nodes] = await Promise.all([getTaskPage({ data: { limit: 12 } }), getNodes({ data: {} })])
+      const [page, nodes] = await Promise.all([getTaskPage({ data: { limit: 12, sort: 'published' } }), getNodes({ data: {} })])
       return { page, nodes, refreshError: '' }
     } catch (error) {
       if (!context.previousData) throw error

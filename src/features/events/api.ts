@@ -1,11 +1,11 @@
 import { createServerFn } from '@tanstack/react-start'
 import { BACKEND_BASE, requestJson } from '~/lib/http'
-import type { RicePublicUser, RiceAttachment } from '~/lib/models'
+import type { RicePublicUser, RiceAttachment, HistorySnapshot } from '~/lib/models'
 import type { CommunityNode } from '../nodes/api'
 
 export type EventStatus = 'draft' | 'open' | 'in_progress' | 'completed' | 'cancelled'
-export type EventApplication = { id: string; reason: string; contact?: string | null; status: 'pending' | 'approved' | 'rejected' | 'removed' | 'not_selected' | 'cancelled' | 'withdrawn'; payment_status: 'none' | 'reserved' | 'refunded' | 'settled'; user: RicePublicUser; inserted_at: string; allowed_actions: string[] }
-export type RiceEvent = { can_manage?: boolean; settlement_node_id?: string | null; attachments?: RiceAttachment[]; id: string; title: string; description: string; organizer_contact?: string | null; location: string; status: EventStatus; node: Pick<CommunityNode, 'id' | 'name' | 'logo'>; creator: RicePublicUser; fee_amount: number; capacity: number; application_deadline: string; starts_at: string; ends_at: string; published_at: string | null; inserted_at: string; application_count: number; approved_count: number; my_application: EventApplication | null; allowed_actions: string[]; applications: EventApplication[]; history: Array<{ id: string; action: string; from_status: string | null; to_status: string; actor: RicePublicUser | null; inserted_at: string }> }
+export type EventApplication = { id: string; round?: number; reason: string; contact?: string | null; status: 'pending' | 'approved' | 'rejected' | 'removed' | 'not_selected' | 'cancelled' | 'withdrawn'; payment_status: 'none' | 'reserved' | 'refunded' | 'settled'; fee_amount?: number; user: RicePublicUser; inserted_at: string; allowed_actions: string[] }
+export type RiceEvent = { can_manage?: boolean; settlement_node_id?: string | null; attachments?: RiceAttachment[]; id: string; round?: number; title: string; description: string; organizer_contact?: string | null; location: string; status: EventStatus; node: Pick<CommunityNode, 'id' | 'name' | 'logo'>; creator: RicePublicUser; fee_amount: number; capacity: number; application_deadline: string; starts_at: string; ends_at: string; published_at: string | null; inserted_at: string; application_count: number; approved_count: number; my_application: EventApplication | null; allowed_actions: string[]; applications: EventApplication[]; past_applications?: EventApplication[]; history: Array<{ id: string; action: string; from_status: string | null; to_status: string; actor: RicePublicUser | null; inserted_at: string; before?: HistorySnapshot | null; after?: HistorySnapshot | null }> }
 export const eventStatusLabel: Record<EventStatus, string> = { draft: '草稿', open: '报名中', in_progress: '已开始', completed: '已结束', cancelled: '已取消' }
 export function eventAcceptsApplications(event: Pick<RiceEvent, 'status' | 'application_deadline' | 'starts_at' | 'capacity' | 'approved_count'>, now: number) {
   return event.status === 'open' && Date.parse(event.application_deadline) > now && Date.parse(event.starts_at) > now && event.approved_count < event.capacity
@@ -36,7 +36,7 @@ export async function fetchEventPage(data: EventListInput) {
 export const getEvents = createServerFn({ method: 'POST' }).validator((data: EventListInput) => data).handler(({ data }) => fetchEventPage(data))
 export const getEvent = createServerFn({ method: 'POST' }).validator((data: { id: string; token?: string }) => data).handler(async ({ data }) => (await requestJson<{ data: RiceEvent }>(`${BACKEND_BASE}/api/events/${encodeURIComponent(data.id)}`, { headers: data.token ? { Authorization: `Bearer ${data.token}` } : undefined })).data)
 export type EventDraftInput = { organizer_contact?: string; attachment_ids?: string[]; node_id: string; title: string; description: string; location: string; application_deadline: string; starts_at: string; ends_at: string; fee_amount: number; capacity: number; client_request_id: string }
-export type SaveEventInput = { token: string; id?: string; status: 'draft' | 'open'; fields: EventDraftInput }
+export type SaveEventInput = { token: string; id?: string; editing?: boolean; status: 'draft' | 'open'; fields: EventDraftInput }
 function sameEventContent(event: RiceEvent, fields: EventDraftInput) {
   return event.node.id === fields.node_id &&
     event.title === fields.title.trim() && event.description === fields.description.trim() && event.location === fields.location.trim() &&
@@ -49,6 +49,13 @@ function sameEventContent(event: RiceEvent, fields: EventDraftInput) {
 export async function saveEventRequest(data: SaveEventInput) {
   const headers = { Authorization: `Bearer ${data.token}`, 'Content-Type': 'application/json' }
   const base = `${BACKEND_BASE}/api/events`
+  if (data.editing) {
+    if (!data.id) throw new Error('未找到要编辑的活动，请重新打开详情页。')
+    const event = (await requestJson<{ data: RiceEvent }>(`${base}/${encodeURIComponent(data.id)}`, { headers })).data
+    if (!event.allowed_actions.includes('edit')) throw new Error('此活动目前不能编辑。')
+    if (sameEventContent(event, data.fields)) return event
+    return (await requestJson<{ data: RiceEvent }>(`${base}/${encodeURIComponent(data.id)}`, { method: 'PATCH', headers, body: JSON.stringify(data.fields) })).data
+  }
   // Always obtain a recoverable draft first. Reusing its request key can return
   // the prior record after a lost response, with content that needs updating.
   let event = (await requestJson<{ data: RiceEvent }>(data.id ? `${base}/${encodeURIComponent(data.id)}` : base, data.id
@@ -57,7 +64,7 @@ export async function saveEventRequest(data: SaveEventInput) {
   const same = sameEventContent(event, data.fields)
   if (event.status !== 'draft') {
     if (data.status === 'open' && event.status !== 'cancelled' && same) return event
-    throw new Error('上次提交的活动已发布。请离开发布页面后查看，已发布的内容和图片不能修改。')
+    throw new Error('上次提交的活动已发布。请前往活动详情编辑。')
   }
   if (!same) event = (await requestJson<{ data: RiceEvent }>(`${base}/${encodeURIComponent(event.id)}`, { method: 'PATCH', headers, body: JSON.stringify(data.fields) })).data
   if (data.status === 'open') return (await requestJson<{ data: RiceEvent }>(`${base}/${encodeURIComponent(event.id)}/publish`, { method: 'POST', headers })).data

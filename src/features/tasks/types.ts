@@ -1,4 +1,4 @@
-import type { RicePublicUser, RiceAttachment } from '~/lib/models'
+import type { RicePublicUser, RiceAttachment, HistorySnapshot } from '~/lib/models'
 
 export type TaskStatus =
   | 'draft'
@@ -14,6 +14,7 @@ export type TaskMine = 'assigned' | 'created' | 'applied' | 'managed'
 
 export type TaskApplication = {
   id: string
+  round?: number
   reason: string
   contact?: string | null
   status: 'pending' | 'appointed' | 'not_selected' | 'cancelled' | 'expired'
@@ -23,15 +24,19 @@ export type TaskApplication = {
 
 export type TaskEvent = {
   id: string
+  action?: string
   from_status: TaskStatus | null
   to_status: TaskStatus
   detail: string | null
   actor: RicePublicUser | null
   inserted_at: string
+  before?: HistorySnapshot | null
+  after?: HistorySnapshot | null
 }
 
 export type TaskSubmission = {
   id: string
+  round?: number
   body: string
   status: 'pending' | 'approved' | 'changes_requested'
   review_reason: string | null
@@ -42,6 +47,7 @@ export type TaskSubmission = {
 export type RiceTask = {
   attachments?: RiceAttachment[]
   id: string
+  round?: number
   title: string
   description: string
   organizer_contact?: string | null
@@ -72,9 +78,12 @@ export type RiceTask = {
     | 'submit_result'
     | 'approve_result'
     | 'request_changes'
+    | 'edit'
   >
   applications: TaskApplication[] | null
+  past_applications?: TaskApplication[] | null
   submissions: TaskSubmission[] | null
+  past_submissions?: TaskSubmission[] | null
   events: TaskEvent[] | null
   published_at: string | null
   inserted_at: string
@@ -116,6 +125,7 @@ export const taskApplicationStatusLabel: Record<TaskApplication['status'], strin
 }
 
 export function taskEventLabel(event: TaskEvent) {
+  if (event.action === 'edited') return '编辑任务'
   if (event.from_status === event.to_status) return '更新任务进展'
   switch (event.to_status) {
     case 'draft': return '创建任务草稿'

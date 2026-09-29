@@ -67,7 +67,7 @@ export const getTask = createServerFn({ method: 'POST' })
     return body.data
   })
 
-type TaskDraftFields = {
+type TaskFields = {
   token: string
   title: string
   description: string
@@ -81,7 +81,7 @@ type TaskDraftFields = {
   organizerContact?: string
 }
 
-export const taskDraftBody = (data: TaskDraftFields) => ({
+export const taskDraftBody = (data: TaskFields) => ({
   title: data.title,
   description: data.description,
   application_deadline: data.applicationDeadline,
@@ -95,7 +95,7 @@ export const taskDraftBody = (data: TaskDraftFields) => ({
 })
 
 export const createTask = createServerFn({ method: 'POST' })
-  .validator((data: TaskDraftFields & { status: 'draft' | 'open'; applicationDeadline?: string }) => data)
+  .validator((data: TaskFields & { status: 'draft' | 'open'; applicationDeadline?: string }) => data)
   .handler(async ({ data }) => {
     const body = await requestJson<{ data: RiceTask }>(`${BACKEND_BASE}/api/tasks`, {
       method: 'POST',
@@ -105,8 +105,8 @@ export const createTask = createServerFn({ method: 'POST' })
     return body.data
   })
 
-export const updateTaskDraft = createServerFn({ method: 'POST' })
-  .validator((data: TaskDraftFields & { taskId: string; applicationDeadline: string | null }) => data)
+export const updateTask = createServerFn({ method: 'POST' })
+  .validator((data: TaskFields & { taskId: string; applicationDeadline: string | null }) => data)
   .handler(async ({ data }) => {
     const body = await requestJson<{ data: RiceTask }>(`${BACKEND_BASE}/api/tasks/${data.taskId}`, {
       method: 'PATCH',

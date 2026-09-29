@@ -5,7 +5,7 @@ type PublishStep = { label: string; title?: string; content: ReactNode; review: 
 const PublishValidationContext = createContext(false)
 export const usePublishValidationAttempted = () => useContext(PublishValidationContext)
 
-export function PublishSteps({ steps, busy, error, notice, onError, validate, canSaveDraft, onSaveDraft, onPublish, publishLabel }: {
+export function PublishSteps({ steps, busy, error, notice, onError, validate, canSaveDraft, onSaveDraft, onPublish, publishLabel, editing = false }: {
   steps: PublishStep[]
   busy: boolean
   error: string
@@ -16,6 +16,7 @@ export function PublishSteps({ steps, busy, error, notice, onError, validate, ca
   onSaveDraft: () => Promise<boolean>
   onPublish: () => Promise<boolean>
   publishLabel: string
+  editing?: boolean
 }) {
   const [step, setStep] = useState(0)
   const [returnTo, setReturnTo] = useState<number | null>(null)
@@ -47,8 +48,8 @@ export function PublishSteps({ steps, busy, error, notice, onError, validate, ca
   }
 
   return <PublishValidationContext.Provider value={validationAttempted}><section className="publish-steps" aria-labelledby={headingId} data-validation-attempted={validationAttempted || undefined}>
-    <header className="publish-step-header"><small>第 {step + 1} 步，共 {steps.length + 1} 步</small><Button label="保存草稿" variant="ghost" isDisabled={!canSaveDraft || busy} clickAction={async () => { await onSaveDraft() }} /></header>
-    <h3 id={headingId} ref={heading} tabIndex={-1}>{review ? '发布前，再看一眼。' : steps[step].title ?? steps[step].label}</h3>
+    <header className="publish-step-header"><small>第 {step + 1} 步，共 {steps.length + 1} 步</small>{!editing && <Button label="保存草稿" variant="ghost" isDisabled={!canSaveDraft || busy} clickAction={async () => { await onSaveDraft() }} />}</header>
+    <h3 id={headingId} ref={heading} tabIndex={-1}>{review ? editing ? '保存前，再看一眼。' : '发布前，再看一眼。' : steps[step].title ?? steps[step].label}</h3>
     <div className="publish-step-fields">{review ? steps.map((item, index) => <section className="publish-review-section" key={item.label}>
       <header><h4>{item.label}</h4><Button label="修改" aria-label={`修改${item.label}`} variant="ghost" isDisabled={busy} onClick={() => go(index, steps.length)} /></header>
       {item.review}

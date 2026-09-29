@@ -19,6 +19,15 @@ it('matches the event deadline and interval rules without accepting the current 
   expect(eventTimeError({ ...times, starts_at: '' }, now, 'starts_at')).toContain('开始日期和时间')
 })
 
+it('allows historical date corrections while editing but preserves chronological order', () => {
+  const now = beijingTime('2026-09-29T12:00')
+  const original = { application_deadline: '2026-09-28T09:00', starts_at: '2026-09-28T10:00', ends_at: '2026-09-28T13:00' }
+  expect(eventTimeError(original, now, 'ends_at', true)).toBeNull()
+  expect(eventTimeError({ ...original, application_deadline: '2026-09-28T09:15' }, now, 'ends_at', true)).toBeNull()
+  expect(eventTimeError({ ...original, application_deadline: '2026-09-28T11:00' }, now, 'ends_at', true)).toContain('报名截止不能晚于')
+  expect(eventTimeError(original, now)).toContain('晚于当前时间')
+})
+
 it('shows seven event publishing steps with separate date choices', () => {
   const html = renderToStaticMarkup(createElement(EventCreateForm, { session: { token: 'test' } as RiceSession, nodes: [], initialDraft: null, active: true, onPublished: () => undefined, onCloseStateChange: () => undefined }))
   expect(html).toContain('第 1 步，共 7 步')

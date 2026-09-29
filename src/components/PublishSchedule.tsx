@@ -96,6 +96,7 @@ export function PublishSchedule({ fields, disabled = false, children }: { fields
         return <div className="schedule-time" key={item.label} data-invalid={isInvalid(item) || undefined}>
           <label><small>{item.label}</small><select aria-label={`${item.label}时刻（北京时间）`} aria-invalid={isInvalid(item) || undefined} value={time} required={item.required} disabled={disabled || !date} onChange={event => item.onChange(`${date}T${event.target.value}`)}>
             {!time && <option value="">选择时间</option>}
+            {time && !times.includes(time) && <option value={time}>{time}</option>}
             {times.map(slot => <option key={slot} value={slot} disabled={!validSlot(date, slot, item)}>{slot}</option>)}
           </select></label>
           {!item.required && <button type="button" className="schedule-clear" aria-label={`${item.label}不设截止`} disabled={disabled || !date} onClick={() => item.onChange('')}>不设截止</button>}
