@@ -44,9 +44,10 @@ export function buildTaskListQuery(data: TaskListInput) {
 export async function fetchTaskPage(data: TaskListInput) {
   const query = buildTaskListQuery(data)
   const suffix = query ? `?${query}` : ''
-  return requestJson<TaskPage>(`${BACKEND_BASE}/api/tasks${suffix}`, {
+  const page = await requestJson<TaskPage>(`${BACKEND_BASE}/api/tasks${suffix}`, {
     headers: authHeaders(data.token),
   })
+  return { ...page, data: page.data.filter((task) => task.status !== 'cancelled') }
 }
 
 export const getTasks = createServerFn({ method: 'POST' })

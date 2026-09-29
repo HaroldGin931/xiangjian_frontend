@@ -19,11 +19,6 @@ function ContentImage({ src, alt, loading, canRetry = false }: PreviewImage & { 
   return <img key={attempt} src={src} alt={alt} loading={loading} onError={() => setFailed(true)} />
 }
 
-export function ImageCover({ images }: { images: PreviewImage[] }) {
-  if (!images.length) return null
-  return <span className="content-image-cover"><ContentImage key={images[0].src} {...images[0]} loading="lazy" />{images.length > 1 && <span className="content-image-count">{images.length} 张图片</span>}</span>
-}
-
 export function ImageGroup({ images, className = '' }: { images: PreviewImage[]; className?: string }) {
   const [selected, setSelected] = useState<number | null>(null)
   const opener = useRef<HTMLButtonElement>(null)

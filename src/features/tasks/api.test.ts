@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { buildTaskListQuery, rejectTaskApplicationRequest, taskDraftBody } from './api'
+import { buildTaskListQuery, fetchTaskPage, rejectTaskApplicationRequest, taskDraftBody } from './api'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -39,6 +39,18 @@ describe('task list query', () => {
 
 it('asks Rice to filter by real community and applicant eligibility', () => {
   expect(Object.fromEntries(new URLSearchParams(buildTaskListQuery({ nodeId: 'node-1', available: true })))).toEqual({ node_id: 'node-1', available: 'true' })
+})
+
+it('hides cancelled tasks from shared list results without losing the next page', async () => {
+  const fetch = vi.fn().mockResolvedValue(Response.json({
+    data: [{ id: 'open', status: 'open' }, { id: 'cancelled', status: 'cancelled' }],
+    meta: { next_cursor: 'next-page' },
+  }))
+  vi.stubGlobal('fetch', fetch)
+
+  const page = await fetchTaskPage({ limit: 12 })
+  expect(page.data.map((task) => task.id)).toEqual(['open'])
+  expect(page.meta.next_cursor).toBe('next-page')
 })
 
 it('rejects the specified application using Rice auth and keeps the returned open task and reserved reward', async () => {

@@ -1,5 +1,5 @@
 import { LoginLink } from '../session/LoginLink'
-import { ImageCover } from '~/components/ContentImages'
+import { ImageGroup } from '~/components/ContentImages'
 import { attachmentImages } from '~/lib/attachments'
 import { Button } from '@astryxdesign/core/Button'
 import { Link, useNavigate } from '@tanstack/react-router'
@@ -20,7 +20,9 @@ export function EventCard({ event }: { event: RiceEvent }) {
     <ContentCardHeader name={event.node.name} avatarUrl={event.node.logo?.url} onAuthorClick={() => { void navigate({ to: '/nodes/$nodeId', params: { nodeId: event.node.id } }) }} timestamp={`${formatTimestamp(event.published_at ?? event.inserted_at)} · 发布`} />
     <Link to="/events/$eventId" params={{ eventId: event.id }} className="business-card-body">
     <h2>{event.title}</h2><p>{formatTimestamp(event.starts_at, true)} · {event.location}</p>
-    <ImageCover images={attachmentImages(event.attachments)} />
+    </Link>
+    <ImageGroup images={attachmentImages(event.attachments)} className="post-image-grid" />
+    <Link to="/events/$eventId" params={{ eventId: event.id }} className="business-card-body">
     <footer className="content-card-actions task-card-actions"><span className={`task-status status-${event.status}`}>{eventDisplayStatus(event, now)}</span><strong className="rice-amount" aria-label={event.fee_amount ? `${event.fee_amount} 稻米每人` : '免费'}>{event.fee_amount ? <><Sprout size={21} />{event.fee_amount}<small>/ 人</small></> : '免费'}</strong></footer>
     </Link></article>
 }
