@@ -89,6 +89,17 @@ it('edits the requested published activity with one PATCH and keeps ordered imag
   expect(JSON.parse(String(fetch.mock.calls[1][1].body)).attachment_ids).toEqual(changed.attachment_ids)
 })
 
+it('PATCHes an unchanged cancelled activity so the server can reopen it', async () => {
+  const closed = { ...event, status: 'cancelled', allowed_actions: ['edit'] }
+  const fetch = vi.fn().mockResolvedValueOnce(response(closed)).mockResolvedValueOnce(response({ ...closed, status: 'open', round: 2 }))
+  vi.stubGlobal('fetch', fetch)
+  const result = await saveEventRequest({ token: 'rice-token', id: 'event-1', editing: true, status: 'open', fields })
+  expect(result.status).toBe('open')
+  expect(fetch.mock.calls.map(([url, options]) => [new URL(url).pathname, options.method ?? 'GET'])).toEqual([
+    ['/api/events/event-1', 'GET'], ['/api/events/event-1', 'PATCH'],
+  ])
+})
+
 it.each(['draft', 'open'] as const)('recovers a lost draft creation response and saves corrected times and images before %s', async (status) => {
   let saved: typeof event | undefined
   let published = 0

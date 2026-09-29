@@ -126,7 +126,7 @@ export function TaskCreatePage({ session, nodes, initialDraft, initialError = ''
       {
         label: '基本信息', title: '你想一起做什么？',
         content: <>
-          <label className="native-field">所属社区<select required value={nodeId} disabled={(!editing && !!taskId) || !!submitting} onChange={(e) => setNodeId(e.target.value)}>{nodes.map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}</select></label>
+          <label className="native-field">所属社区<select required value={nodeId} disabled={(!editing && !!taskId) || rewardReadOnly || !!submitting} onChange={(e) => setNodeId(e.target.value)}>{nodes.map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}</select></label>
           <PublishTextInput isDisabled={!!submitting} label="任务标题" value={title} onChange={(v) => setTitle(v.slice(0, 128))} width="100%" isRequired />
           <ContactField organizer value={organizerContact} onChange={setOrganizerContact} disabled={!!submitting} />
         </>,

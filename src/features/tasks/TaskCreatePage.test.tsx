@@ -1,4 +1,5 @@
 import { renderToStaticMarkup } from 'react-dom/server'
+import type { ReactNode } from 'react'
 import { expect, it, vi } from 'vitest'
 import type { RiceSession } from '~/lib/models'
 import type { CommunityNode } from '../nodes/api'
@@ -8,7 +9,7 @@ const captured = vi.hoisted(() => ({ props: null as null | {
   steps: Array<{ label: string; content: { props: { fields: Array<{ label: string; required?: boolean }>; isReadOnly?: boolean } } }>
   validate: (step: number) => string | null
 } }))
-vi.mock('~/components/PublishSteps', () => ({ PublishSteps: (props: typeof captured.props) => { captured.props = props; return null } }))
+vi.mock('~/components/PublishSteps', () => ({ PublishSteps: (props: typeof captured.props) => { captured.props = props; return null }, usePublishValidationAttempted: () => false }))
 
 import { TaskCreatePage } from './TaskCreatePage'
 
@@ -37,12 +38,10 @@ it('gives each required task deadline its own step and validates them separately
   expect(renderTask('2099-01-02T10:00:00+08:00', '2099-01-01T10:00:00+08:00').validate(3)).toContain('晚于')
 })
 
-it('allows unchanged past deadlines when editing published task content', () => {
-  for (const status of ['open', 'completed'] as const) {
-    const edit = renderTask('2020-01-01T10:00:00+08:00', '2020-01-02T10:00:00+08:00', 'contact', true, status)
-    expect(edit.validate(2)).toBeNull()
-    expect(edit.validate(3)).toBeNull()
-  }
+it('allows unchanged past deadlines when editing an active task', () => {
+  const edit = renderTask('2020-01-01T10:00:00+08:00', '2020-01-02T10:00:00+08:00', 'contact', true, 'open')
+  expect(edit.validate(2)).toBeNull()
+  expect(edit.validate(3)).toBeNull()
 })
 
 it('requires a future application deadline before reopening a cancelled or expired task', () => {
@@ -55,4 +54,10 @@ it('requires a future application deadline before reopening a cancelled or expir
 it('keeps an ongoing task reward read-only while allowing terminal reward edits', () => {
   expect(renderTask(null, null, 'contact', true, 'open').steps[4].content.props.isReadOnly).toBe(true)
   expect(renderTask(null, null, 'contact', true, 'cancelled').steps[4].content.props.isReadOnly).toBe(false)
+})
+
+it('locks the community selector only while editing an active task', () => {
+  const select = (status: RiceTask['status']) => renderToStaticMarkup(renderTask(null, null, 'contact', true, status).steps[0].content as unknown as ReactNode).match(/<select[^>]*>/)?.[0]
+  expect(select('open')).toContain('disabled')
+  expect(select('cancelled')).not.toContain('disabled')
 })

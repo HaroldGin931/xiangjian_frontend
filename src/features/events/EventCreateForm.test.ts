@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { changeEventTime, EventCreateForm, eventDurationLabel, eventTimeError } from './EventCreateForm'
 import { beijingTime } from '~/lib/date-time'
 import type { RiceSession } from '~/lib/models'
+import type { RiceEvent } from './api'
 
 it('matches the event deadline and interval rules without accepting the current minute as future', () => {
   const now = beijingTime('2026-09-21T12:00') + 30_000
@@ -33,6 +34,15 @@ it('shows seven event publishing steps with separate date choices', () => {
   expect(html).toContain('第 1 步，共 7 步')
   expect(html).toContain('placeholder="活动标题（必填）"')
   expect(html).toContain('placeholder="组织方联系方式（必填）"')
+})
+
+it('locks the community selector only while editing an active activity', () => {
+  const select = (status: RiceEvent['status']) => {
+    const draft = { id: 'event', status, node: { id: 'node', name: '社区' }, title: '活动', description: '说明', organizer_contact: '联系', location: '社区', application_deadline: '2099-01-01T09:00:00Z', starts_at: '2099-01-01T10:00:00Z', ends_at: '2099-01-01T11:00:00Z', fee_amount: 1, capacity: 5, attachments: [] } as unknown as RiceEvent
+    return renderToStaticMarkup(createElement(EventCreateForm, { session: { token: 'test' } as RiceSession, nodes: [{ id: 'node', name: '社区' }], initialDraft: draft, editing: true, active: true, onPublished: () => undefined, onCloseStateChange: () => undefined })).match(/<select[^>]*>/)?.[0]
+  }
+  expect(select('open')).toContain('disabled')
+  expect(select('cancelled')).not.toContain('disabled')
 })
 
 it('moves an overlapping start forward with the deadline and preserves duration across days', () => {

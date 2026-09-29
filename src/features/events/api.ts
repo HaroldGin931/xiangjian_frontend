@@ -53,7 +53,7 @@ export async function saveEventRequest(data: SaveEventInput) {
     if (!data.id) throw new Error('未找到要编辑的活动，请重新打开详情页。')
     const event = (await requestJson<{ data: RiceEvent }>(`${base}/${encodeURIComponent(data.id)}`, { headers })).data
     if (!event.allowed_actions.includes('edit')) throw new Error('此活动目前不能编辑。')
-    if (sameEventContent(event, data.fields)) return event
+    if (event.status !== 'cancelled' && sameEventContent(event, data.fields)) return event
     return (await requestJson<{ data: RiceEvent }>(`${base}/${encodeURIComponent(data.id)}`, { method: 'PATCH', headers, body: JSON.stringify(data.fields) })).data
   }
   // Always obtain a recoverable draft first. Reusing its request key can return

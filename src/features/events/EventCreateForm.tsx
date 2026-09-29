@@ -140,7 +140,7 @@ export function EventCreateForm({ session, nodes, initialDraft, initialError = '
       {
         label: '基本信息', title: '你想一起做什么？',
         content: <>
-          <label className="native-field">所属社区<select required disabled={busy} value={fields.node_id} onChange={(e) => set('node_id', e.target.value)}>{nodes.map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}</select></label>
+          <label className="native-field">所属社区<select required disabled={busy || feeReadOnly} value={fields.node_id} onChange={(e) => set('node_id', e.target.value)}>{nodes.map((n) => <option key={n.id} value={n.id}>{n.name}</option>)}</select></label>
           <PublishTextInput isDisabled={busy} label="活动标题" value={fields.title} onChange={(v) => set('title', v.slice(0, 128))} width="100%" isRequired />
           <ContactField organizer value={fields.organizer_contact} onChange={v => set('organizer_contact', v)} disabled={busy} />
         </>,
