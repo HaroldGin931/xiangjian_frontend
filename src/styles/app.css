@@ -212,6 +212,7 @@ input:-webkit-autofill:focus {
 .status-draft { background: #ecece8; color: #656d66; }
 .status-open { background: #e5f0df; color: #41653f; }
 .status-in_progress { background: #e6eeee; color: #365f5f; }
+.status-overdue { background: #f7e7dc; color: #8b4f27; }
 .status-under_review { background: #f3ecd8; color: #765d28; }
 .status-completed { background: #e9e9e4; color: #687169; }
 .status-expired, .status-cancelled { background: #f1e8e5; color: #7b5750; }
@@ -738,8 +739,6 @@ button:focus-visible, a:focus-visible, summary:focus-visible { outline: 3px soli
 .receipt-reference summary { cursor: pointer; }
 @media (max-width: 620px) {
   .business-panel { padding: 20px; }
-  .my-task-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: visible; }
-  .my-task-tabs button { width: 100%; min-width: 0; padding-inline: 4px; font-size: var(--xj-font-caption); }
   .task-hero h1 { font-size: 36px; }
   .business-card h2 { font-size: 22px; }
   .topbar-actions { gap: 3px; }

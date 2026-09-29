@@ -63,7 +63,7 @@ export function ProfilePage({ initialData = null, initialError = '' }: { initial
     </section>
     <nav className="profile-menu" aria-label="个人中心功能">{([
       ['/me/identity', '社区身份', '我在各社区的身份'],
-      ['/me/tasks', '我的任务', '申请中 · 进行中 · 审核中 · 已结束'],
+      ['/me/tasks', '我的任务', '申请、交付、验收与历史记录'],
       ['/me/events', '我的活动', '我申请 / 主办的活动'],
       ['/me/posts', '我的帖子', '在广场发布过的内容'],
       ['/alliance', '联盟与治理', '金库 · 公告 · 节点 · 提案'],

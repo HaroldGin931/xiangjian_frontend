@@ -47,7 +47,7 @@ export async function fetchTaskPage(data: TaskListInput) {
   const page = await requestJson<TaskPage>(`${BACKEND_BASE}/api/tasks${suffix}`, {
     headers: authHeaders(data.token),
   })
-  return { ...page, data: page.data.filter((task) => task.status !== 'cancelled') }
+  return data.mine ? page : { ...page, data: page.data.filter((task) => task.status !== 'cancelled') }
 }
 
 export const getTasks = createServerFn({ method: 'POST' })

@@ -24,6 +24,8 @@ import {
   submitTaskResult,
 } from './api'
 import {
+  pastTaskApplicationDeadline,
+  pastTaskExecutionDeadline,
   taskEventLabel,
   taskDisplayStatus,
   type RiceTask,
@@ -42,7 +44,7 @@ export function TaskDetailPage({ taskId, initial }: { taskId: string; initial?: 
 function TaskDetails({ taskId, initial }: { taskId: string; initial?: TaskDetailInitial }) {
   const { session, isReady } = useStoredSession()
   const [task, setTask] = useState<RiceTask | null>(initial?.task ?? null)
-  const now = useTimeBoundary(task?.status === 'open' ? [task.application_deadline] : task && ['in_progress', 'under_review'].includes(task.status) ? [task.execution_deadline] : [])
+  const now = useTimeBoundary(task?.status === 'open' ? [task.application_deadline] : task?.status === 'in_progress' ? [task.execution_deadline] : [])
   const [error, setError] = useState(initial?.error ?? '')
   const [loading, setLoading] = useState(!initial)
   const skipInitialFetch = useRef(Boolean(initial))
@@ -102,8 +104,10 @@ function TaskDetails({ taskId, initial }: { taskId: string; initial?: TaskDetail
 
   if (!isReady || (loading && !task)) return <LoadingState label="正在加载任务…" className="page loading-line" />
   if (!task) return <div className="page"><div className="inline-error">{error || '任务不存在'}</div></div>
-  if (task.status === 'cancelled') return <div className="page"><p className="search-hint">任务已取消。</p></div>
+  if (task.status === 'cancelled' && task.creator.id !== session?.user.id && !task.can_manage && !(session && (task.my_application_status || task.my_application))) return <div className="page"><p className="search-hint">任务已取消。</p></div>
 
+  const expiredOpen = pastTaskApplicationDeadline(task, now)
+  const overdueProgress = pastTaskExecutionDeadline(task, now)
   const actions = new Set(task.allowed_actions)
   const token = session?.token
   const visibleEvents = (task.events ?? []).filter((event) => event.to_status !== 'draft')
@@ -113,7 +117,7 @@ function TaskDetails({ taskId, initial }: { taskId: string; initial?: TaskDetail
       <article className="task-detail-card">
         <header className="task-detail-heading">
           <div>
-            <span className={`task-status status-${task.status}`}>{taskDisplayStatus(task, now)}</span>
+            <span className={`task-status status-${expiredOpen ? 'expired' : overdueProgress ? 'overdue' : task.status}`}>{taskDisplayStatus(task, now)}</span>
             <h1>{task.title}</h1>
             <p>{task.node?.name} · {task.creator.nickname || task.creator.handle}发起</p>
             {task.organizer_contact && <p>组织方联系方式：{task.organizer_contact}</p>}
@@ -146,14 +150,14 @@ function TaskDetails({ taskId, initial }: { taskId: string; initial?: TaskDetail
           <div className="task-neutral-note">申请截止：{formatTimestamp(task.application_deadline, true)}</div>
         ) : null}
         {task.execution_deadline && <div className="task-neutral-note">交付截止：{formatTimestamp(task.execution_deadline, true)}</div>}
-        {(task.overdue || (['in_progress', 'under_review'].includes(task.status) && task.execution_deadline && Date.parse(task.execution_deadline) <= now)) && <div className="task-warning-note"><CircleAlert size={18} /><div><strong>任务已逾期</strong><p>请与负责人 {task.creator.nickname || task.creator.handle} 联系，确认交付安排。</p><Link to="/profile/$actor" params={{ actor: task.creator.did }}>查看负责人主页</Link></div></div>}
+        {(task.status === 'overdue' || overdueProgress) && <div className="task-warning-note"><CircleAlert size={18} /><div><strong>任务已超时</strong><p>请与负责人 {task.creator.nickname || task.creator.handle} 联系，确认交付安排。</p><Link to="/profile/$actor" params={{ actor: task.creator.did }}>查看负责人主页</Link></div></div>}
 
         {task.status === 'completed' ? (
           <div className="task-success-note"><CheckCircle2 size={18} /> 结果已认可，任务完成</div>
         ) : null}
         {task.status === 'draft' ? <div className="task-neutral-note">草稿仅你可见，发布后才进入任务列表。</div> : null}
-        {task.status === 'expired' ? <div className="task-neutral-note">该任务已结束。</div> : null}
-        {latestRejected && task.status === 'in_progress' ? <ChangesRequested submission={latestRejected} /> : null}
+        {(task.status === 'expired' || expiredOpen) ? <div className="task-neutral-note">该任务已失效。</div> : null}
+        {latestRejected && ['in_progress', 'overdue'].includes(task.status) ? <ChangesRequested submission={latestRejected} /> : null}
         {error ? <div className="inline-error" role="alert">{error}</div> : null}
 
         {!session && task.status === 'open' && !task.application_closed && (!task.application_deadline || Date.parse(task.application_deadline) > now) && <section className="task-action-section"><LoginLink className="primary-link" returnTo={`/tasks/${encodeURIComponent(taskId)}`}>登录后申请承接</LoginLink></section>}
@@ -164,7 +168,7 @@ function TaskDetails({ taskId, initial }: { taskId: string; initial?: TaskDetail
           </section>
         ) : null}
 
-        {actions.has('apply') && token && (!task.application_deadline || Date.parse(task.application_deadline) > now) ? (
+        {actions.has('apply') && token && !task.application_closed && !expiredOpen ? (
           <section className="task-action-section">
             {!applyOpen ? (
               <Button label="申请承接" variant="primary" onClick={() => setApplyOpen(true)} />
@@ -206,7 +210,7 @@ function TaskDetails({ taskId, initial }: { taskId: string; initial?: TaskDetail
           <div className="task-neutral-note">你申请过该任务；任务现已失效。</div>
         ) : null}
 
-        {(actions.has('appoint') || actions.has('reject_application')) && token ? (
+        {(actions.has('appoint') || actions.has('reject_application')) && token && !expiredOpen ? (
           <section className="task-action-section">
             <h2>待审批申请</h2>
             {actions.has('appoint') && <TextArea
@@ -252,7 +256,7 @@ function TaskDetails({ taskId, initial }: { taskId: string; initial?: TaskDetail
           </section>
         ) : null}
 
-        {actions.has('cancel') && token ? (
+        {actions.has('cancel') && token && !expiredOpen ? (
           <section className="task-action-section">
             {!cancelOpen ? (
               <Button label="取消任务" variant="destructive" onClick={() => setCancelOpen(true)} />
