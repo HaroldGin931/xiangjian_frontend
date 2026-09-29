@@ -102,6 +102,7 @@ function TaskDetails({ taskId, initial }: { taskId: string; initial?: TaskDetail
 
   if (!isReady || (loading && !task)) return <LoadingState label="正在加载任务…" className="page loading-line" />
   if (!task) return <div className="page"><div className="inline-error">{error || '任务不存在'}</div></div>
+  if (task.status === 'cancelled') return <div className="page"><p className="search-hint">任务已取消。</p></div>
 
   const actions = new Set(task.allowed_actions)
   const token = session?.token
@@ -151,7 +152,6 @@ function TaskDetails({ taskId, initial }: { taskId: string; initial?: TaskDetail
           <div className="task-success-note"><CheckCircle2 size={18} /> 结果已认可，任务完成</div>
         ) : null}
         {task.status === 'draft' ? <div className="task-neutral-note">草稿仅你可见，发布后才进入任务列表。</div> : null}
-        {task.status === 'cancelled' ? <div className="task-neutral-note">该任务已由发布者取消。</div> : null}
         {task.status === 'expired' ? <div className="task-neutral-note">该任务已结束。</div> : null}
         {latestRejected && task.status === 'in_progress' ? <ChangesRequested submission={latestRejected} /> : null}
         {error ? <div className="inline-error" role="alert">{error}</div> : null}
